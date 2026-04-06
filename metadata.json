@@ -1,0 +1,5 @@
+{
+  "name": "Zenith Finance",
+  "description": "A high-end personal finance app with AI insights, voice input, and Google Sheets integration.",
+  "requestFramePermissions": ["microphone"]
+}

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#000000" />
+    <title>Zenith Finance</title>
+    <script>
+      // Force unregister any old service workers that might be causing white screens
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister();
+          }
+        });
+      }
+      
+      // Global error handler to catch early crashes
+      window.onerror = function(msg, url, line, col, error) {
+        console.error('Global Error:', msg, url, line, col, error);
+        // If it's a MIME type error, it might be a caching issue
+        if (msg.indexOf('MIME type') !== -1) {
+          if (!window.location.search || window.location.search.indexOf('v=') === -1) {
+            window.location.search = '?v=' + Date.now();
+          }
+        }
+      };
+    </script>
+  </head>
+  <body>
+    <div id="root">
+      <div style="height: 100vh; display: flex; align-items: center; justify-content: center; font-family: sans-serif; background: white;">
+        <div style="text-align: center;">
+          <div style="width: 64px; height: 64px; background: black; border-radius: 16px; margin: 0 auto 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);">
+            <span style="color: white; font-weight: 900; font-size: 24px;">Z</span>
+          </div>
+          <p style="color: #999; font-weight: 600; font-size: 14px; letter-spacing: -0.01em;">Initializing Zenith Finance...</p>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
