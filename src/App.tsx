@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, MessageSquare, Plus, Settings, LogOut, User, Menu, X, Loader2 } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Plus, Settings as SettingsIcon, LogOut, User, Menu, X, Loader2, Tag } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Transaction } from './lib/db';
@@ -8,11 +8,13 @@ import Dashboard from './components/Dashboard';
 import InsightsChat from './components/InsightsChat';
 import VoiceInput from './components/VoiceInput';
 import AuthOverlay from './components/AuthOverlay';
+import CategoryManager from './components/CategoryManager';
+import Settings from './components/Settings';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'chat'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'categories' | 'settings'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const transactions = useLiveQuery(() => db.transactions.toArray()) || [];
   const accounts = useLiveQuery(() => db.accounts.toArray()) || [];
@@ -89,7 +91,17 @@ export default function App() {
       const { isAuthenticated } = await sheetsService.fetchAuthStatus();
       setIsAuthenticated(isAuthenticated);
       if (isAuthenticated) {
-        sheetsService.syncToLocal();
+        // Ensure we have a spreadsheet ID
+        let spreadsheetId = sheetsService.getSpreadsheetId();
+        if (!spreadsheetId) {
+          console.log("Spreadsheet ID missing, attempting to find/create...");
+          const data = await sheetsService.createSheet();
+          spreadsheetId = data.spreadsheetId;
+        }
+        
+        if (spreadsheetId) {
+          sheetsService.syncToLocal();
+        }
       }
     } catch (error) {
       console.error("Auth check failed:", error);
@@ -170,16 +182,27 @@ export default function App() {
               <MessageSquare className="w-5 h-5" />
               Ask Zenith
             </button>
+            <button
+              onClick={() => { setActiveTab('categories'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'categories' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+            >
+              <Tag className="w-5 h-5" />
+              Categories
+            </button>
           </nav>
 
           <div className="pt-6 border-t border-gray-50 space-y-2">
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-gray-400 hover:bg-gray-50 hover:text-gray-900 transition-all">
-              <Settings className="w-5 h-5" />
+            <button
+              onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'settings' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+            >
+              <SettingsIcon className="w-5 h-5" />
               Settings
             </button>
             <button 
               onClick={async () => {
                 await fetch('/api/auth/logout', { method: 'POST' });
+                await sheetsService.setTokens(null);
                 setIsAuthenticated(false);
               }}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-red-400 hover:bg-red-50 transition-all"
@@ -227,7 +250,7 @@ export default function App() {
               >
                 <Dashboard transactions={transactions} accounts={accounts} budgets={budgets} recurring={recurring} />
               </motion.div>
-            ) : (
+            ) : activeTab === 'chat' ? (
               <motion.div
                 key="chat"
                 initial={{ opacity: 0, x: 20 }}
@@ -236,6 +259,26 @@ export default function App() {
                 className="h-full p-6 lg:p-8"
               >
                 <InsightsChat transactions={transactions} accounts={accounts} budgets={budgets} />
+              </motion.div>
+            ) : activeTab === 'categories' ? (
+              <motion.div
+                key="categories"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full p-6 lg:p-8"
+              >
+                <CategoryManager transactions={transactions} budgets={budgets} recurring={recurring} />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="settings"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full p-6 lg:p-8"
+              >
+                <Settings />
               </motion.div>
             )}
           </AnimatePresence>

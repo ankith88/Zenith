@@ -3,8 +3,8 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, PieChart, Pie
 } from 'recharts';
-import { motion } from 'motion/react';
-import { TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Landmark, Banknote, Trash2, Edit2, Target } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Landmark, Banknote, Trash2, Edit2, Target, X } from 'lucide-react';
 import { Transaction, Account, Budget, RecurringTransaction, db } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
 import AccountManager from './AccountManager';
@@ -19,12 +19,27 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ transactions, accounts, budgets, recurring }: DashboardProps) {
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
   const handleSync = async () => {
     setIsSyncing(true);
     await sheetsService.syncToLocal();
     setIsSyncing(false);
+  };
+
+  const handleUpdateTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTransaction) return;
+    
+    try {
+      await db.transactions.update(editingTransaction.id!, { ...editingTransaction, synced: false });
+      await sheetsService.updateTransaction(editingTransaction);
+      await db.transactions.update(editingTransaction.id!, { synced: true });
+      setEditingTransaction(null);
+    } catch (error) {
+      console.error("Update transaction error:", error);
+    }
   };
 
   const handleDeleteTransaction = async (id: number) => {
@@ -81,8 +96,13 @@ export default function Dashboard({ transactions, accounts, budgets, recurring }
       return { ...b, spent, percent: Math.min((spent / b.amount) * 100, 100) };
     });
 
-    return { income, expenses, totalBalance, pieData, areaData, accountBalances, budgetProgress };
-  }, [transactions, accounts, budgets]);
+    const unsyncedCount = transactions.filter(t => !t.synced).length + 
+                         accounts.filter(a => !a.synced).length + 
+                         budgets.filter(b => !b.synced).length + 
+                         recurring.filter(r => !r.synced).length;
+
+    return { income, expenses, totalBalance, pieData, areaData, accountBalances, budgetProgress, unsyncedCount };
+  }, [transactions, accounts, budgets, recurring]);
 
   const getAccountName = (id: number) => accounts.find(a => a.id === id)?.name || 'Unknown';
 
@@ -91,14 +111,22 @@ export default function Dashboard({ transactions, accounts, budgets, recurring }
       {/* Summary Cards */}
       <div className="flex items-center justify-between">
         <h3 className="text-2xl font-black text-gray-900">Overview</h3>
-        <button
-          onClick={handleSync}
-          disabled={isSyncing}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
-        >
-          {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          Sync Sheets
-        </button>
+        <div className="flex items-center gap-3">
+          {stats.unsyncedCount > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 animate-pulse">
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="text-xs font-bold">{stats.unsyncedCount} unsynced items</span>
+            </div>
+          )}
+          <button
+            onClick={handleSync}
+            disabled={isSyncing}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
+          >
+            {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Sync Sheets
+          </button>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -319,6 +347,12 @@ export default function Dashboard({ transactions, accounts, budgets, recurring }
                   <td className="px-8 py-4 text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
+                        onClick={() => setEditingTransaction(t)}
+                        className="p-2 hover:bg-gray-100 text-gray-600 rounded-xl transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button 
                         onClick={() => t.id && handleDeleteTransaction(t.id)}
                         className="p-2 hover:bg-rose-50 text-rose-600 rounded-xl transition-colors"
                       >
@@ -332,6 +366,81 @@ export default function Dashboard({ transactions, accounts, budgets, recurring }
           </table>
         </div>
       </div>
+      {/* Edit Transaction Modal */}
+      <AnimatePresence>
+        {editingTransaction && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] bg-black/20 backdrop-blur-sm flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900">Edit Transaction</h3>
+                <button onClick={() => setEditingTransaction(null)} className="p-2 hover:bg-gray-50 rounded-xl">
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+              <form onSubmit={handleUpdateTransaction} className="p-6 space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Description</label>
+                  <input
+                    required
+                    type="text"
+                    value={editingTransaction.description}
+                    onChange={(e) => setEditingTransaction({ ...editingTransaction, description: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Amount</label>
+                    <input
+                      required
+                      type="number"
+                      step="0.01"
+                      value={editingTransaction.amount}
+                      onChange={(e) => setEditingTransaction({ ...editingTransaction, amount: parseFloat(e.target.value) })}
+                      className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Category</label>
+                    <input
+                      required
+                      type="text"
+                      value={editingTransaction.category}
+                      onChange={(e) => setEditingTransaction({ ...editingTransaction, category: e.target.value })}
+                      className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Date</label>
+                  <input
+                    required
+                    type="date"
+                    value={editingTransaction.date}
+                    onChange={(e) => setEditingTransaction({ ...editingTransaction, date: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                  />
+                </div>
+                <button
+                  className="w-full py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-all active:scale-95 mt-4"
+                >
+                  Save Changes
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

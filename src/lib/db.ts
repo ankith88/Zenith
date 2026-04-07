@@ -42,19 +42,26 @@ export interface RecurringTransaction {
   synced: boolean;
 }
 
+export interface AppSetting {
+  key: string;
+  value: any;
+}
+
 export class ZenithDB extends Dexie {
   transactions!: Table<Transaction>;
   accounts!: Table<Account>;
   budgets!: Table<Budget>;
   recurringTransactions!: Table<RecurringTransaction>;
+  settings!: Table<AppSetting>;
 
   constructor() {
     super('ZenithDB');
-    this.version(5).stores({
+    this.version(6).stores({
       transactions: '++id, date, category, type, accountId, toAccountId, synced',
       accounts: '++id, name, type, synced',
       budgets: '++id, category, synced',
-      recurringTransactions: '++id, frequency, accountId, toAccountId, synced'
+      recurringTransactions: '++id, frequency, accountId, toAccountId, synced',
+      settings: 'key'
     });
   }
 }

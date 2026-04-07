@@ -24,27 +24,86 @@ app.use(
   cookieSession({
     name: "zenith_session",
     keys: [process.env.SESSION_SECRET || "zenith-finance-secret"],
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     secure: true,
-    sameSite: "none",
+    sameSite: "none", // Required for iframes and cross-site auth flows
     httpOnly: true,
   })
 );
 
 app.use(express.json());
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  `${process.env.APP_URL}/auth/callback`
-);
+// Session Debug Endpoint
+app.get("/api/auth/debug", (req, res) => {
+  res.json({
+    hasSession: !!req.session,
+    hasTokens: !!req.session?.tokens,
+    cookieHeader: req.headers.cookie ? "Present" : "Missing",
+    env: process.env.NODE_ENV,
+    secure: req.secure,
+    protocol: req.protocol,
+    headers: req.headers
+  });
+});
+
+// Helper to get OAuth2 client with current host and tokens
+const getOAuth2Client = (req: express.Request, tokens?: any) => {
+  // Determine redirect URI based on current host
+  // Cloud Run and most proxies use x-forwarded-proto
+  const protocol = req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http");
+  const host = req.headers["x-forwarded-host"] || req.get("host");
+  
+  // Force HTTPS if we're not on localhost to avoid mismatch
+  const finalProtocol = host?.includes("localhost") ? protocol : "https";
+  const redirectUri = `${finalProtocol}://${host}/auth/callback`;
+  
+  console.log(`Auth: Generated Redirect URI: ${redirectUri}`);
+  console.log(`Auth: Headers - Proto: ${req.headers["x-forwarded-proto"]}, Host: ${req.headers["x-forwarded-host"]}`);
+  
+  const client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    redirectUri
+  );
+  
+  if (tokens) {
+    client.setCredentials(tokens);
+  }
+  
+  return client;
+};
+
+// Helper to get tokens from session or header
+const getAuthTokens = (req: express.Request) => {
+  if (req.session?.tokens) {
+    console.log("Auth: Using session tokens");
+    return req.session.tokens;
+  }
+  
+  const tokenHeader = req.headers["x-zenith-tokens"];
+  if (tokenHeader && typeof tokenHeader === "string") {
+    try {
+      const tokens = JSON.parse(Buffer.from(tokenHeader, 'base64').toString());
+      console.log("Auth: Using header tokens");
+      return tokens;
+    } catch (e) {
+      console.error("Auth: Failed to parse token header");
+      return null;
+    }
+  }
+  
+  console.log("Auth: No tokens found in session or header");
+  return null;
+};
 
 // Auth Routes
 app.get("/api/auth/url", (req, res) => {
-  const url = oauth2Client.generateAuthUrl({
+  const client = getOAuth2Client(req);
+  const url = client.generateAuthUrl({
     access_type: "offline",
     scope: [
       "https://www.googleapis.com/auth/spreadsheets",
+      "https://www.googleapis.com/auth/drive.file",
       "https://www.googleapis.com/auth/userinfo.profile",
       "https://www.googleapis.com/auth/userinfo.email",
     ],
@@ -56,17 +115,37 @@ app.get("/api/auth/url", (req, res) => {
 app.get("/auth/callback", async (req, res) => {
   const { code } = req.query;
   try {
-    const { tokens } = await oauth2Client.getToken(code as string);
-    req.session!.tokens = tokens;
+    const client = getOAuth2Client(req);
+    const { tokens } = await client.getToken(code as string);
+    // Essential token data
+    const tokenData = {
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expiry_date: tokens.expiry_date
+    };
+    
+    req.session!.tokens = tokenData;
+    
+    // Base64 encode tokens for the client to store in localStorage as a backup
+    const encodedTokens = Buffer.from(JSON.stringify(tokenData)).toString('base64');
+    
+    console.log("Session saved for tokens:", !!req.session?.tokens);
     
     res.send(`
       <html>
         <body>
           <script>
+            const tokenData = ${JSON.stringify(tokenData)};
+            const encodedTokens = "${encodedTokens}";
             if (window.opener) {
-              window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
-              window.close();
+              window.opener.postMessage({ 
+                type: 'OAUTH_AUTH_SUCCESS', 
+                tokens: tokenData,
+                encodedTokens: encodedTokens
+              }, '*');
+              setTimeout(() => window.close(), 500);
             } else {
+              localStorage.setItem('zenith_tokens', encodedTokens);
               window.location.href = '/';
             }
           </script>
@@ -81,7 +160,77 @@ app.get("/auth/callback", async (req, res) => {
 });
 
 app.get("/api/auth/status", (req, res) => {
-  res.json({ isAuthenticated: !!req.session?.tokens });
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  
+  const tokens = getAuthTokens(req);
+  const isAuthenticated = !!tokens;
+  
+  console.log("Auth Status Check - Authenticated:", isAuthenticated);
+  
+  res.json({ 
+    isAuthenticated,
+    timestamp: Date.now(),
+    debug: {
+      hasSession: !!req.session,
+      hasTokens: !!req.session?.tokens,
+      hasHeader: !!req.headers["x-zenith-tokens"],
+      cookie: req.headers.cookie ? "Present" : "Missing",
+      sessionKeys: Object.keys(req.session || {}),
+      nodeEnv: process.env.NODE_ENV,
+      secure: req.secure,
+      protocol: req.protocol,
+      origin: req.headers.origin,
+      referer: req.headers.referer,
+      userAgent: req.headers["user-agent"],
+      host: req.headers.host,
+      ip: req.ip,
+      ips: req.ips,
+      xhr: req.xhr,
+      cookies: req.cookies,
+      signedCookies: req.signedCookies,
+      sessionOptions: (req as any).sessionOptions,
+      isIframe: req.headers["sec-fetch-dest"] === "iframe",
+      secFetchSite: req.headers["sec-fetch-site"],
+      secFetchMode: req.headers["sec-fetch-mode"],
+      secFetchUser: req.headers["sec-fetch-user"],
+      accept: req.headers.accept,
+      acceptEncoding: req.headers["accept-encoding"],
+      acceptLanguage: req.headers["accept-language"],
+      connection: req.headers.connection,
+      cacheControl: req.headers["cache-control"],
+      pragma: req.headers.pragma,
+      upgradeInsecureRequests: req.headers["upgrade-insecure-requests"],
+      dnt: req.headers.dnt,
+      secChUa: req.headers["sec-ch-ua"],
+      secChUaMobile: req.headers["sec-ch-ua-mobile"],
+      secChUaPlatform: req.headers["sec-ch-ua-platform"],
+      secFetchDest: req.headers["sec-fetch-dest"],
+      xForwardedFor: req.headers["x-forwarded-for"],
+      xForwardedProto: req.headers["x-forwarded-proto"],
+      xForwardedHost: req.headers["x-forwarded-host"],
+      xRealIp: req.headers["x-real-ip"],
+      xForwardedPort: req.headers["x-forwarded-port"],
+      via: req.headers.via,
+      xCloudTraceContext: req.headers["x-cloud-trace-context"],
+      traceparent: req.headers.traceparent,
+      purpose: req.headers.purpose,
+      secFetchStorageAccess: req.headers["sec-fetch-storage-access"],
+      priority: req.headers.priority,
+      xRequestStart: req.headers["x-request-start"],
+      xAppengineCity: req.headers["x-appengine-city"],
+      xAppengineCitylatlong: req.headers["x-appengine-citylatlong"],
+      xAppengineCountry: req.headers["x-appengine-country"],
+      xAppengineRegion: req.headers["x-appengine-region"],
+      xAppengineUserIp: req.headers["x-appengine-user-ip"],
+      xAppengineHttps: req.headers["x-appengine-https"],
+      xAppengineRequestLogId: req.headers["x-appengine-request-log-id"],
+      xAppengineDefaultVersionHostname: req.headers["x-appengine-default-version-hostname"],
+      xAppengineServerName: req.headers["x-appengine-server-name"],
+      xAppengineVersion: req.headers["x-appengine-version"]
+    }
+  });
 });
 
 app.post("/api/auth/logout", (req, res) => {
@@ -91,14 +240,15 @@ app.post("/api/auth/logout", (req, res) => {
 
 // Google Sheets Proxy API
 app.get("/api/sheets/data", async (req, res) => {
-  if (!req.session?.tokens) return res.status(401).json({ error: "Unauthorized" });
+  const tokens = getAuthTokens(req);
+  if (!tokens) return res.status(401).json({ error: "Unauthorized" });
 
   const { spreadsheetId, range } = req.query;
   if (!spreadsheetId || !range) return res.status(400).json({ error: "Missing parameters" });
 
   try {
-    oauth2Client.setCredentials(req.session.tokens);
-    const sheets = google.sheets({ version: "v4", auth: oauth2Client });
+    const client = getOAuth2Client(req, tokens);
+    const sheets = google.sheets({ version: "v4", auth: client });
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: spreadsheetId as string,
       range: range as string,
@@ -111,14 +261,15 @@ app.get("/api/sheets/data", async (req, res) => {
 });
 
 app.post("/api/sheets/append", async (req, res) => {
-  if (!req.session?.tokens) return res.status(401).json({ error: "Unauthorized" });
+  const tokens = getAuthTokens(req);
+  if (!tokens) return res.status(401).json({ error: "Unauthorized" });
 
   const { spreadsheetId, range, values } = req.body;
   if (!spreadsheetId || !range || !values) return res.status(400).json({ error: "Missing parameters" });
 
   try {
-    oauth2Client.setCredentials(req.session.tokens);
-    const sheets = google.sheets({ version: "v4", auth: oauth2Client });
+    const client = getOAuth2Client(req, tokens);
+    const sheets = google.sheets({ version: "v4", auth: client });
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId,
       range,
@@ -133,14 +284,15 @@ app.post("/api/sheets/append", async (req, res) => {
 });
 
 app.post("/api/sheets/update", async (req, res) => {
-  if (!req.session?.tokens) return res.status(401).json({ error: "Unauthorized" });
+  const tokens = getAuthTokens(req);
+  if (!tokens) return res.status(401).json({ error: "Unauthorized" });
 
   const { spreadsheetId, range, values } = req.body;
   if (!spreadsheetId || !range || !values) return res.status(400).json({ error: "Missing parameters" });
 
   try {
-    oauth2Client.setCredentials(req.session.tokens);
-    const sheets = google.sheets({ version: "v4", auth: oauth2Client });
+    const client = getOAuth2Client(req, tokens);
+    const sheets = google.sheets({ version: "v4", auth: client });
     const response = await sheets.spreadsheets.values.update({
       spreadsheetId,
       range,
@@ -155,14 +307,15 @@ app.post("/api/sheets/update", async (req, res) => {
 });
 
 app.post("/api/sheets/delete-row", async (req, res) => {
-  if (!req.session?.tokens) return res.status(401).json({ error: "Unauthorized" });
+  const tokens = getAuthTokens(req);
+  if (!tokens) return res.status(401).json({ error: "Unauthorized" });
 
   const { spreadsheetId, sheetId, rowIndex } = req.body;
   if (!spreadsheetId || sheetId === undefined || rowIndex === undefined) return res.status(400).json({ error: "Missing parameters" });
 
   try {
-    oauth2Client.setCredentials(req.session.tokens);
-    const sheets = google.sheets({ version: "v4", auth: oauth2Client });
+    const client = getOAuth2Client(req, tokens);
+    const sheets = google.sheets({ version: "v4", auth: client });
     const response = await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       requestBody: {
@@ -188,14 +341,15 @@ app.post("/api/sheets/delete-row", async (req, res) => {
 });
 
 app.get("/api/sheets/metadata", async (req, res) => {
-  if (!req.session?.tokens) return res.status(401).json({ error: "Unauthorized" });
+  const tokens = getAuthTokens(req);
+  if (!tokens) return res.status(401).json({ error: "Unauthorized" });
 
   const { spreadsheetId } = req.query;
   if (!spreadsheetId) return res.status(400).json({ error: "Missing parameters" });
 
   try {
-    oauth2Client.setCredentials(req.session.tokens);
-    const sheets = google.sheets({ version: "v4", auth: oauth2Client });
+    const client = getOAuth2Client(req, tokens);
+    const sheets = google.sheets({ version: "v4", auth: client });
     const response = await sheets.spreadsheets.get({
       spreadsheetId: spreadsheetId as string,
     });
@@ -206,12 +360,49 @@ app.get("/api/sheets/metadata", async (req, res) => {
   }
 });
 
-app.post("/api/sheets/create", async (req, res) => {
-  if (!req.session?.tokens) return res.status(401).json({ error: "Unauthorized" });
+app.post("/api/sheets/clear", async (req, res) => {
+  const tokens = getAuthTokens(req);
+  if (!tokens) return res.status(401).json({ error: "Unauthorized" });
+
+  const { spreadsheetId, range } = req.body;
+  if (!spreadsheetId || !range) return res.status(400).json({ error: "Missing parameters" });
 
   try {
-    oauth2Client.setCredentials(req.session.tokens);
-    const sheets = google.sheets({ version: "v4", auth: oauth2Client });
+    const client = getOAuth2Client(req, tokens);
+    const sheets = google.sheets({ version: "v4", auth: client });
+    const response = await sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range,
+    });
+    res.json(response.data);
+  } catch (error: any) {
+    console.error("Sheets API clear error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/sheets/create", async (req, res) => {
+  const tokens = getAuthTokens(req);
+  if (!tokens) return res.status(401).json({ error: "Unauthorized" });
+
+  try {
+    const client = getOAuth2Client(req, tokens);
+    const drive = google.drive({ version: "v3", auth: client });
+    
+    // 1. Search for existing spreadsheet first
+    const searchRes = await drive.files.list({
+      q: "name = 'Zenith Finance Data' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false",
+      fields: "files(id, name)",
+      pageSize: 1,
+    });
+
+    if (searchRes.data.files && searchRes.data.files.length > 0) {
+      console.log("Found existing spreadsheet:", searchRes.data.files[0].id);
+      return res.json({ spreadsheetId: searchRes.data.files[0].id, existing: true });
+    }
+
+    // 2. If not found, create a new one
+    const sheets = google.sheets({ version: "v4", auth: client });
     const response = await sheets.spreadsheets.create({
       requestBody: {
         properties: { title: "Zenith Finance Data" },
