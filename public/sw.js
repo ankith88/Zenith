@@ -1,8 +1,9 @@
-const CACHE_NAME = 'zenith-finance-v1';
+const CACHE_NAME = 'zenith-finance-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/logo.png'
 ];
 
 self.addEventListener('install', (event) => {

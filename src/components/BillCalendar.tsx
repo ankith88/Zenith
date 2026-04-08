@@ -25,21 +25,34 @@ export default function BillCalendar({ recurring, accounts, accountBalances }: B
     const events: Record<number, any[]> = {};
     
     recurring.forEach(r => {
-      const start = new Date(r.startDate);
+      // Parse YYYY-MM-DD manually to ensure local timezone interpretation
+      const [y, m, d] = r.startDate.split('-').map(Number);
+      const start = new Date(y, m - 1, d);
       
-      // Simple logic for monthly/weekly recurring
-      if (r.frequency === 'Monthly') {
-        const day = start.getDate();
-        if (!events[day]) events[day] = [];
-        events[day].push(r);
-      } else if (r.frequency === 'Weekly') {
-        const startDay = start.getDay();
-        for (let i = 1; i <= daysInMonth; i++) {
-          const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
-          if (date.getDay() === startDay) {
-            if (!events[i]) events[i] = [];
-            events[i].push(r);
-          }
+      for (let i = 1; i <= daysInMonth; i++) {
+        const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
+        
+        // Normalize both to midnight for comparison
+        const dateMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+        const startMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
+
+        // Skip if before start date
+        if (dateMidnight < startMidnight) continue;
+
+        let isMatch = false;
+        if (r.frequency === 'Monthly') {
+          isMatch = date.getDate() === start.getDate();
+        } else if (r.frequency === 'Weekly') {
+          isMatch = date.getDay() === start.getDay();
+        } else if (r.frequency === 'Daily') {
+          isMatch = true;
+        } else if (r.frequency === 'Yearly') {
+          isMatch = date.getDate() === start.getDate() && date.getMonth() === start.getMonth();
+        }
+
+        if (isMatch) {
+          if (!events[i]) events[i] = [];
+          events[i].push(r);
         }
       }
     });

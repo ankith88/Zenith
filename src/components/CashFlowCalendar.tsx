@@ -55,7 +55,17 @@ export default function CashFlowCalendar({ transactions, accounts, recurring }: 
 
       // Add recurring income/expenses
       const dayRecurring = recurring.filter(r => {
-        const start = new Date(r.startDate);
+        // Parse YYYY-MM-DD manually to ensure local timezone interpretation
+        const [y, m, d] = r.startDate.split('-').map(Number);
+        const start = new Date(y, m - 1, d);
+
+        // Normalize both to midnight for comparison
+        const dateMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+        const startMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
+
+        // Ensure we only include if the projection date is >= start date
+        if (dateMidnight < startMidnight) return false;
+
         if (r.frequency === 'Monthly') {
           return start.getDate() === dayOfMonth;
         }

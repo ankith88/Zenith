@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Wallet, Landmark, CreditCard, Banknote, Loader2, X, Edit2, Trash2, Briefcase, Calendar, Home, Scale, Car, TrendingUp } from 'lucide-react';
+import { Plus, Wallet, Landmark, CreditCard, Banknote, Loader2, X, Edit2, Trash2, Briefcase, Calendar, Home, Scale, Car, TrendingUp, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, Account, Transaction } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
@@ -24,10 +24,11 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
     minPayment: '',
     owner: 'Me',
     isPrivate: false,
-    assetValue: ''
+    assetValue: '',
+    creditLimit: ''
   });
 
-  const commonNames = ['Main Checking', 'Emergency Fund', 'Travel Savings', 'Side Hustle', 'Daily Cash', 'Salary Hub', 'Business Account', 'Home Mortgage'];
+  const commonNames = ['Main Checking', 'Emergency Fund', 'Mortgage Offset', 'Travel Savings', 'Side Hustle', 'Daily Cash', 'Salary Hub', 'Business Account', 'Home Mortgage'];
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +43,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
         interestRate: formData.interestRate ? parseFloat(formData.interestRate) : undefined,
         minPayment: formData.minPayment ? parseFloat(formData.minPayment) : undefined,
         assetValue: formData.assetValue ? parseFloat(formData.assetValue) : undefined,
+        creditLimit: formData.creditLimit ? parseFloat(formData.creditLimit) : undefined,
         owner: formData.owner,
         isPrivate: formData.isPrivate,
         synced: false
@@ -52,7 +54,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
       await db.accounts.update(newAccount.id!, { synced: true });
       
       setIsAdding(false);
-      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '' });
+      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '' });
     } catch (error) {
       console.error("Add account error:", error);
     } finally {
@@ -65,11 +67,15 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
     if (!editingAccount) return;
     setIsLoading(true);
     try {
-      await db.accounts.update(editingAccount.id!, { ...editingAccount, synced: false });
-      await sheetsService.updateAccount(editingAccount);
+      const updatedAccount: Account = {
+        ...editingAccount,
+        synced: false
+      };
+      await db.accounts.update(editingAccount.id!, updatedAccount);
+      await sheetsService.updateAccount(updatedAccount);
       await db.accounts.update(editingAccount.id!, { synced: true });
       setEditingAccount(null);
-      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '' });
+      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '' });
     } catch (error) {
       console.error("Update account error:", error);
     } finally {
@@ -140,10 +146,12 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
   const getIcon = (type: string) => {
     switch (type) {
       case 'Savings': return <Landmark className="w-5 h-5" />;
+      case 'Offset Account': return <ShieldCheck className="w-5 h-5" />;
       case 'Checking': return <Wallet className="w-5 h-5" />;
       case 'Credit Card': return <CreditCard className="w-5 h-5" />;
       case 'Cash': return <Banknote className="w-5 h-5" />;
       case 'Salary Account': return <Briefcase className="w-5 h-5" />;
+      case 'Offset Account': return <ShieldCheck className="w-5 h-5" />;
       case 'Daily Account': return <Calendar className="w-5 h-5" />;
       case 'Business Account': return <Briefcase className="w-5 h-5" />;
       case 'Mortgage': return <Home className="w-5 h-5" />;
@@ -180,8 +188,27 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                 {acc.owner && acc.owner !== 'Me' && (
                   <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-500 text-[8px] font-black uppercase rounded-md border border-indigo-100">{acc.owner}</span>
                 )}
+                {acc.type === 'Credit Card' && acc.creditLimit && (
+                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
+                    (accountBalances[acc.id!] || 0) < -(acc.creditLimit * 0.9) 
+                      ? 'bg-red-100 text-red-600 animate-pulse' 
+                      : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    Limit: ${acc.creditLimit.toLocaleString()}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-gray-400">{acc.type}</p>
+              {acc.type === 'Credit Card' && acc.creditLimit && (
+                <div className="mt-2 w-full bg-gray-100 h-1 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all ${
+                      (accountBalances[acc.id!] || 0) < -(acc.creditLimit * 0.9) ? 'bg-red-500' : 'bg-black'
+                    }`}
+                    style={{ width: `${Math.min(100, (Math.abs(accountBalances[acc.id!] || 0) / acc.creditLimit) * 100)}%` }}
+                  />
+                </div>
+              )}
             </div>
               <div className="text-right">
                 <p className="text-sm font-black text-gray-900">${(accountBalances[acc.id!] || 0).toLocaleString()}</p>
@@ -331,6 +358,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                   >
                     <option value="Checking">Checking</option>
                     <option value="Savings">Savings</option>
+                    <option value="Offset Account">Offset Account</option>
                     <option value="Salary Account">Salary Account</option>
                     <option value="Daily Account">Daily Account</option>
                     <option value="Business Account">Business Account</option>
@@ -385,20 +413,35 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                   <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 space-y-3">
                     <div className="flex items-center gap-2 text-emerald-700">
                       <TrendingUp className="w-4 h-4" />
-                      <span className="text-xs font-bold uppercase tracking-wider">Asset Valuation</span>
+                      <span className="text-xs font-bold uppercase tracking-wider">Asset & Limit Settings</span>
                     </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-emerald-600 uppercase mb-1 block">Current Market Value (Asset)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={editingAccount ? editingAccount.assetValue || '' : formData.assetValue}
-                        onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, assetValue: parseFloat(e.target.value) }) : setFormData({ ...formData, assetValue: e.target.value })}
-                        placeholder="e.g. 1600000"
-                        className="w-full px-4 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-emerald-900"
-                      />
-                      <p className="text-[10px] text-emerald-500 mt-1 italic">Linked asset value helps calculate your true Net Worth.</p>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-emerald-600 uppercase mb-1 block">Current Market Value (Asset)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editingAccount ? editingAccount.assetValue || '' : formData.assetValue}
+                          onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, assetValue: parseFloat(e.target.value) }) : setFormData({ ...formData, assetValue: e.target.value })}
+                          placeholder="e.g. 1600000"
+                          className="w-full px-4 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-emerald-900"
+                        />
+                      </div>
+                      {( (editingAccount && editingAccount.type === 'Credit Card') || (!editingAccount && formData.type === 'Credit Card') ) && (
+                        <div>
+                          <label className="text-[10px] font-bold text-emerald-600 uppercase mb-1 block">Credit Limit (Max Spend)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editingAccount ? editingAccount.creditLimit || '' : formData.creditLimit}
+                            onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, creditLimit: parseFloat(e.target.value) }) : setFormData({ ...formData, creditLimit: e.target.value })}
+                            placeholder="e.g. 15000"
+                            className="w-full px-4 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-emerald-900"
+                          />
+                        </div>
+                      )}
                     </div>
+                    <p className="text-[10px] text-emerald-500 mt-1 italic">Linked asset value helps calculate Net Worth. Credit limit tracks your max spend.</p>
                   </div>
                 )}
 

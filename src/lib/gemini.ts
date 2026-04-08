@@ -245,6 +245,72 @@ export class FinancialAnalystService {
 
     return JSON.parse(response.text);
   }
+
+  async detectSpendingAnomalies(transactions: Transaction[]): Promise<{
+    anomalies: {
+      type: string;
+      description: string;
+      amount: number;
+      category: string;
+      date: string;
+      insight: string;
+      severity: 'Low' | 'Medium' | 'High';
+    }[];
+  }> {
+    const recentTransactions = transactions.slice(-300).map(t => 
+      `${t.date}, ${t.amount}, ${t.category}, ${t.description}`
+    ).join('\n');
+
+    const response = await genAI.models.generateContent({
+      model: "gemini-3.1-flash-preview",
+      contents: `Analyze these transactions for spending anomalies or unusual patterns.
+      Look for:
+      1. Price increases in recurring bills (e.g., "Netflix went from $15 to $20").
+      2. Unusual volume in a category (e.g., "You spent 2x more on Dining Out this week than your average").
+      3. Large one-off expenses that are out of character.
+      4. New recurring charges that just started.
+
+      Transactions:
+      ${recentTransactions}
+      
+      Return a JSON object with an "anomalies" array.
+      For each anomaly, include:
+      - type: A short category (e.g., "Price Increase", "High Spending", "New Subscription")
+      - description: What happened (e.g., "Netflix subscription increased")
+      - amount: The amount involved
+      - category: The transaction category
+      - date: The date it was detected
+      - insight: A helpful tip or explanation
+      - severity: "Low", "Medium", or "High"`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            anomalies: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  type: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  amount: { type: Type.NUMBER },
+                  category: { type: Type.STRING },
+                  date: { type: Type.STRING },
+                  insight: { type: Type.STRING },
+                  severity: { type: Type.STRING, enum: ["Low", "Medium", "High"] },
+                },
+                required: ["type", "description", "amount", "category", "date", "insight", "severity"],
+              },
+            },
+          },
+          required: ["anomalies"],
+        },
+      },
+    });
+
+    return JSON.parse(response.text);
+  }
 }
 
 export const analystService = new FinancialAnalystService();

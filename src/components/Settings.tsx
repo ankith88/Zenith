@@ -1,16 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, ExternalLink, Database, Copy, Check, RefreshCw, Loader2, Shield, CloudUpload, CloudDownload, User } from 'lucide-react';
+import { Settings as SettingsIcon, ExternalLink, Database, Copy, Check, RefreshCw, Loader2, Shield, CloudUpload, CloudDownload, User, Clock, Activity } from 'lucide-react';
 import { motion } from 'motion/react';
 import { sheetsService } from '../lib/sheets';
 import { db } from '../lib/db';
 
 export default function Settings() {
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(null);
+  const [manualId, setManualId] = useState('');
   const [copied, setCopied] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -34,6 +41,7 @@ export default function Settings() {
         }
       }
       setSpreadsheetId(id);
+      if (id) setManualId(id);
     };
     
     checkStatus();
@@ -46,6 +54,25 @@ export default function Settings() {
       navigator.clipboard.writeText(spreadsheetId);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleLinkManualId = async () => {
+    if (!manualId.trim()) return;
+    setIsSyncing(true);
+    setSyncMessage("Linking to Spreadsheet...");
+    try {
+      await sheetsService.setSpreadsheetId(manualId.trim());
+      setSpreadsheetId(manualId.trim());
+      // Try to sync to verify
+      await sheetsService.syncToLocal();
+      setSyncMessage("Successfully linked and synced!");
+    } catch (error: any) {
+      console.error("Manual link failed:", error);
+      setSyncMessage(`Link failed: ${error.message || "Invalid ID or no access"}`);
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setSyncMessage(null), 5000);
     }
   };
 
@@ -140,6 +167,22 @@ export default function Settings() {
 
   const sheetUrl = spreadsheetId ? `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` : null;
 
+  const handleForceRecurring = async () => {
+    setIsSyncing(true);
+    setSyncMessage("Running recurring and interest checks...");
+    try {
+      if ((window as any).runRecurringCheck) await (window as any).runRecurringCheck();
+      if ((window as any).runInterestCheck) await (window as any).runInterestCheck();
+      setSyncMessage("Checks completed successfully!");
+    } catch (e) {
+      setSyncMessage("Checks failed. See console for details.");
+      console.error(e);
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setSyncMessage(null), 3000);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
       <div className="flex flex-col gap-2">
@@ -223,22 +266,39 @@ export default function Settings() {
           </div>
 
           <div className="space-y-4 pt-4 border-t border-gray-50">
-            {spreadsheetId && (
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Spreadsheet ID</label>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 bg-gray-50 px-4 py-3 rounded-xl text-xs font-mono text-gray-600 break-all">
-                    {spreadsheetId}
-                  </code>
-                  <button 
-                    onClick={copyToClipboard}
-                    className="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
-                  >
-                    {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
-                  </button>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Spreadsheet ID</label>
+              <div className="flex flex-col sm:flex-row items-stretch gap-2">
+                <div className="flex-1 flex items-center gap-2">
+                  <input 
+                    type="text"
+                    value={manualId}
+                    onChange={(e) => setManualId(e.target.value)}
+                    placeholder="Enter Google Spreadsheet ID..."
+                    className="flex-1 bg-gray-50 px-4 py-3 rounded-xl text-xs font-mono text-gray-600 outline-none focus:ring-2 focus:ring-black"
+                  />
+                  {spreadsheetId && (
+                    <button 
+                      onClick={copyToClipboard}
+                      className="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
+                      title="Copy ID"
+                    >
+                      {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
+                    </button>
+                  )}
                 </div>
+                <button 
+                  onClick={handleLinkManualId}
+                  disabled={isSyncing || !manualId.trim() || !isAuthenticated || manualId === spreadsheetId}
+                  className="px-6 py-3 bg-black text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : (manualId === spreadsheetId && spreadsheetId ? 'Linked' : 'Link ID')}
+                </button>
               </div>
-            )}
+              <p className="text-[10px] text-gray-400 italic">
+                Enter a Spreadsheet ID to link an existing database. Make sure you have "Editor" access to the sheet.
+              </p>
+            </div>
 
             {syncMessage && (
               <motion.div 
@@ -293,6 +353,62 @@ export default function Settings() {
                   {isAuthenticated ? 'Link Google Sheet' : 'Login to Sync'}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* System Diagnostics */}
+        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600">
+              <Activity className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">System Diagnostics</h3>
+              <p className="text-sm text-gray-500">Verify application time and processing status.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-4 bg-gray-50 rounded-2xl space-y-1">
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                <Clock className="w-3 h-3" />
+                App Local Time
+              </div>
+              <p className="text-lg font-mono font-bold text-gray-900">
+                {currentTime.toLocaleTimeString()}
+              </p>
+              <p className="text-[10px] text-gray-400">
+                {currentTime.toLocaleDateString()}
+              </p>
+            </div>
+
+            <div className="p-4 bg-gray-50 rounded-2xl space-y-1">
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                <Clock className="w-3 h-3" />
+                App UTC Time
+              </div>
+              <p className="text-lg font-mono font-bold text-gray-900">
+                {currentTime.toISOString().split('T')[1].split('.')[0]}
+              </p>
+              <p className="text-[10px] text-gray-400">
+                {currentTime.toISOString().split('T')[0]}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleForceRecurring}
+              disabled={isSyncing}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              Force Recurring Check
+            </button>
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium">
+              <Shield className="w-4 h-4" />
+              Auth: {isAuthenticated ? 'Connected' : 'Local Only'}
             </div>
           </div>
         </div>

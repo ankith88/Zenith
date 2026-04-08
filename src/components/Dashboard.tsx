@@ -55,10 +55,27 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
   };
 
   const stats = useMemo(() => {
-    // Filter data based on householdView
+    // Calculate ALL account balances first
+    const allAccountBalances = accounts.reduce((acc, account) => {
+      acc[account.id!] = account.initialBalance || 0;
+      return acc;
+    }, {} as Record<number, number>);
+
+    transactions.forEach(t => {
+      if (t.type === 'Income') {
+        allAccountBalances[t.accountId] = (allAccountBalances[t.accountId] || 0) + t.amount;
+      } else if (t.type === 'Expense') {
+        allAccountBalances[t.accountId] = (allAccountBalances[t.accountId] || 0) - t.amount;
+      } else if (t.type === 'Transfer' && t.toAccountId) {
+        allAccountBalances[t.accountId] = (allAccountBalances[t.accountId] || 0) - t.amount;
+        allAccountBalances[t.toAccountId] = (allAccountBalances[t.toAccountId] || 0) + t.amount;
+      }
+    });
+
+    // Filter data based on householdView for stats
     const filteredAccounts = householdView 
       ? accounts 
-      : accounts.filter(a => !a.owner || a.owner === 'Me'); // Simple logic for now
+      : accounts.filter(a => !a.owner || a.owner === 'Me');
     
     const filteredTransactions = householdView
       ? transactions
@@ -67,22 +84,21 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
           return !acc?.owner || acc.owner === 'Me';
         });
 
-    // Calculate total balance including initial balances
-    const accountBalances = filteredAccounts.reduce((acc, account) => {
-      acc[account.id!] = account.initialBalance;
-      return acc;
-    }, {} as Record<number, number>);
+    const filteredRecurring = householdView
+      ? recurring
+      : recurring.filter(r => {
+          const acc = accounts.find(a => a.id === r.accountId);
+          return !acc?.owner || acc.owner === 'Me';
+        });
 
-    filteredTransactions.forEach(t => {
-      if (t.type === 'Income') {
-        accountBalances[t.accountId] = (accountBalances[t.accountId] || 0) + t.amount;
-      } else if (t.type === 'Expense') {
-        accountBalances[t.accountId] = (accountBalances[t.accountId] || 0) - t.amount;
-      } else if (t.type === 'Transfer' && t.toAccountId) {
-        accountBalances[t.accountId] = (accountBalances[t.accountId] || 0) - t.amount;
-        accountBalances[t.toAccountId] = (accountBalances[t.toAccountId] || 0) + t.amount;
-      }
-    });
+    const accountBalances = householdView 
+      ? allAccountBalances 
+      : Object.fromEntries(
+          Object.entries(allAccountBalances).filter(([id]) => {
+            const acc = accounts.find(a => a.id === parseInt(id));
+            return !acc?.owner || acc.owner === 'Me';
+          })
+        );
 
     const totalBalance = Object.values(accountBalances).reduce((sum, b) => sum + b, 0);
     const totalAssetValue = filteredAccounts.reduce((sum, acc) => sum + (acc.assetValue || 0), 0);
@@ -147,8 +163,25 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                          budgets.filter(b => !b.synced).length + 
                          recurring.filter(r => !r.synced).length;
 
-    return { income, expenses, totalBalance, netWorth, totalAssetValue, liquidBalance, totalDebt, pieData, areaData, accountBalances, budgetProgress, unsyncedCount, monthlySavings, filteredAccounts, filteredTransactions };
-  }, [transactions, accounts, budgets, recurring, householdView]);
+    return { 
+      income, 
+      expenses, 
+      totalBalance, 
+      netWorth, 
+      totalAssetValue, 
+      liquidBalance, 
+      totalDebt, 
+      pieData, 
+      areaData, 
+      accountBalances, 
+      budgetProgress, 
+      unsyncedCount, 
+      monthlySavings, 
+      filteredAccounts, 
+      filteredTransactions,
+      filteredRecurring
+    };
+  }, [transactions, accounts, budgets, recurring, goals, householdView]);
 
   const getAccountName = (id: number) => accounts.find(a => a.id === id)?.name || 'Unknown';
 
@@ -314,13 +347,13 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       </div>
 
       {/* Account Manager Section */}
-      <AccountManager accounts={accounts} accountBalances={stats.accountBalances} />
+      <AccountManager accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} />
 
       {/* Savings Goals Section */}
       <SavingsGoals goals={goals} monthlySavings={stats.monthlySavings} />
 
       {/* Bill Calendar Section */}
-      <BillCalendar recurring={recurring} accounts={accounts} accountBalances={stats.accountBalances} />
+      <BillCalendar recurring={stats.filteredRecurring} accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} />
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

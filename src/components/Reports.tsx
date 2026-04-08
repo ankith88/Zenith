@@ -4,10 +4,12 @@ import {
   LineChart, Line, AreaChart, Area, Legend, Cell, PieChart, Pie
 } from 'recharts';
 import { Transaction, Account, Budget } from '../lib/db';
-import { TrendingUp, TrendingDown, Wallet, PieChart as PieIcon, BarChart3, Activity, Sparkles, Loader2, ChevronRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, PieChart as PieIcon, BarChart3, Activity, Sparkles, Loader2, ChevronRight, AlertTriangle, Scale } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { analystService } from '../lib/gemini';
 import Markdown from 'react-markdown';
+import NetWorthAnalysis from './NetWorthAnalysis';
+import AnomalyDetection from './AnomalyDetection';
 
 interface ReportsProps {
   transactions: Transaction[];
@@ -15,7 +17,10 @@ interface ReportsProps {
   budgets: Budget[];
 }
 
+type ReportTab = 'overview' | 'networth' | 'anomalies';
+
 export default function Reports({ transactions, accounts, budgets }: ReportsProps) {
+  const [activeSubTab, setActiveSubTab] = useState<ReportTab>('overview');
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -106,222 +111,228 @@ export default function Reports({ transactions, accounts, budgets }: ReportsProp
 
   return (
     <div className="space-y-8 pb-12">
-      {/* Top Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Savings Rate</p>
-          <div className="flex items-end gap-2">
-            <h4 className="text-3xl font-black text-gray-900">{savingsRate.toFixed(1)}%</h4>
-            <TrendingUp className="w-5 h-5 text-emerald-500 mb-1" />
-          </div>
-          <div className="w-full bg-gray-100 h-1.5 rounded-full mt-3 overflow-hidden">
-            <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${savingsRate}%` }} />
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Avg. Monthly Spend</p>
-          <h4 className="text-3xl font-black text-gray-900">
-            ${(monthlyData.reduce((sum, d) => sum + d.expense, 0) / (monthlyData.length || 1)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-          </h4>
-        </div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Assets</p>
-          <h4 className="text-3xl font-black text-gray-900">
-            ${accounts.reduce((sum, a) => sum + a.initialBalance, 0).toLocaleString()}
-          </h4>
-        </div>
-        <div className="bg-black p-6 rounded-3xl shadow-xl">
-          <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-1">Current Net Worth</p>
-          <h4 className="text-3xl font-black text-white">
-            ${(netWorthData[netWorthData.length - 1]?.value || 0).toLocaleString()}
-          </h4>
+      {/* Sub-Tab Switcher */}
+      <div className="flex items-center justify-between">
+        <div className="flex p-1 bg-gray-100 rounded-2xl">
+          <button
+            onClick={() => setActiveSubTab('overview')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+              activeSubTab === 'overview' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <PieIcon className="w-4 h-4" />
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveSubTab('networth')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+              activeSubTab === 'networth' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <Scale className="w-4 h-4" />
+            Net Worth Analysis
+          </button>
+          <button
+            onClick={() => setActiveSubTab('anomalies')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+              activeSubTab === 'anomalies' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <AlertTriangle className="w-4 h-4" />
+            AI Anomalies
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* AI Health Checkup */}
-        <div className="lg:col-span-2">
-          <div className="bg-gradient-to-br from-black to-gray-800 p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Sparkles className="w-32 h-32 text-white" />
-            </div>
-            
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-white" />
+      <AnimatePresence mode="wait">
+        {activeSubTab === 'overview' ? (
+          <motion.div
+            key="overview"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-8"
+          >
+            {/* Top Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Savings Rate</p>
+                <div className="flex items-end gap-2">
+                  <h4 className="text-3xl font-black text-gray-900">{savingsRate.toFixed(1)}%</h4>
+                  <TrendingUp className="w-5 h-5 text-emerald-500 mb-1" />
                 </div>
-                <div>
-                  <h3 className="text-2xl font-black text-white tracking-tight">AI Financial Health Checkup</h3>
-                  <p className="text-white/60 text-sm font-medium">Deep analysis of your spending, savings, and future outlook.</p>
+                <div className="w-full bg-gray-100 h-1.5 rounded-full mt-3 overflow-hidden">
+                  <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${savingsRate}%` }} />
                 </div>
               </div>
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Avg. Monthly Spend</p>
+                <h4 className="text-3xl font-black text-gray-900">
+                  ${(monthlyData.reduce((sum, d) => sum + d.expense, 0) / (monthlyData.length || 1)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                </h4>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Assets</p>
+                <h4 className="text-3xl font-black text-gray-900">
+                  ${accounts.filter(a => !['Mortgage', 'Car Loan', 'Credit Card'].includes(a.type)).reduce((sum, a) => sum + a.initialBalance, 0).toLocaleString()}
+                </h4>
+              </div>
+              <div className="bg-black p-6 rounded-3xl shadow-xl">
+                <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-1">Current Net Worth</p>
+                <h4 className="text-3xl font-black text-white">
+                  ${(netWorthData[netWorthData.length - 1]?.value || 0).toLocaleString()}
+                </h4>
+              </div>
+            </div>
 
-              {!aiReport ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <p className="text-white/80 text-lg font-bold mb-6 max-w-md">
-                    Ready for a deep dive? Zenith will analyze your last 100 transactions and current budgets to generate a custom report.
-                  </p>
-                  <button
-                    onClick={generateAiReport}
-                    disabled={isGenerating}
-                    className="px-8 py-4 bg-white text-black rounded-2xl font-black flex items-center gap-3 hover:bg-gray-100 transition-all active:scale-95 disabled:opacity-50"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Analyzing Your Data...
-                      </>
-                    ) : (
-                      <>
-                        Generate AI Report
-                        <ChevronRight className="w-5 h-5" />
-                      </>
-                    )}
-                  </button>
-                </div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white/5 backdrop-blur-md rounded-3xl p-8 border border-white/10"
-                >
-                  <div className="prose prose-invert max-w-none prose-headings:text-white prose-p:text-white/80 prose-strong:text-white prose-li:text-white/80">
-                    <Markdown>{aiReport}</Markdown>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* AI Health Checkup */}
+              <div className="lg:col-span-2">
+                <div className="bg-gradient-to-br from-black to-gray-800 p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Sparkles className="w-32 h-32 text-white" />
                   </div>
-                  <button
-                    onClick={() => setAiReport(null)}
-                    className="mt-8 text-white/40 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors"
-                  >
-                    Clear and Regenerate
-                  </button>
-                </motion.div>
-              )}
-            </div>
-          </div>
-        </div>
+                  
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center">
+                        <Sparkles className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-black text-white tracking-tight">AI Financial Health Checkup</h3>
+                        <p className="text-white/60 text-sm font-medium">Deep analysis of your spending, savings, and future outlook.</p>
+                      </div>
+                    </div>
 
-        {/* Income vs Expense */}
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <BarChart3 className="w-6 h-6 text-indigo-600" />
-              Income vs Expenses
-            </h3>
-          </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                />
-                <Legend iconType="circle" verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: '20px' }} />
-                <Bar dataKey="income" name="Income" fill="#10b981" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="expense" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Net Worth Trend */}
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <Activity className="w-6 h-6 text-emerald-600" />
-              Net Worth Growth
-            </h3>
-          </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={netWorthData}>
-                <defs>
-                  <linearGradient id="colorNet" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                />
-                <Area type="monotone" dataKey="value" name="Net Worth" stroke="#10b981" fillOpacity={1} fill="url(#colorNet)" strokeWidth={3} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Category Distribution */}
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-          <h3 className="text-xl font-bold text-gray-900 mb-8 flex items-center gap-2">
-            <PieIcon className="w-6 h-6 text-amber-500" />
-            Spending Distribution
-          </h3>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={categoryBreakdown}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {categoryBreakdown.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            {categoryBreakdown.slice(0, 6).map((item, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                <span className="text-xs font-medium text-gray-600 truncate">{item.name}</span>
-                <span className="text-xs font-bold text-gray-900 ml-auto">${item.value.toLocaleString()}</span>
+                    {!aiReport ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <p className="text-white/80 text-lg font-bold mb-6 max-w-md">
+                          Ready for a deep dive? Zenith will analyze your last 100 transactions and current budgets to generate a custom report.
+                        </p>
+                        <button
+                          onClick={generateAiReport}
+                          disabled={isGenerating}
+                          className="px-8 py-4 bg-white text-black rounded-2xl font-black flex items-center gap-3 hover:bg-gray-100 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          {isGenerating ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              Analyzing Your Data...
+                            </>
+                          ) : (
+                            <>
+                              Generate AI Report
+                              <ChevronRight className="w-5 h-5" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    ) : (
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-white/5 backdrop-blur-md rounded-3xl p-8 border border-white/10"
+                      >
+                        <div className="prose prose-invert max-w-none prose-headings:text-white prose-p:text-white/80 prose-strong:text-white prose-li:text-white/80">
+                          <Markdown>{aiReport}</Markdown>
+                        </div>
+                        <button
+                          onClick={() => setAiReport(null)}
+                          className="mt-8 text-white/40 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors"
+                        >
+                          Clear and Regenerate
+                        </button>
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Monthly Net Flow */}
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-          <h3 className="text-xl font-bold text-gray-900 mb-8 flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-indigo-600" />
-            Monthly Net Cash Flow
-          </h3>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                />
-                <Bar dataKey="net" name="Net Flow" radius={[4, 4, 0, 0]}>
-                  {monthlyData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.net >= 0 ? '#10b981' : '#ef4444'} />
+              {/* Income vs Expense */}
+              <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <BarChart3 className="w-6 h-6 text-indigo-600" />
+                    Income vs Expenses
+                  </h3>
+                </div>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthlyData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Legend iconType="circle" verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: '20px' }} />
+                      <Bar dataKey="income" name="Income" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="expense" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Category Distribution */}
+              <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                <h3 className="text-xl font-bold text-gray-900 mb-8 flex items-center gap-2">
+                  <PieIcon className="w-6 h-6 text-amber-500" />
+                  Spending Distribution
+                </h3>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryBreakdown}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {categoryBreakdown.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  {categoryBreakdown.slice(0, 6).map((item, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                      <span className="text-xs font-medium text-gray-600 truncate">{item.name}</span>
+                      <span className="text-xs font-bold text-gray-900 ml-auto">${item.value.toLocaleString()}</span>
+                    </div>
                   ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <p className="text-xs text-gray-400 mt-4 italic">
-            Positive flow indicates you earned more than you spent this month.
-          </p>
-        </div>
-      </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ) : activeSubTab === 'networth' ? (
+          <motion.div
+            key="networth"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <NetWorthAnalysis transactions={transactions} accounts={accounts} />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="anomalies"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <AnomalyDetection transactions={transactions} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

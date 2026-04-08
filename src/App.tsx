@@ -16,6 +16,7 @@ import GlobalSearch from './components/GlobalSearch';
 import SubscriptionAudit from './components/SubscriptionAudit';
 import CashFlowCalendar from './components/CashFlowCalendar';
 import DebtSimulator from './components/DebtSimulator';
+import LoanOffsetSimulator from './components/LoanOffsetSimulator';
 import MortgageSetupWizard from './components/MortgageSetupWizard';
 import CarLoanSetupWizard from './components/CarLoanSetupWizard';
 import LogoShowcase from './components/LogoShowcase';
@@ -30,15 +31,18 @@ export default function App() {
   const [showMortgageWizard, setShowMortgageWizard] = useState(false);
   const [showCarLoanWizard, setShowCarLoanWizard] = useState(false);
   const [showLogoShowcase, setShowLogoShowcase] = useState(false);
-  const [appLogo, setAppLogo] = useState<string | null>(null);
+  const [appLogo, setAppLogo] = useState<string | null>('/logo.png');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [householdView, setHouseholdView] = useState(false);
+  const [debtView, setDebtView] = useState<'general' | 'offset'>('general');
 
   useEffect(() => {
     (window as any).showMortgageWizard = () => setShowMortgageWizard(true);
     (window as any).showCarLoanWizard = () => setShowCarLoanWizard(true);
     (window as any).showLogoShowcase = () => setShowLogoShowcase(true);
+    (window as any).runRecurringCheck = () => processRecurring();
+    (window as any).runInterestCheck = () => processInterest();
   }, []);
 
   const transactions = useLiveQuery(() => db.transactions.toArray()) || [];
@@ -61,7 +65,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated !== null) {
       processRecurring();
       processInterest();
     }
@@ -141,24 +145,26 @@ export default function App() {
   };
 
   const processRecurring = async () => {
+    const getNextDate = (date: Date, freq: string) => {
+      const d = new Date(date);
+      if (freq === 'Daily') d.setDate(d.getDate() + 1);
+      else if (freq === 'Weekly') d.setDate(d.getDate() + 7);
+      else if (freq === 'Monthly') d.setMonth(d.getMonth() + 1);
+      else if (freq === 'Yearly') d.setFullYear(d.getFullYear() + 1);
+      return d;
+    };
+
     try {
       const recurringItems = await db.recurringTransactions.toArray();
       const today = new Date();
       
       for (const item of recurringItems) {
-        let lastDate = item.lastProcessedDate ? new Date(item.lastProcessedDate) : new Date(item.startDate);
-        let nextDate = new Date(lastDate);
-
-        const getNextDate = (date: Date, freq: string) => {
-          const d = new Date(date);
-          if (freq === 'Daily') d.setDate(d.getDate() + 1);
-          else if (freq === 'Weekly') d.setDate(d.getDate() + 7);
-          else if (freq === 'Monthly') d.setMonth(d.getMonth() + 1);
-          else if (freq === 'Yearly') d.setFullYear(d.getFullYear() + 1);
-          return d;
-        };
-
-        nextDate = getNextDate(nextDate, item.frequency);
+        let nextDate: Date;
+        if (item.lastProcessedDate) {
+          nextDate = getNextDate(new Date(item.lastProcessedDate), item.frequency);
+        } else {
+          nextDate = new Date(item.startDate);
+        }
 
         while (nextDate <= today) {
           const dateStr = nextDate.toISOString().split('T')[0];
@@ -324,7 +330,7 @@ export default function App() {
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'debt' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
             >
               <TrendingDown className="w-5 h-5" />
-              Debt Paydown
+              Debt & Loans
             </button>
             <button
               onClick={() => { setActiveTab('chat'); setIsSidebarOpen(false); }}
@@ -509,7 +515,32 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="h-full p-6 lg:p-8"
               >
-                <DebtSimulator accounts={accounts} transactions={transactions} />
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex p-1 bg-gray-100 rounded-2xl">
+                    <button
+                      onClick={() => setDebtView('general')}
+                      className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                        debtView === 'general' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      General Simulator
+                    </button>
+                    <button
+                      onClick={() => setDebtView('offset')}
+                      className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                        debtView === 'offset' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      Loan & Offset
+                    </button>
+                  </div>
+                </div>
+
+                {debtView === 'general' ? (
+                  <DebtSimulator accounts={accounts} transactions={transactions} />
+                ) : (
+                  <LoanOffsetSimulator accounts={accounts} transactions={transactions} />
+                )}
               </motion.div>
             ) : activeTab === 'chat' ? (
               <motion.div

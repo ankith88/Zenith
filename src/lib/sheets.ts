@@ -158,7 +158,7 @@ export class SheetsService {
     }
     try {
       console.log("SheetsService: Starting syncToLocal...");
-      const accData = await this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Accounts!A2:I`, {
+      const accData = await this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Accounts!A2:J`, {
         credentials: 'include',
         headers: this.getHeaders()
       });
@@ -176,6 +176,7 @@ export class SheetsService {
             owner: row[6] || undefined,
             isPrivate: row[7] === 'TRUE',
             assetValue: row[8] ? parseFloat(row[8]) : undefined,
+            creditLimit: row[9] ? parseFloat(row[9]) : undefined,
             synced: true,
           }));
         // Merge logic: keep local private accounts
@@ -228,6 +229,29 @@ export class SheetsService {
           }));
         await db.recurringTransactions.clear();
         await db.recurringTransactions.bulkAdd(recurring);
+      }
+
+      // Sync Goals
+      const goalData = await this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Goals!A2:G`, {
+        credentials: 'include',
+        headers: this.getHeaders()
+      });
+      
+      if (goalData.values) {
+        const goals: any[] = goalData.values
+          .filter((row: any[]) => row && row.length >= 4 && isFinite(parseInt(row[0])))
+          .map((row: any[]) => ({
+            id: parseInt(row[0]),
+            name: row[1],
+            targetAmount: parseFloat(row[2]) || 0,
+            currentAmount: parseFloat(row[3]) || 0,
+            deadline: row[4] || undefined,
+            category: row[5],
+            color: row[6],
+            synced: true,
+          }));
+        await db.goals.clear();
+        await db.goals.bulkAdd(goals);
       }
 
       // Sync Transactions
@@ -285,6 +309,7 @@ export class SheetsService {
       const budgets = await db.budgets.toArray();
       const recurring = await db.recurringTransactions.toArray();
       const transactions = await db.transactions.toArray();
+      const goals = await db.goals.toArray();
 
       // 2. Clear sheets (except headers)
       const clearPromises = [
@@ -292,7 +317,7 @@ export class SheetsService {
           method: 'POST', 
           credentials: 'include',
           headers: this.getHeaders({ 'Content-Type': 'application/json' }), 
-          body: JSON.stringify({ spreadsheetId: this.spreadsheetId, range: 'Accounts!A2:I' }) 
+          body: JSON.stringify({ spreadsheetId: this.spreadsheetId, range: 'Accounts!A2:J' }) 
         }),
         this.safeFetch('/api/sheets/clear', { 
           method: 'POST', 
@@ -312,6 +337,12 @@ export class SheetsService {
           headers: this.getHeaders({ 'Content-Type': 'application/json' }), 
           body: JSON.stringify({ spreadsheetId: this.spreadsheetId, range: 'Transactions!A2:I' }) 
         }),
+        this.safeFetch('/api/sheets/clear', { 
+          method: 'POST', 
+          credentials: 'include',
+          headers: this.getHeaders({ 'Content-Type': 'application/json' }), 
+          body: JSON.stringify({ spreadsheetId: this.spreadsheetId, range: 'Goals!A2:G' }) 
+        }),
       ];
       await Promise.all(clearPromises);
 
@@ -326,8 +357,8 @@ export class SheetsService {
           headers: this.getHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             spreadsheetId: this.spreadsheetId,
-            range: 'Accounts!A2:I',
-            values: publicAccounts.map(a => [a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '']),
+            range: 'Accounts!A2:J',
+            values: publicAccounts.map(a => [a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '', a.creditLimit || '']),
           }),
         }));
       }
@@ -377,6 +408,19 @@ export class SheetsService {
         }));
       }
 
+      if (goals.length > 0) {
+        appendPromises.push(this.safeFetch('/api/sheets/append', {
+          method: 'POST',
+          credentials: 'include',
+          headers: this.getHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            spreadsheetId: this.spreadsheetId,
+            range: 'Goals!A2:G',
+            values: goals.map(g => [g.id, g.name, g.targetAmount, g.currentAmount, g.deadline || '', g.category, g.color]),
+          }),
+        }));
+      }
+
       await Promise.all(appendPromises);
 
       // 4. Mark all as synced locally
@@ -384,6 +428,7 @@ export class SheetsService {
       await db.budgets.toCollection().modify({ synced: true });
       await db.recurringTransactions.toCollection().modify({ synced: true });
       await db.transactions.toCollection().modify({ synced: true });
+      await db.goals.toCollection().modify({ synced: true });
 
     } catch (error) {
       console.error("Sync to remote error:", error);
@@ -400,8 +445,8 @@ export class SheetsService {
         headers: this.getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           spreadsheetId: this.spreadsheetId,
-          range: 'Accounts!A2:I',
-          values: [[a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '']],
+          range: 'Accounts!A2:J',
+          values: [[a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '', a.creditLimit || '']],
         }),
       });
     } catch (error) {
@@ -557,7 +602,7 @@ export class SheetsService {
     }
   }
   async updateAccount(a: Account) {
-    if (!this.spreadsheetId || a.isPrivate) return;
+    if (!this.spreadsheetId) return;
     try {
       const data = await this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Accounts!A:A`, {
         credentials: 'include',
@@ -566,19 +611,116 @@ export class SheetsService {
       const rowIndex = data.values?.findIndex((row: any[]) => parseInt(row[0]) === a.id);
       
       if (rowIndex !== undefined && rowIndex !== -1) {
+        if (a.isPrivate) {
+          // If it became private, delete it from the sheet
+          const meta = await this.safeFetch(`/api/sheets/metadata?spreadsheetId=${this.spreadsheetId}`, {
+            credentials: 'include',
+            headers: this.getHeaders()
+          });
+          const sheetId = meta.sheets.find((s: any) => s.properties.title === 'Accounts')?.properties.sheetId;
+          if (sheetId !== undefined) {
+            await this.safeFetch('/api/sheets/delete-row', {
+              method: 'POST',
+              credentials: 'include',
+              headers: this.getHeaders({ 'Content-Type': 'application/json' }),
+              body: JSON.stringify({ spreadsheetId: this.spreadsheetId, sheetId, rowIndex }),
+            });
+          }
+        } else {
+          // Update existing row
+          await this.safeFetch('/api/sheets/update', {
+            method: 'POST',
+            credentials: 'include',
+            headers: this.getHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({
+              spreadsheetId: this.spreadsheetId,
+              range: `Accounts!A${rowIndex + 1}:J${rowIndex + 1}`,
+              values: [[a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '', a.creditLimit || '']],
+            }),
+          });
+        }
+      } else if (!a.isPrivate) {
+        // If not in sheet and not private, append it
+        await this.appendAccount(a);
+      }
+    } catch (error) {
+      console.error("Update account error:", error);
+    }
+  }
+
+  async appendGoal(g: any) {
+    if (!this.spreadsheetId) return;
+    try {
+      await this.safeFetch('/api/sheets/append', {
+        method: 'POST',
+        credentials: 'include',
+        headers: this.getHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          spreadsheetId: this.spreadsheetId,
+          range: 'Goals!A2:G',
+          values: [[g.id, g.name, g.targetAmount, g.currentAmount, g.deadline || '', g.category, g.color]],
+        }),
+      });
+    } catch (error) {
+      console.error("Append goal error:", error);
+    }
+  }
+
+  async updateGoal(g: any) {
+    if (!this.spreadsheetId) return;
+    try {
+      const data = await this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Goals!A:A`, {
+        credentials: 'include',
+        headers: this.getHeaders()
+      });
+      const rowIndex = data.values?.findIndex((row: any[]) => parseInt(row[0]) === g.id);
+      
+      if (rowIndex !== undefined && rowIndex !== -1) {
         await this.safeFetch('/api/sheets/update', {
           method: 'POST',
           credentials: 'include',
           headers: this.getHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             spreadsheetId: this.spreadsheetId,
-            range: `Accounts!A${rowIndex + 1}:I${rowIndex + 1}`,
-            values: [[a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '']],
+            range: `Goals!A${rowIndex + 1}:G${rowIndex + 1}`,
+            values: [[g.id, g.name, g.targetAmount, g.currentAmount, g.deadline || '', g.category, g.color]],
           }),
         });
       }
     } catch (error) {
-      console.error("Update account error:", error);
+      console.error("Update goal error:", error);
+    }
+  }
+
+  async deleteGoal(id: number) {
+    if (!this.spreadsheetId) return;
+    try {
+      const meta = await this.safeFetch(`/api/sheets/metadata?spreadsheetId=${this.spreadsheetId}`, {
+        credentials: 'include',
+        headers: this.getHeaders()
+      });
+      const sheetId = meta.sheets.find((s: any) => s.properties.title === 'Goals')?.properties.sheetId;
+
+      const data = await this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Goals!A:A`, {
+        credentials: 'include',
+        headers: this.getHeaders()
+      });
+      const rowIndex = data.values?.findIndex((row: any[]) => parseInt(row[0]) === id);
+
+      if (sheetId !== undefined && rowIndex !== undefined && rowIndex !== -1) {
+        await this.safeFetch('/api/sheets/delete-row', {
+          method: 'POST',
+          credentials: 'include',
+          headers: this.getHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            spreadsheetId: this.spreadsheetId,
+            sheetId,
+            rowIndex,
+          }),
+        });
+      }
+    } catch (error) {
+      console.error("Delete goal error:", error);
     }
   }
 

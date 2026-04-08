@@ -11,6 +11,7 @@ export interface Account {
   owner?: string;
   isPrivate?: boolean;
   assetValue?: number;
+  creditLimit?: number;
   synced: boolean;
 }
 
@@ -75,7 +76,7 @@ export class ZenithDB extends Dexie {
 
   constructor() {
     super('ZenithDB');
-    this.version(8).stores({
+    this.version(9).stores({
       transactions: '++id, date, category, type, accountId, toAccountId, synced',
       accounts: '++id, name, type, isPrivate, synced',
       budgets: '++id, category, synced',

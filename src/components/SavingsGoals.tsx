@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Target, Plus, X, Loader2, Trash2, TrendingUp, Calendar, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, Goal } from '../lib/db';
+import { sheetsService } from '../lib/sheets';
 
 interface SavingsGoalsProps {
   goals: Goal[];
@@ -34,6 +35,7 @@ export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProp
     setIsLoading(true);
     try {
       const newGoal: Goal = {
+        id: Date.now(),
         name: formData.name,
         targetAmount: parseFloat(formData.targetAmount),
         currentAmount: parseFloat(formData.currentAmount),
@@ -43,6 +45,9 @@ export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProp
         synced: false
       };
       await db.goals.add(newGoal);
+      await sheetsService.appendGoal(newGoal);
+      await db.goals.update(newGoal.id!, { synced: true });
+      
       setIsAdding(false);
       setFormData({ name: '', targetAmount: '', currentAmount: '0', deadline: '', category: 'Travel', color: '#4f46e5' });
     } catch (error) {
@@ -55,6 +60,7 @@ export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProp
   const handleDeleteGoal = async (id: number) => {
     if (confirm("Delete this goal?")) {
       await db.goals.delete(id);
+      await sheetsService.deleteGoal(id);
     }
   };
 

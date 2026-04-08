@@ -141,7 +141,7 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
               <Calculator className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-white tracking-tight">Debt Paydown Simulator</h2>
+              <h2 className="text-2xl font-black text-white tracking-tight">Debt Strategy Simulator</h2>
               <p className="text-white/60 text-sm font-medium">Visualize your path to financial freedom.</p>
             </div>
           </div>
