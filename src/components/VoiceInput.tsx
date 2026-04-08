@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Mic, MicOff, Loader2, Check, X, ChevronDown, Camera, Upload, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { analystService } from '../lib/gemini';
@@ -17,8 +17,39 @@ export default function VoiceInput({ onConfirm }: VoiceInputProps) {
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [toAccountId, setToAccountId] = useState<number | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isManualEntry, setIsManualEntry] = useState(false);
+  const [manualData, setManualData] = useState({
+    description: '',
+    amount: '',
+    category: '',
+    date: new Date().toISOString().split('T')[0],
+    type: 'Expense' as 'Income' | 'Expense' | 'Transfer'
+  });
+  const [isPredicting, setIsPredicting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const accounts = useLiveQuery(() => db.accounts.toArray()) || [];
+  const budgets = useLiveQuery(() => db.budgets.toArray()) || [];
+  const categories = useMemo(() => Array.from(new Set(budgets.map(b => b.category))), [budgets]);
+
+  useEffect(() => {
+    if (isManualEntry && manualData.description.length > 3 && categories.length > 0) {
+      const timer = setTimeout(async () => {
+        setIsPredicting(true);
+        try {
+          const predicted = await analystService.predictCategory(manualData.description, categories);
+          if (predicted && predicted !== 'Other') {
+            setManualData(prev => ({ ...prev, category: predicted }));
+          }
+        } catch (error) {
+          console.error("Prediction error:", error);
+        } finally {
+          setIsPredicting(false);
+        }
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [manualData.description, isManualEntry, categories]);
 
   useEffect(() => {
     if (accounts.length > 0 && selectedAccountId === null) {
@@ -63,12 +94,14 @@ export default function VoiceInput({ onConfirm }: VoiceInputProps) {
       alert("Please create an account first.");
       return;
     }
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitRecognition;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Speech recognition not supported in this browser.");
+      setError("Speech recognition not supported in this browser.");
       return;
     }
 
+    setError(null);
+    setParsedData(null);
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
@@ -83,6 +116,11 @@ export default function VoiceInput({ onConfirm }: VoiceInputProps) {
     recognition.onerror = (event: any) => {
       console.error("Speech error:", event.error);
       setIsListening(false);
+      if (event.error === 'not-allowed') {
+        setError("Microphone access denied. Please enable it in your browser settings.");
+      } else {
+        setError(`Speech error: ${event.error}`);
+      }
     };
     recognition.onend = () => setIsListening(false);
 
@@ -91,8 +129,13 @@ export default function VoiceInput({ onConfirm }: VoiceInputProps) {
 
   const handleParse = async (text: string) => {
     setIsParsing(true);
+    setError(null);
     try {
       const data = await analystService.parseVoiceTransaction(text);
+      if (!data || !data.amount) {
+        setError("Could not understand the transaction. Try speaking more clearly.");
+        return;
+      }
       setParsedData(data);
 
       // Auto-select accounts if AI found them
@@ -106,6 +149,7 @@ export default function VoiceInput({ onConfirm }: VoiceInputProps) {
       }
     } catch (error) {
       console.error("Parsing error:", error);
+      setError("AI failed to process your request. Please try again.");
     } finally {
       setIsParsing(false);
     }
@@ -114,6 +158,28 @@ export default function VoiceInput({ onConfirm }: VoiceInputProps) {
   return (
     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
       <AnimatePresence>
+        {isParsing && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="bg-black text-white shadow-2xl rounded-2xl p-4 mb-4 w-80 flex items-center gap-3"
+          >
+            <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+            <p className="text-xs font-bold">AI is parsing your transaction...</p>
+          </motion.div>
+        )}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="bg-rose-600 text-white shadow-2xl rounded-2xl p-4 mb-4 w-80 flex items-center gap-3"
+          >
+            <X className="w-5 h-5 shrink-0" onClick={() => setError(null)} />
+            <p className="text-xs font-bold">{error}</p>
+          </motion.div>
+        )}
         {parsedData && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -193,6 +259,98 @@ export default function VoiceInput({ onConfirm }: VoiceInputProps) {
       </AnimatePresence>
 
       <div className="flex flex-col items-center gap-4">
+        {/* Manual Entry Form */}
+        {isManualEntry && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl rounded-3xl p-6 mb-4 w-80"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Manual Entry</h3>
+              <button onClick={() => setIsManualEntry(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Description</label>
+                <input
+                  type="text"
+                  value={manualData.description}
+                  onChange={(e) => setManualData({ ...manualData, description: e.target.value })}
+                  placeholder="What did you buy?"
+                  className="w-full px-3 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-black outline-none"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Amount</label>
+                  <input
+                    type="number"
+                    value={manualData.amount}
+                    onChange={(e) => setManualData({ ...manualData, amount: e.target.value })}
+                    placeholder="0.00"
+                    className="w-full px-3 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-black outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Type</label>
+                  <select
+                    value={manualData.type}
+                    onChange={(e) => setManualData({ ...manualData, type: e.target.value as any })}
+                    className="w-full px-3 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-black outline-none"
+                  >
+                    <option value="Expense">Expense</option>
+                    <option value="Income">Income</option>
+                    <option value="Transfer">Transfer</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block flex items-center justify-between">
+                  Category
+                  {isPredicting && <Loader2 className="w-2 h-2 animate-spin text-indigo-500" />}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={manualData.category}
+                    onChange={(e) => setManualData({ ...manualData, category: e.target.value })}
+                    placeholder="e.g. Food"
+                    className={`w-full px-3 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-black outline-none transition-all ${isPredicting ? 'ring-1 ring-indigo-200' : ''}`}
+                  />
+                  {manualData.category && categories.includes(manualData.category) && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                      <Check className="w-3 h-3 text-emerald-500" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    if (!manualData.amount || !manualData.description) return;
+                    setParsedData({
+                      ...manualData,
+                      amount: parseFloat(manualData.amount)
+                    });
+                    setIsManualEntry(false);
+                  }}
+                  className="w-full py-3 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-all active:scale-95"
+                >
+                  Review & Save
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         <AnimatePresence>
           {isMenuOpen && (
             <motion.div
@@ -201,6 +359,13 @@ export default function VoiceInput({ onConfirm }: VoiceInputProps) {
               exit={{ opacity: 0, y: 10, scale: 0.9 }}
               className="bg-black text-white rounded-2xl p-2 shadow-2xl flex flex-col gap-1 min-w-[160px]"
             >
+              <button
+                onClick={() => { setIsMenuOpen(false); setIsManualEntry(true); }}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-white/10 rounded-xl transition-colors text-sm font-bold"
+              >
+                <Plus className="w-4 h-4" />
+                Manual Entry
+              </button>
               <button
                 onClick={() => { setIsMenuOpen(false); startListening(); }}
                 className="flex items-center gap-3 px-4 py-3 hover:bg-white/10 rounded-xl transition-colors text-sm font-bold"

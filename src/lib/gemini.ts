@@ -120,6 +120,131 @@ export class FinancialAnalystService {
 
     return response.text;
   }
+
+  async getFinancialHealthCheckup(transactions: Transaction[], accounts: Account[], budgets: Budget[]): Promise<string> {
+    const transactionContext = transactions.slice(-100).map(t => 
+      `${t.date}, ${t.amount}, ${t.category}, ${t.description}, ${t.type}`
+    ).join('\n');
+
+    const accountContext = accounts.map(a => 
+      `${a.name}, ${a.type}, Initial Balance: ${a.initialBalance}`
+    ).join('\n');
+
+    const budgetContext = budgets.map(b => 
+      `${b.category}, ${b.amount}, ${b.period}`
+    ).join('\n');
+
+    const systemPrompt = `You are Zenith, a high-end personal finance AI analyst. 
+    Perform a comprehensive "Financial Health Checkup" for the user.
+    
+    Data Context:
+    ACCOUNTS:
+    ${accountContext}
+    
+    BUDGETS:
+    ${budgetContext}
+    
+    RECENT TRANSACTIONS (CSV: Date, Amount, Category, Description, Type):
+    ${transactionContext}
+    
+    Current Date: ${new Date().toISOString().split('T')[0]}
+    
+    Your report MUST include:
+    1. **Financial Health Score (0-100)**: Based on savings rate, budget adherence, and net worth trend.
+    2. **Spending Efficiency**: How well they are sticking to their budgets.
+    3. **Burn Rate Analysis**: How fast they are spending their current liquid assets.
+    4. **Top 3 Actionable Recommendations**: Specific, data-driven steps to save more or optimize spending.
+    5. **Forecasting**: Predict their net worth in 3 months if current habits continue.
+    
+    Use Markdown with clear headings, bullet points, and bold text for emphasis. Be professional, insightful, and encouraging.`;
+
+    const response = await genAI.models.generateContent({
+      model: "gemini-3.1-pro-preview",
+      contents: "Generate my comprehensive financial health checkup report.",
+      config: {
+        systemInstruction: systemPrompt,
+      },
+    });
+
+    return response.text;
+  }
+
+  async predictCategory(description: string, categories: string[]): Promise<string> {
+    const response = await genAI.models.generateContent({
+      model: "gemini-3.1-flash-preview",
+      contents: `Predict the best category for this transaction description: "${description}". 
+      Available categories: ${categories.join(', ')}.
+      Return ONLY the category name from the list. If none fit well, return "Other".`,
+      config: {
+        responseMimeType: "text/plain",
+      },
+    });
+
+    return response.text.trim();
+  }
+
+  async auditSubscriptions(transactions: Transaction[]): Promise<{
+    subscriptions: {
+      name: string;
+      amount: number;
+      frequency: string;
+      category: string;
+      lastDate: string;
+      confidence: number;
+      isPotentialWaste: boolean;
+      reason?: string;
+    }[];
+  }> {
+    const recentTransactions = transactions.slice(-200).map(t => 
+      `${t.date}, ${t.amount}, ${t.category}, ${t.description}`
+    ).join('\n');
+
+    const response = await genAI.models.generateContent({
+      model: "gemini-3.1-flash-preview",
+      contents: `Analyze these transactions to identify recurring subscriptions or fixed monthly costs.
+      Transactions:
+      ${recentTransactions}
+      
+      Return a JSON object with a "subscriptions" array. 
+      For each subscription, include:
+      - name: Cleaned name of the service
+      - amount: Typical amount
+      - frequency: "Monthly", "Yearly", etc.
+      - category: Financial category
+      - lastDate: Last seen date
+      - confidence: 0-1 score
+      - isPotentialWaste: boolean (true if it looks like a duplicate or unused service)
+      - reason: string (why it might be waste)`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            subscriptions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  amount: { type: Type.NUMBER },
+                  frequency: { type: Type.STRING },
+                  category: { type: Type.STRING },
+                  lastDate: { type: Type.STRING },
+                  confidence: { type: Type.NUMBER },
+                  isPotentialWaste: { type: Type.BOOLEAN },
+                  reason: { type: Type.STRING },
+                },
+                required: ["name", "amount", "frequency", "category", "lastDate", "confidence", "isPotentialWaste"],
+              },
+            },
+          },
+          required: ["subscriptions"],
+        },
+      },
+    });
+
+    return JSON.parse(response.text);
+  }
 }
 
 export const analystService = new FinancialAnalystService();

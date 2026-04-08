@@ -4,23 +4,28 @@ import {
   BarChart, Bar, Cell, PieChart, Pie
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
-import { TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Landmark, Banknote, Trash2, Edit2, Target, X } from 'lucide-react';
-import { Transaction, Account, Budget, RecurringTransaction, db } from '../lib/db';
+import { TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Landmark, Banknote, Trash2, Edit2, Target, X, Home, Briefcase, Car } from 'lucide-react';
+import { Transaction, Account, Budget, RecurringTransaction, Goal, db } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
 import AccountManager from './AccountManager';
 import BudgetManager from './BudgetManager';
 import RecurringManager from './RecurringManager';
+import SavingsGoals from './SavingsGoals';
+import BillCalendar from './BillCalendar';
 
 interface DashboardProps {
   transactions: Transaction[];
   accounts: Account[];
   budgets: Budget[];
   recurring: RecurringTransaction[];
+  goals: Goal[];
+  householdView: boolean;
 }
 
-export default function Dashboard({ transactions, accounts, budgets, recurring }: DashboardProps) {
+export default function Dashboard({ transactions, accounts, budgets, recurring, goals, householdView }: DashboardProps) {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showLiquidBreakdown, setShowLiquidBreakdown] = useState(false);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -50,13 +55,25 @@ export default function Dashboard({ transactions, accounts, budgets, recurring }
   };
 
   const stats = useMemo(() => {
+    // Filter data based on householdView
+    const filteredAccounts = householdView 
+      ? accounts 
+      : accounts.filter(a => !a.owner || a.owner === 'Me'); // Simple logic for now
+    
+    const filteredTransactions = householdView
+      ? transactions
+      : transactions.filter(t => {
+          const acc = accounts.find(a => a.id === t.accountId);
+          return !acc?.owner || acc.owner === 'Me';
+        });
+
     // Calculate total balance including initial balances
-    const accountBalances = accounts.reduce((acc, account) => {
+    const accountBalances = filteredAccounts.reduce((acc, account) => {
       acc[account.id!] = account.initialBalance;
       return acc;
     }, {} as Record<number, number>);
 
-    transactions.forEach(t => {
+    filteredTransactions.forEach(t => {
       if (t.type === 'Income') {
         accountBalances[t.accountId] = (accountBalances[t.accountId] || 0) + t.amount;
       } else if (t.type === 'Expense') {
@@ -68,17 +85,20 @@ export default function Dashboard({ transactions, accounts, budgets, recurring }
     });
 
     const totalBalance = Object.values(accountBalances).reduce((sum, b) => sum + b, 0);
-    const income = transactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
-    const expenses = transactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
+    const totalAssetValue = filteredAccounts.reduce((sum, acc) => sum + (acc.assetValue || 0), 0);
+    const netWorth = totalBalance + totalAssetValue;
+
+    const income = filteredTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
+    const expenses = filteredTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
     
-    const categories = transactions.filter(t => t.type === 'Expense').reduce((acc, t) => {
+    const categories = filteredTransactions.filter(t => t.type === 'Expense').reduce((acc, t) => {
       acc[t.category] = (acc[t.category] || 0) + t.amount;
       return acc;
     }, {} as Record<string, number>);
 
     const pieData = Object.entries(categories).map(([name, value]) => ({ name, value }));
 
-    const dailyData = transactions.reduce((acc, t) => {
+    const dailyData = filteredTransactions.reduce((acc, t) => {
       const date = t.date;
       if (!acc[date]) acc[date] = { date, income: 0, expense: 0 };
       if (t.type === 'Income') acc[date].income += t.amount;
@@ -88,9 +108,35 @@ export default function Dashboard({ transactions, accounts, budgets, recurring }
 
     const areaData = Object.values(dailyData).sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
 
+    // Calculate monthly savings rate
+    const last30Days = new Date();
+    last30Days.setDate(last30Days.getDate() - 30);
+    const last30DaysStr = last30Days.toISOString().split('T')[0];
+    
+    const recentIncome = filteredTransactions
+      .filter(t => t.type === 'Income' && t.date >= last30DaysStr)
+      .reduce((sum, t) => sum + t.amount, 0);
+    const recentExpenses = filteredTransactions
+      .filter(t => t.type === 'Expense' && t.date >= last30DaysStr)
+      .reduce((sum, t) => sum + t.amount, 0);
+    const monthlySavings = Math.max(0, recentIncome - recentExpenses);
+
+    // Calculate Liquid vs Debt
+    let liquidBalance = 0;
+    let totalDebt = 0;
+
+    filteredAccounts.forEach(acc => {
+      const balance = accountBalances[acc.id!] || 0;
+      if (acc.type === 'Mortgage' || acc.type === 'Credit Card') {
+        totalDebt += Math.abs(balance);
+      } else {
+        liquidBalance += balance;
+      }
+    });
+
     // Calculate budget progress
     const budgetProgress = budgets.map(b => {
-      const spent = transactions
+      const spent = filteredTransactions
         .filter(t => t.category === b.category && t.type === 'Expense')
         .reduce((sum, t) => sum + t.amount, 0);
       return { ...b, spent, percent: Math.min((spent / b.amount) * 100, 100) };
@@ -101,13 +147,83 @@ export default function Dashboard({ transactions, accounts, budgets, recurring }
                          budgets.filter(b => !b.synced).length + 
                          recurring.filter(r => !r.synced).length;
 
-    return { income, expenses, totalBalance, pieData, areaData, accountBalances, budgetProgress, unsyncedCount };
-  }, [transactions, accounts, budgets, recurring]);
+    return { income, expenses, totalBalance, netWorth, totalAssetValue, liquidBalance, totalDebt, pieData, areaData, accountBalances, budgetProgress, unsyncedCount, monthlySavings, filteredAccounts, filteredTransactions };
+  }, [transactions, accounts, budgets, recurring, householdView]);
 
   const getAccountName = (id: number) => accounts.find(a => a.id === id)?.name || 'Unknown';
 
+  const hasMortgage = accounts.some(a => a.type === 'Mortgage');
+  const hasBusiness = accounts.some(a => a.type === 'Business Account');
+  const hasCarLoan = accounts.some(a => a.type === 'Car Loan');
+
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto">
+      {/* Quick Setup Banners */}
+      {(!hasMortgage || !hasBusiness || !hasCarLoan) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          {!hasMortgage && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-indigo-600 p-6 rounded-[32px] text-white flex items-center justify-between group cursor-pointer overflow-hidden relative"
+              onClick={() => (window as any).showMortgageWizard()}
+            >
+              <div className="relative z-10">
+                <h4 className="text-lg font-black mb-1">Setup Your Mortgage</h4>
+                <p className="text-xs font-bold text-indigo-200 uppercase tracking-widest">Automate your 3-way split</p>
+              </div>
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform relative z-10">
+                <Home className="w-6 h-6" />
+              </div>
+              <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12">
+                <Home className="w-32 h-32" />
+              </div>
+            </motion.div>
+          )}
+          {!hasCarLoan && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-blue-600 p-6 rounded-[32px] text-white flex items-center justify-between group cursor-pointer overflow-hidden relative"
+              onClick={() => (window as any).showCarLoanWizard()}
+            >
+              <div className="relative z-10">
+                <h4 className="text-lg font-black mb-1">Setup Car Loan</h4>
+                <p className="text-xs font-bold text-blue-200 uppercase tracking-widest">Automate your repayments</p>
+              </div>
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform relative z-10">
+                <Car className="w-6 h-6" />
+              </div>
+              <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12">
+                <Car className="w-32 h-32" />
+              </div>
+            </motion.div>
+          )}
+          {!hasBusiness && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-emerald-600 p-6 rounded-[32px] text-white flex items-center justify-between group cursor-pointer overflow-hidden relative"
+              onClick={() => {
+                const el = document.getElementById('account-manager-add-btn');
+                if (el) el.click();
+              }}
+            >
+              <div className="relative z-10">
+                <h4 className="text-lg font-black mb-1">Business Account</h4>
+                <p className="text-xs font-bold text-emerald-200 uppercase tracking-widest">Track only what you take out</p>
+              </div>
+              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform relative z-10">
+                <Briefcase className="w-6 h-6" />
+              </div>
+              <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12">
+                <Briefcase className="w-32 h-32" />
+              </div>
+            </motion.div>
+          )}
+        </div>
+      )}
+
       {/* Summary Cards */}
       <div className="flex items-center justify-between">
         <h3 className="text-2xl font-black text-gray-900">Overview</h3>
@@ -129,15 +245,15 @@ export default function Dashboard({ transactions, accounts, budgets, recurring }
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-emerald-50 rounded-2xl group-hover:bg-emerald-100 transition-colors">
               <ArrowUpRight className="w-6 h-6 text-emerald-600" />
             </div>
           </div>
-          <p className="text-sm font-medium text-gray-500">Total Income</p>
-          <h3 className="text-3xl font-bold text-gray-900 mt-1">${stats.income.toLocaleString()}</h3>
+          <p className="text-sm font-medium text-gray-500">Income</p>
+          <h3 className="text-2xl font-bold text-gray-900 mt-1">${stats.income.toLocaleString()}</h3>
         </div>
 
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
@@ -146,26 +262,65 @@ export default function Dashboard({ transactions, accounts, budgets, recurring }
               <ArrowDownLeft className="w-6 h-6 text-red-600" />
             </div>
           </div>
-          <p className="text-sm font-medium text-gray-500">Total Expenses</p>
-          <h3 className="text-3xl font-bold text-gray-900 mt-1">${stats.expenses.toLocaleString()}</h3>
+          <p className="text-sm font-medium text-gray-500">Expenses</p>
+          <h3 className="text-2xl font-bold text-gray-900 mt-1">${stats.expenses.toLocaleString()}</h3>
         </div>
 
-        <div className="bg-black p-6 rounded-3xl shadow-xl hover:shadow-2xl transition-all group overflow-hidden relative">
-          <div className="absolute top-0 right-0 p-8 opacity-10">
-            <Wallet className="w-24 h-24 text-white" />
+        <div 
+          onClick={() => setShowLiquidBreakdown(true)}
+          className="bg-white p-6 rounded-3xl border border-indigo-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden cursor-pointer active:scale-95"
+        >
+          <div className="absolute top-0 right-0 p-4 opacity-5">
+            <Wallet className="w-16 h-16 text-indigo-600" />
           </div>
           <div className="flex items-center justify-between mb-4 relative z-10">
-            <div className="p-3 bg-white/10 rounded-2xl group-hover:bg-white/20 transition-colors">
-              <Wallet className="w-6 h-6 text-white" />
+            <div className="p-3 bg-indigo-50 rounded-2xl group-hover:bg-indigo-100 transition-colors">
+              <Wallet className="w-6 h-6 text-indigo-600" />
             </div>
           </div>
-          <p className="text-sm font-medium text-white/60 relative z-10">Net Worth</p>
-          <h3 className="text-3xl font-bold text-white mt-1 relative z-10">${stats.totalBalance.toLocaleString()}</h3>
+          <p className="text-sm font-medium text-gray-500 relative z-10">Liquid Assets</p>
+          <h3 className="text-2xl font-bold text-indigo-600 mt-1 relative z-10">${stats.liquidBalance.toLocaleString()}</h3>
+        </div>
+
+        <div className="bg-white p-6 rounded-3xl border border-rose-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-5">
+            <TrendingDown className="w-16 h-16 text-rose-600" />
+          </div>
+          <div className="flex items-center justify-between mb-4 relative z-10">
+            <div className="p-3 bg-rose-50 rounded-2xl group-hover:bg-rose-100 transition-colors">
+              <TrendingDown className="w-6 h-6 text-rose-600" />
+            </div>
+          </div>
+          <p className="text-sm font-medium text-gray-500 relative z-10">Total Debt</p>
+          <h3 className="text-2xl font-bold text-rose-600 mt-1 relative z-10">${stats.totalDebt.toLocaleString()}</h3>
+        </div>
+
+        <div className="bg-black p-6 rounded-3xl shadow-xl group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <TrendingUp className="w-16 h-16 text-white" />
+          </div>
+          <div className="flex items-center justify-between mb-4 relative z-10">
+            <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
+              <TrendingUp className="w-6 h-6 text-emerald-400" />
+            </div>
+          </div>
+          <p className="text-sm font-medium text-gray-400 relative z-10">Net Worth</p>
+          <h3 className="text-2xl font-bold text-white mt-1 relative z-10">${stats.netWorth.toLocaleString()}</h3>
+          <div className="mt-2 flex items-center gap-1 text-[9px] font-bold text-gray-500 uppercase tracking-wider relative z-10">
+            <span>Assets:</span>
+            <span className="text-emerald-400">${stats.totalAssetValue.toLocaleString()}</span>
+          </div>
         </div>
       </div>
 
       {/* Account Manager Section */}
-      <AccountManager accounts={accounts} />
+      <AccountManager accounts={accounts} accountBalances={stats.accountBalances} />
+
+      {/* Savings Goals Section */}
+      <SavingsGoals goals={goals} monthlySavings={stats.monthlySavings} />
+
+      {/* Bill Calendar Section */}
+      <BillCalendar recurring={recurring} accounts={accounts} accountBalances={stats.accountBalances} />
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -345,7 +500,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring }
                     {t.type === 'Income' ? '+' : t.type === 'Expense' ? '-' : ''}${t.amount.toLocaleString()}
                   </td>
                   <td className="px-8 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-end gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => setEditingTransaction(t)}
                         className="p-2 hover:bg-gray-100 text-gray-600 rounded-xl transition-colors"
@@ -437,6 +592,75 @@ export default function Dashboard({ transactions, accounts, budgets, recurring }
                   Save Changes
                 </button>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+        {showLiquidBreakdown && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] bg-black/20 backdrop-blur-sm flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-[40px] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col"
+            >
+              <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center">
+                    <Wallet className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-gray-900">Liquid Assets</h3>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Account Breakdown</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowLiquidBreakdown(false)} className="p-3 hover:bg-white rounded-2xl transition-colors shadow-sm">
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="p-8 space-y-4 max-h-[60vh] overflow-y-auto">
+                {accounts
+                  .filter(acc => acc.type !== 'Mortgage' && acc.type !== 'Credit Card' && acc.type !== 'Car Loan')
+                  .map(acc => (
+                    <div key={acc.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-gray-900 shadow-sm border border-gray-100">
+                          {acc.type === 'Savings' ? <Landmark className="w-5 h-5" /> : 
+                           acc.type === 'Checking' ? <Wallet className="w-5 h-5" /> : 
+                           acc.type === 'Cash' ? <Banknote className="w-5 h-5" /> : 
+                           acc.type === 'Business Account' ? <Briefcase className="w-5 h-5" /> :
+                           <Wallet className="w-5 h-5" />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">{acc.name}</p>
+                          <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{acc.type}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-black text-gray-900">${(stats.accountBalances[acc.id!] || 0).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  ))}
+                
+                <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+                  <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Total Liquid Assets</p>
+                  <p className="text-2xl font-black text-indigo-600">${stats.liquidBalance.toLocaleString()}</p>
+                </div>
+              </div>
+
+              <div className="p-8 bg-gray-50/50">
+                <button
+                  onClick={() => setShowLiquidBreakdown(false)}
+                  className="w-full py-4 bg-black text-white rounded-2xl font-bold hover:bg-gray-800 transition-all active:scale-95"
+                >
+                  Close Breakdown
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

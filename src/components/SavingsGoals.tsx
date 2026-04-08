@@ -1,0 +1,274 @@
+import React, { useState } from 'react';
+import { Target, Plus, X, Loader2, Trash2, TrendingUp, Calendar, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { db, Goal } from '../lib/db';
+
+interface SavingsGoalsProps {
+  goals: Goal[];
+  monthlySavings: number;
+}
+
+export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProps) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    targetAmount: '',
+    currentAmount: '0',
+    deadline: '',
+    category: 'Travel',
+    color: '#4f46e5'
+  });
+
+  const categories = [
+    { name: 'Travel', color: '#4f46e5' },
+    { name: 'Emergency', color: '#ef4444' },
+    { name: 'Home', color: '#10b981' },
+    { name: 'Car', color: '#f59e0b' },
+    { name: 'Investment', color: '#8b5cf6' },
+    { name: 'Other', color: '#6b7280' }
+  ];
+
+  const handleAddGoal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const newGoal: Goal = {
+        name: formData.name,
+        targetAmount: parseFloat(formData.targetAmount),
+        currentAmount: parseFloat(formData.currentAmount),
+        deadline: formData.deadline || undefined,
+        category: formData.category,
+        color: formData.color,
+        synced: false
+      };
+      await db.goals.add(newGoal);
+      setIsAdding(false);
+      setFormData({ name: '', targetAmount: '', currentAmount: '0', deadline: '', category: 'Travel', color: '#4f46e5' });
+    } catch (error) {
+      console.error("Add goal error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteGoal = async (id: number) => {
+    if (confirm("Delete this goal?")) {
+      await db.goals.delete(id);
+    }
+  };
+
+  const calculateETA = (goal: Goal) => {
+    const remaining = goal.targetAmount - goal.currentAmount;
+    if (remaining <= 0) return "Goal Reached!";
+    if (monthlySavings <= 0) return "Infinite (No savings)";
+    
+    const months = Math.ceil(remaining / monthlySavings);
+    if (months > 12) {
+      const years = (months / 12).toFixed(1);
+      return `${years} years`;
+    }
+    return `${months} months`;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600">
+            <Target className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-xl font-black text-gray-900">Savings Goals</h3>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Give your money a purpose</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setIsAdding(true)}
+          className="p-3 bg-black text-white rounded-2xl hover:bg-gray-800 transition-all active:scale-95 shadow-lg shadow-black/10"
+        >
+          <Plus className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {goals.map((goal) => {
+          const progress = Math.min((goal.currentAmount / goal.targetAmount) * 100, 100);
+          return (
+            <motion.div
+              key={goal.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <div 
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg"
+                    style={{ backgroundColor: goal.color }}
+                  >
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-gray-900">{goal.name}</h4>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{goal.category}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => goal.id && handleDeleteGoal(goal.id)}
+                  className="p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-2xl font-black text-gray-900">${goal.currentAmount.toLocaleString()}</p>
+                    <p className="text-xs font-bold text-gray-400">of ${goal.targetAmount.toLocaleString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-black text-gray-900">{progress.toFixed(0)}%</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Progress</p>
+                  </div>
+                </div>
+
+                <div className="h-3 bg-gray-50 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress}%` }}
+                    className="h-full rounded-full shadow-sm"
+                    style={{ backgroundColor: goal.color }}
+                  />
+                </div>
+
+                <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-emerald-600">
+                    <TrendingUp className="w-4 h-4" />
+                    <span className="text-xs font-bold">ETA: {calculateETA(goal)}</span>
+                  </div>
+                  {goal.deadline && (
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <Calendar className="w-4 h-4" />
+                      <span className="text-xs font-bold">{new Date(goal.deadline).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+
+        {goals.length === 0 && (
+          <div className="col-span-full py-12 flex flex-col items-center justify-center bg-gray-50/50 rounded-[40px] border-2 border-dashed border-gray-200">
+            <Target className="w-12 h-12 text-gray-300 mb-4" />
+            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No active goals</p>
+            <button 
+              onClick={() => setIsAdding(true)}
+              className="mt-4 text-xs font-black text-indigo-600 hover:underline"
+            >
+              Create your first goal
+            </button>
+          </div>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {isAdding && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] bg-black/20 backdrop-blur-sm flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-[40px] shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+                <h3 className="text-xl font-black text-gray-900">New Goal</h3>
+                <button onClick={() => setIsAdding(false)} className="p-3 hover:bg-white rounded-2xl transition-colors shadow-sm">
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+              <form onSubmit={handleAddGoal} className="p-8 space-y-6">
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Goal Name</label>
+                  <input
+                    required
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="e.g. Dream Holiday"
+                    className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-black outline-none font-bold"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Target Amount</label>
+                    <input
+                      required
+                      type="number"
+                      value={formData.targetAmount}
+                      onChange={(e) => setFormData({ ...formData, targetAmount: e.target.value })}
+                      placeholder="0.00"
+                      className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-black outline-none font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Current Saved</label>
+                    <input
+                      required
+                      type="number"
+                      value={formData.currentAmount}
+                      onChange={(e) => setFormData({ ...formData, currentAmount: e.target.value })}
+                      placeholder="0.00"
+                      className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-black outline-none font-bold"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Deadline (Optional)</label>
+                  <input
+                    type="date"
+                    value={formData.deadline}
+                    onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                    className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-black outline-none font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Category & Color</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.name}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, category: cat.name, color: cat.color })}
+                        className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${
+                          formData.category === cat.name ? 'border-black bg-gray-50' : 'border-transparent bg-gray-50/50'
+                        }`}
+                      >
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: cat.color }} />
+                        <span className="text-[10px] font-bold text-gray-500">{cat.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  disabled={isLoading}
+                  className="w-full py-5 bg-black text-white rounded-[24px] font-black flex items-center justify-center gap-2 hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50 shadow-xl shadow-black/10"
+                >
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Target className="w-5 h-5" />}
+                  Create Goal
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

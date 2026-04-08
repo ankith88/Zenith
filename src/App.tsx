@@ -10,16 +10,42 @@ import VoiceInput from './components/VoiceInput';
 import AuthOverlay from './components/AuthOverlay';
 import CategoryManager from './components/CategoryManager';
 import Settings from './components/Settings';
+import TransferReport from './components/TransferReport';
+import Reports from './components/Reports';
+import GlobalSearch from './components/GlobalSearch';
+import SubscriptionAudit from './components/SubscriptionAudit';
+import CashFlowCalendar from './components/CashFlowCalendar';
+import DebtSimulator from './components/DebtSimulator';
+import MortgageSetupWizard from './components/MortgageSetupWizard';
+import CarLoanSetupWizard from './components/CarLoanSetupWizard';
+import LogoShowcase from './components/LogoShowcase';
+import ErrorBoundary from './components/ErrorBoundary';
+import { ArrowRightLeft, BarChart3, Search, Calendar, ShieldCheck, TrendingDown, Home, Car, Palette } from 'lucide-react';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'categories' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'categories' | 'settings' | 'transfers' | 'reports' | 'subscriptions' | 'calendar' | 'debt'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showMortgageWizard, setShowMortgageWizard] = useState(false);
+  const [showCarLoanWizard, setShowCarLoanWizard] = useState(false);
+  const [showLogoShowcase, setShowLogoShowcase] = useState(false);
+  const [appLogo, setAppLogo] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [householdView, setHouseholdView] = useState(false);
+
+  useEffect(() => {
+    (window as any).showMortgageWizard = () => setShowMortgageWizard(true);
+    (window as any).showCarLoanWizard = () => setShowCarLoanWizard(true);
+    (window as any).showLogoShowcase = () => setShowLogoShowcase(true);
+  }, []);
+
   const transactions = useLiveQuery(() => db.transactions.toArray()) || [];
   const accounts = useLiveQuery(() => db.accounts.toArray()) || [];
   const budgets = useLiveQuery(() => db.budgets.toArray()) || [];
   const recurring = useLiveQuery(() => db.recurringTransactions.toArray()) || [];
+  const goals = useLiveQuery(() => db.goals.toArray()) || [];
 
   useEffect(() => {
     const init = async () => {
@@ -37,60 +63,142 @@ export default function App() {
   useEffect(() => {
     if (isAuthenticated) {
       processRecurring();
+      processInterest();
     }
   }, [isAuthenticated]);
 
-  const processRecurring = async () => {
-    const recurringItems = await db.recurringTransactions.toArray();
-    const today = new Date();
-    
-    for (const item of recurringItems) {
-      let lastDate = item.lastProcessedDate ? new Date(item.lastProcessedDate) : new Date(item.startDate);
-      let nextDate = new Date(lastDate);
+  const processInterest = async () => {
+    try {
+      const loanAccounts = await db.accounts
+        .where('type')
+        .anyOf(['Mortgage', 'Car Loan'])
+        .toArray();
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
 
-      const getNextDate = (date: Date, freq: string) => {
-        const d = new Date(date);
-        if (freq === 'Daily') d.setDate(d.getDate() + 1);
-        else if (freq === 'Weekly') d.setDate(d.getDate() + 7);
-        else if (freq === 'Monthly') d.setMonth(d.getMonth() + 1);
-        else if (freq === 'Yearly') d.setFullYear(d.getFullYear() + 1);
-        return d;
-      };
+      for (const acc of loanAccounts) {
+        if (typeof acc.id !== 'number' || !acc.interestRate || acc.interestRate <= 0) continue;
 
-      nextDate = getNextDate(nextDate, item.frequency);
-
-      while (nextDate <= today) {
-        const dateStr = nextDate.toISOString().split('T')[0];
+        // Calculate current balance
+        const accTransactions = await db.transactions.where('accountId').equals(acc.id).toArray();
+        const toTransactions = await db.transactions.where('toAccountId').equals(acc.id).toArray();
         
-        const newTransaction: Transaction = {
-          date: dateStr,
-          amount: item.amount,
-          category: item.category,
-          description: `[Recurring] ${item.description}`,
-          type: item.type,
-          accountId: item.accountId,
-          synced: false
+        let currentBalance = acc.initialBalance;
+        accTransactions.forEach(t => {
+          if (t.type === 'Income') currentBalance += t.amount;
+          else if (t.type === 'Expense' || t.type === 'Transfer') currentBalance -= t.amount;
+        });
+        toTransactions.forEach(t => {
+          if (t.type === 'Transfer') currentBalance += t.amount;
+        });
+
+        // Only apply interest if balance is negative (debt)
+        if (currentBalance >= 0) continue;
+
+        const lastDate = acc.lastInterestDate ? new Date(acc.lastInterestDate) : new Date(new Date().setMonth(new Date().getMonth() - 1));
+        let nextDate = new Date(lastDate);
+        nextDate.setMonth(nextDate.getMonth() + 1);
+
+        while (nextDate <= today) {
+          const dateStr = nextDate.toISOString().split('T')[0];
+          const monthlyRate = (acc.interestRate / 100) / 12;
+          const interestAmount = Math.abs(currentBalance) * monthlyRate;
+
+          if (interestAmount > 0.01) {
+            const interestTx: Transaction = {
+              date: dateStr,
+              amount: interestAmount,
+              category: 'Interest',
+              description: `[Interest] Monthly Interest Charge`,
+              type: 'Expense',
+              accountId: acc.id!,
+              synced: false
+            };
+
+            const tId = await db.transactions.add(interestTx);
+            await sheetsService.appendTransaction({ ...interestTx, id: tId });
+            await db.transactions.update(tId, { synced: true });
+            
+            // Update balance for next month calculation
+            currentBalance -= interestAmount;
+          }
+
+          acc.lastInterestDate = dateStr;
+          await db.accounts.update(acc.id!, { lastInterestDate: dateStr, synced: false });
+          await sheetsService.updateAccount(acc);
+          await db.accounts.update(acc.id!, { synced: true });
+
+          nextDate.setMonth(nextDate.getMonth() + 1);
+          
+          // Add a small delay to avoid hitting rate limits in tight loops
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+    } catch (err) {
+      console.error("Interest processing failed:", err);
+      // Don't throw here to avoid crashing the app, but log it
+    }
+  };
+
+  const processRecurring = async () => {
+    try {
+      const recurringItems = await db.recurringTransactions.toArray();
+      const today = new Date();
+      
+      for (const item of recurringItems) {
+        let lastDate = item.lastProcessedDate ? new Date(item.lastProcessedDate) : new Date(item.startDate);
+        let nextDate = new Date(lastDate);
+
+        const getNextDate = (date: Date, freq: string) => {
+          const d = new Date(date);
+          if (freq === 'Daily') d.setDate(d.getDate() + 1);
+          else if (freq === 'Weekly') d.setDate(d.getDate() + 7);
+          else if (freq === 'Monthly') d.setMonth(d.getMonth() + 1);
+          else if (freq === 'Yearly') d.setFullYear(d.getFullYear() + 1);
+          return d;
         };
 
-        const tId = await db.transactions.add(newTransaction);
-        await sheetsService.appendTransaction({ ...newTransaction, id: tId });
-        await db.transactions.update(tId, { synced: true });
-
-        item.lastProcessedDate = dateStr;
-        await db.recurringTransactions.update(item.id!, { lastProcessedDate: dateStr, synced: false });
-        await sheetsService.updateRecurring(item);
-        await db.recurringTransactions.update(item.id!, { synced: true });
-
         nextDate = getNextDate(nextDate, item.frequency);
+
+        while (nextDate <= today) {
+          const dateStr = nextDate.toISOString().split('T')[0];
+          
+          const newTransaction: Transaction = {
+            date: dateStr,
+            amount: item.amount,
+            category: item.category,
+            description: `[Recurring] ${item.description}`,
+            type: item.type,
+            accountId: item.accountId,
+            toAccountId: item.toAccountId,
+            synced: false
+          };
+
+          const tId = await db.transactions.add(newTransaction);
+          await sheetsService.appendTransaction({ ...newTransaction, id: tId });
+          await db.transactions.update(tId, { synced: true });
+
+          item.lastProcessedDate = dateStr;
+          await db.recurringTransactions.update(item.id!, { lastProcessedDate: dateStr, synced: false });
+          await sheetsService.updateRecurring(item);
+          await db.recurringTransactions.update(item.id!, { synced: true });
+
+          nextDate = getNextDate(nextDate, item.frequency);
+          
+          // Add a small delay to avoid hitting rate limits in tight loops
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
       }
+    } catch (err) {
+      console.error("Recurring processing failed:", err);
     }
   };
 
   const checkAuth = async () => {
     try {
-      const { isAuthenticated } = await sheetsService.fetchAuthStatus();
-      setIsAuthenticated(isAuthenticated);
-      if (isAuthenticated) {
+      const data = await sheetsService.fetchAuthStatus();
+      setIsAuthenticated(data.isAuthenticated);
+      if (data.isAuthenticated) {
         // Ensure we have a spreadsheet ID
         let spreadsheetId = sheetsService.getSpreadsheetId();
         if (!spreadsheetId) {
@@ -100,12 +208,22 @@ export default function App() {
         }
         
         if (spreadsheetId) {
-          sheetsService.syncToLocal();
+          setIsSyncing(true);
+          setSyncError(null);
+          try {
+            await sheetsService.syncToLocal();
+          } catch (err: any) {
+            console.error("Initial sync failed:", err);
+            setSyncError(err.message || "Failed to pull data from cloud.");
+          } finally {
+            setIsSyncing(false);
+          }
         }
       }
     } catch (error) {
       console.error("Auth check failed:", error);
       setIsAuthenticated(false);
+      setIsSyncing(false);
     }
   };
 
@@ -154,15 +272,20 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {!isAuthenticated && <AuthOverlay onAuthenticated={() => setIsAuthenticated(true)} />}
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gray-50 flex">
+        {!isAuthenticated && <AuthOverlay onAuthenticated={() => setIsAuthenticated(true)} />}
 
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-white border-r border-gray-100 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-full flex flex-col p-6">
           <div className="flex items-center gap-3 mb-12">
-            <div className="w-10 h-10 bg-black rounded-2xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-black text-xl">Z</span>
+            <div className="w-10 h-10 bg-black rounded-2xl flex items-center justify-center shadow-lg overflow-hidden">
+              {appLogo ? (
+                <img src={appLogo} alt="Zenith" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <span className="text-white font-black text-xl">Z</span>
+              )}
             </div>
             <h1 className="text-xl font-black text-gray-900 tracking-tight">Zenith</h1>
           </div>
@@ -174,6 +297,34 @@ export default function App() {
             >
               <LayoutDashboard className="w-5 h-5" />
               Dashboard
+            </button>
+            <button
+              onClick={() => { setActiveTab('reports'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'reports' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+            >
+              <BarChart3 className="w-5 h-5" />
+              Reports
+            </button>
+            <button
+              onClick={() => { setActiveTab('calendar'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'calendar' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+            >
+              <Calendar className="w-5 h-5" />
+              Cash Flow
+            </button>
+            <button
+              onClick={() => { setActiveTab('subscriptions'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'subscriptions' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+            >
+              <ShieldCheck className="w-5 h-5" />
+              Sub Audit
+            </button>
+            <button
+              onClick={() => { setActiveTab('debt'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'debt' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+            >
+              <TrendingDown className="w-5 h-5" />
+              Debt Paydown
             </button>
             <button
               onClick={() => { setActiveTab('chat'); setIsSidebarOpen(false); }}
@@ -189,6 +340,48 @@ export default function App() {
               <Tag className="w-5 h-5" />
               Categories
             </button>
+            <button
+              onClick={() => { setActiveTab('transfers'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'transfers' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+            >
+              <ArrowRightLeft className="w-5 h-5" />
+              Transfer Report
+            </button>
+            <button
+              onClick={() => { setShowMortgageWizard(true); setIsSidebarOpen(false); }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-indigo-500 hover:bg-indigo-50 transition-all"
+            >
+              <Home className="w-5 h-5" />
+              Setup Mortgage
+            </button>
+            <button
+              onClick={() => { setShowCarLoanWizard(true); setIsSidebarOpen(false); }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-blue-500 hover:bg-blue-50 transition-all"
+            >
+              <Car className="w-5 h-5" />
+              Setup Car Loan
+            </button>
+            <button
+              onClick={() => { setShowLogoShowcase(true); setIsSidebarOpen(false); }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-emerald-500 hover:bg-emerald-50 transition-all"
+            >
+              <Palette className="w-5 h-5" />
+              Design Logo
+            </button>
+            <div className="pt-4 px-4">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-gray-400" />
+                  <span className="text-xs font-bold text-gray-600">Household View</span>
+                </div>
+                <button
+                  onClick={() => setHouseholdView(!householdView)}
+                  className={`w-10 h-6 rounded-full transition-all relative ${householdView ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${householdView ? 'left-5' : 'left-1'}`} />
+                </button>
+              </div>
+            </div>
           </nav>
 
           <div className="pt-6 border-t border-gray-50 space-y-2">
@@ -222,11 +415,32 @@ export default function App() {
             <Menu className="w-6 h-6 text-gray-900" />
           </button>
           
-          <div className="flex-1 lg:flex-none">
-            <h2 className="text-lg font-bold text-gray-900 capitalize">{activeTab}</h2>
+          <div className="flex-1 lg:flex-none flex items-center gap-4">
+            <h2 className="text-lg font-bold text-gray-900 capitalize hidden md:block">{activeTab}</h2>
+            <GlobalSearch onNavigate={setActiveTab} />
           </div>
 
           <div className="flex items-center gap-4">
+            {isSyncing && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-full animate-pulse">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Syncing Cloud</span>
+              </div>
+            )}
+            {syncError && !isSyncing && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-full group relative cursor-help">
+                <span className="text-[10px] font-bold uppercase tracking-wider">Sync Error</span>
+                <div className="absolute top-full right-0 mt-2 w-64 p-3 bg-white border border-red-100 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                  <p className="text-xs text-red-600 font-medium">{syncError}</p>
+                  <button 
+                    onClick={() => checkAuth()}
+                    className="mt-2 text-[10px] font-bold text-red-700 underline"
+                  >
+                    Retry Sync
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="hidden md:flex flex-col items-end">
               <span className="text-sm font-bold text-gray-900">Ankith</span>
               <span className="text-xs font-medium text-gray-400">Premium Plan</span>
@@ -248,7 +462,54 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="h-full"
               >
-                <Dashboard transactions={transactions} accounts={accounts} budgets={budgets} recurring={recurring} />
+                <Dashboard 
+                  transactions={transactions} 
+                  accounts={accounts} 
+                  budgets={budgets} 
+                  recurring={recurring} 
+                  goals={goals} 
+                  householdView={householdView}
+                />
+              </motion.div>
+            ) : activeTab === 'reports' ? (
+              <motion.div
+                key="reports"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full p-6 lg:p-8"
+              >
+                <Reports transactions={transactions} accounts={accounts} budgets={budgets} />
+              </motion.div>
+            ) : activeTab === 'calendar' ? (
+              <motion.div
+                key="calendar"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full p-6 lg:p-8"
+              >
+                <CashFlowCalendar transactions={transactions} accounts={accounts} recurring={recurring} />
+              </motion.div>
+            ) : activeTab === 'subscriptions' ? (
+              <motion.div
+                key="subscriptions"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full p-6 lg:p-8"
+              >
+                <SubscriptionAudit transactions={transactions} />
+              </motion.div>
+            ) : activeTab === 'debt' ? (
+              <motion.div
+                key="debt"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full p-6 lg:p-8"
+              >
+                <DebtSimulator accounts={accounts} transactions={transactions} />
               </motion.div>
             ) : activeTab === 'chat' ? (
               <motion.div
@@ -270,6 +531,16 @@ export default function App() {
               >
                 <CategoryManager transactions={transactions} budgets={budgets} recurring={recurring} />
               </motion.div>
+            ) : activeTab === 'transfers' ? (
+              <motion.div
+                key="transfers"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full p-6 lg:p-8"
+              >
+                <TransferReport transactions={transactions} accounts={accounts} />
+              </motion.div>
             ) : (
               <motion.div
                 key="settings"
@@ -285,6 +556,38 @@ export default function App() {
         </div>
 
         <VoiceInput onConfirm={handleTransactionConfirm} />
+
+          <AnimatePresence>
+            {showMortgageWizard && (
+              <MortgageSetupWizard 
+                accounts={accounts} 
+                onClose={() => setShowMortgageWizard(false)} 
+                onComplete={() => {
+                  setShowMortgageWizard(false);
+                  setActiveTab('dashboard');
+                }}
+              />
+            )}
+            {showCarLoanWizard && (
+              <CarLoanSetupWizard 
+                accounts={accounts} 
+                onClose={() => setShowCarLoanWizard(false)} 
+                onComplete={() => {
+                  setShowCarLoanWizard(false);
+                  setActiveTab('dashboard');
+                }}
+              />
+            )}
+            {showLogoShowcase && (
+              <LogoShowcase 
+                onClose={() => setShowLogoShowcase(false)} 
+                onSelect={(logo) => {
+                  setAppLogo(logo);
+                  setShowLogoShowcase(false);
+                }}
+              />
+            )}
+          </AnimatePresence>
       </main>
 
       {/* Mobile Overlay */}
@@ -294,6 +597,7 @@ export default function App() {
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }

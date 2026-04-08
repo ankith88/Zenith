@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, ExternalLink, Database, Copy, Check, RefreshCw, Loader2, Shield, CloudUpload, CloudDownload } from 'lucide-react';
+import { Settings as SettingsIcon, ExternalLink, Database, Copy, Check, RefreshCw, Loader2, Shield, CloudUpload, CloudDownload, User } from 'lucide-react';
 import { motion } from 'motion/react';
 import { sheetsService } from '../lib/sheets';
 import { db } from '../lib/db';
@@ -59,11 +59,12 @@ export default function Settings() {
     try {
       await sheetsService.syncToLocal();
       setSyncMessage("Local database updated successfully!");
-    } catch (error) {
-      setSyncMessage("Failed to pull data. Please check your connection.");
+    } catch (error: any) {
+      console.error("Manual sync failed:", error);
+      setSyncMessage(`Sync failed: ${error.message || "Check connection"}`);
     } finally {
       setIsSyncing(false);
-      setTimeout(() => setSyncMessage(null), 3000);
+      setTimeout(() => setSyncMessage(null), 5000);
     }
   };
 
@@ -77,11 +78,12 @@ export default function Settings() {
     try {
       await sheetsService.syncToRemote();
       setSyncMessage("Google Sheet updated successfully!");
-    } catch (error) {
-      setSyncMessage("Failed to push data. Please check your connection.");
+    } catch (error: any) {
+      console.error("Manual push failed:", error);
+      setSyncMessage(`Push failed: ${error.message || "Check connection"}`);
     } finally {
       setIsPushing(false);
-      setTimeout(() => setSyncMessage(null), 3000);
+      setTimeout(() => setSyncMessage(null), 5000);
     }
   };
 
@@ -165,6 +167,39 @@ export default function Settings() {
           </button>
         </div>
 
+        {/* Household Sharing Card */}
+        <div className="bg-indigo-50 p-8 rounded-3xl border border-indigo-100 shadow-sm space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-indigo-600 rounded-2xl">
+              <User className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-indigo-900">Household Sharing</h3>
+              <p className="text-sm text-indigo-600">Share your financial journey with a partner.</p>
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-4 border-t border-indigo-100">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold text-indigo-900">How to share:</h4>
+                <ol className="text-xs text-indigo-700 space-y-2 list-decimal pl-4">
+                  <li>Open your Google Sheet (using the button above).</li>
+                  <li>Click <strong>Share</strong> in Google Sheets and add your partner's email.</li>
+                  <li>Give them your <strong>Spreadsheet ID</strong> (shown above).</li>
+                  <li>They can then enter this ID in their Zenith settings to link up!</li>
+                </ol>
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold text-indigo-900">Privacy Controls:</h4>
+                <p className="text-xs text-indigo-700 leading-relaxed">
+                  Mark accounts as <strong>"Private"</strong> in the Account Manager to keep them local to your device. Private accounts and their transactions will <strong>never</strong> be synced to the shared Google Sheet.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Database Connection Card */}
         <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm space-y-6">
           <div className="flex items-center gap-4">
@@ -209,7 +244,11 @@ export default function Settings() {
               <motion.div 
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-3 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-xl border border-emerald-100"
+                className={`p-3 text-xs font-bold rounded-xl border ${
+                  syncMessage.toLowerCase().includes('failed') || syncMessage.toLowerCase().includes('error')
+                    ? 'bg-red-50 text-red-700 border-red-100'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                }`}
               >
                 {syncMessage}
               </motion.div>

@@ -134,7 +134,7 @@ export default function RecurringManager({ recurring, accounts }: RecurringManag
               <p className="text-sm font-black text-gray-900">${item.amount.toLocaleString()}</p>
               <button 
                 onClick={() => item.id && handleDelete(item.id)}
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-red-400 hover:text-red-600"
+                className="lg:opacity-0 lg:group-hover:opacity-100 transition-opacity p-1 text-red-400 hover:text-red-600"
               >
                 <Trash2 className="w-3 h-3" />
               </button>

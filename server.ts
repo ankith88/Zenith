@@ -76,7 +76,7 @@ const getOAuth2Client = (req: express.Request, tokens?: any) => {
 // Helper to get tokens from session or header
 const getAuthTokens = (req: express.Request) => {
   if (req.session?.tokens) {
-    console.log("Auth: Using session tokens");
+    console.log("Auth: Found tokens in session cookie");
     return req.session.tokens;
   }
   
@@ -84,15 +84,15 @@ const getAuthTokens = (req: express.Request) => {
   if (tokenHeader && typeof tokenHeader === "string") {
     try {
       const tokens = JSON.parse(Buffer.from(tokenHeader, 'base64').toString());
-      console.log("Auth: Using header tokens");
+      console.log("Auth: Found tokens in x-zenith-tokens header");
       return tokens;
     } catch (e) {
-      console.error("Auth: Failed to parse token header");
+      console.error("Auth: Failed to parse x-zenith-tokens header");
       return null;
     }
   }
   
-  console.log("Auth: No tokens found in session or header");
+  console.log("Auth: No tokens found in session or header. Cookies:", req.headers.cookie ? "Present" : "Missing");
   return null;
 };
 
@@ -256,7 +256,12 @@ app.get("/api/sheets/data", async (req, res) => {
     res.json(response.data);
   } catch (error: any) {
     console.error("Sheets API error:", error);
-    res.status(500).json({ error: error.message });
+    const status = typeof error.code === 'number' ? error.code : 500;
+    res.status(status).json({ 
+      error: error.message,
+      code: error.code,
+      details: error.errors
+    });
   }
 });
 
@@ -279,7 +284,11 @@ app.post("/api/sheets/append", async (req, res) => {
     res.json(response.data);
   } catch (error: any) {
     console.error("Sheets API append error:", error);
-    res.status(500).json({ error: error.message });
+    const status = typeof error.code === 'number' ? error.code : 500;
+    res.status(status).json({ 
+      error: error.message,
+      code: error.code
+    });
   }
 });
 
@@ -302,7 +311,11 @@ app.post("/api/sheets/update", async (req, res) => {
     res.json(response.data);
   } catch (error: any) {
     console.error("Sheets API update error:", error);
-    res.status(500).json({ error: error.message });
+    const status = typeof error.code === 'number' ? error.code : 500;
+    res.status(status).json({ 
+      error: error.message,
+      code: error.code
+    });
   }
 });
 
@@ -336,7 +349,11 @@ app.post("/api/sheets/delete-row", async (req, res) => {
     res.json(response.data);
   } catch (error: any) {
     console.error("Sheets API delete error:", error);
-    res.status(500).json({ error: error.message });
+    const status = typeof error.code === 'number' ? error.code : 500;
+    res.status(status).json({ 
+      error: error.message,
+      code: error.code
+    });
   }
 });
 
@@ -356,7 +373,11 @@ app.get("/api/sheets/metadata", async (req, res) => {
     res.json(response.data);
   } catch (error: any) {
     console.error("Sheets API metadata error:", error);
-    res.status(500).json({ error: error.message });
+    const status = typeof error.code === 'number' ? error.code : 500;
+    res.status(status).json({ 
+      error: error.message,
+      code: error.code
+    });
   }
 });
 
@@ -377,7 +398,11 @@ app.post("/api/sheets/clear", async (req, res) => {
     res.json(response.data);
   } catch (error: any) {
     console.error("Sheets API clear error:", error);
-    res.status(500).json({ error: error.message });
+    const status = typeof error.code === 'number' ? error.code : 500;
+    res.status(status).json({ 
+      error: error.message,
+      code: error.code
+    });
   }
 });
 
@@ -498,7 +523,11 @@ app.post("/api/sheets/create", async (req, res) => {
     res.json(response.data);
   } catch (error: any) {
     console.error("Sheets API error:", error);
-    res.status(500).json({ error: error.message });
+    const status = typeof error.code === 'number' ? error.code : 500;
+    res.status(status).json({ 
+      error: error.message,
+      code: error.code
+    });
   }
 });
 
@@ -534,4 +563,14 @@ if (process.env.NODE_ENV === "production") {
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on http://localhost:${PORT}`);
+});
+
+// Global error handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("Global error handler caught:", err);
+  const status = err.code || err.status || 500;
+  res.status(status).json({
+    error: err.message || "Internal Server Error",
+    code: err.code || "INTERNAL_ERROR"
+  });
 });

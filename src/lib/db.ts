@@ -5,6 +5,12 @@ export interface Account {
   name: string;
   initialBalance: number;
   type: string;
+  interestRate?: number;
+  minPayment?: number;
+  lastInterestDate?: string;
+  owner?: string;
+  isPrivate?: boolean;
+  assetValue?: number;
   synced: boolean;
 }
 
@@ -17,6 +23,7 @@ export interface Transaction {
   type: 'Income' | 'Expense' | 'Transfer';
   accountId: number; // Reference to Account.id (Source for Transfer)
   toAccountId?: number; // Reference to Account.id (Destination for Transfer)
+  owner?: string;
   synced: boolean;
 }
 
@@ -47,20 +54,33 @@ export interface AppSetting {
   value: any;
 }
 
+export interface Goal {
+  id?: number;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  deadline?: string;
+  category: string;
+  color: string;
+  synced: boolean;
+}
+
 export class ZenithDB extends Dexie {
   transactions!: Table<Transaction>;
   accounts!: Table<Account>;
   budgets!: Table<Budget>;
   recurringTransactions!: Table<RecurringTransaction>;
+  goals!: Table<Goal>;
   settings!: Table<AppSetting>;
 
   constructor() {
     super('ZenithDB');
-    this.version(6).stores({
+    this.version(8).stores({
       transactions: '++id, date, category, type, accountId, toAccountId, synced',
-      accounts: '++id, name, type, synced',
+      accounts: '++id, name, type, isPrivate, synced',
       budgets: '++id, category, synced',
       recurringTransactions: '++id, frequency, accountId, toAccountId, synced',
+      goals: '++id, name, category, synced',
       settings: 'key'
     });
   }

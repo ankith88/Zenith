@@ -38,7 +38,7 @@ export default function BudgetManager({ budgets }: BudgetManagerProps) {
         await sheetsService.appendBudget(newBudget);
       }
       
-      await db.budgets.where({ category: newBudget.category }).modify({ synced: true });
+      await db.budgets.where('category').equals(newBudget.category).modify({ synced: true });
       
       setIsAdding(false);
       setEditingId(null);

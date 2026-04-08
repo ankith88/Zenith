@@ -32,21 +32,26 @@ export default function AuthOverlay({ onAuthenticated }: AuthOverlayProps) {
           
           // Store tokens if provided (backup for cookie-session)
           if (event.data.encodedTokens) {
+            console.log("AuthOverlay: Received tokens from popup, saving...");
             await sheetsService.setTokens(event.data.encodedTokens);
           }
           
-          // Add a small delay to ensure cookie is processed by browser
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          // Add a small delay to ensure cookie is processed by browser and DB is updated
+          await new Promise(resolve => setTimeout(resolve, 1500));
           
           // Verify session with server before proceeding
           try {
-            const { isAuthenticated } = await sheetsService.fetchAuthStatus();
-            if (isAuthenticated) {
+            console.log("AuthOverlay: Verifying session with server...");
+            const data = await sheetsService.fetchAuthStatus();
+            if (data && data.isAuthenticated) {
+              console.log("AuthOverlay: Session verified!");
               setStep('setup');
             } else {
-              setError('Session verification failed. Please try again.');
+              console.error("AuthOverlay: Session verification failed. Data:", data);
+              setError('Session verification failed. Please try again or check if cookies are enabled.');
             }
           } catch (e) {
+            console.error("AuthOverlay: Connection error during verification:", e);
             setError('Connection error. Please try again.');
           } finally {
             setIsVerifying(false);
