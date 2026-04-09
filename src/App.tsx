@@ -32,7 +32,7 @@ export default function App() {
   const [showMortgageWizard, setShowMortgageWizard] = useState(false);
   const [showCarLoanWizard, setShowCarLoanWizard] = useState(false);
   const [showLogoShowcase, setShowLogoShowcase] = useState(false);
-  const [appLogo, setAppLogo] = useState<string | null>('/logo.png');
+  const [appLogo, setAppLogo] = useState<string | null>('/logo.svg');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [householdView, setHouseholdView] = useState(false);
