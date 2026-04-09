@@ -69,22 +69,35 @@ export interface Goal {
   synced: boolean;
 }
 
+export interface Milestone {
+  id?: number;
+  type: 'streak' | 'badge';
+  name: string;
+  description: string;
+  icon: string;
+  achievedDate: string;
+  value?: number;
+  synced: boolean;
+}
+
 export class ZenithDB extends Dexie {
   transactions!: Table<Transaction>;
   accounts!: Table<Account>;
   budgets!: Table<Budget>;
   recurringTransactions!: Table<RecurringTransaction>;
   goals!: Table<Goal>;
+  milestones!: Table<Milestone>;
   settings!: Table<AppSetting>;
 
   constructor() {
     super('ZenithDB');
-    this.version(11).stores({
+    this.version(12).stores({
       transactions: '++id, date, category, type, accountId, toAccountId, synced',
       accounts: '++id, name, type, isPrivate, synced',
       budgets: '++id, category, synced',
       recurringTransactions: '++id, frequency, accountId, toAccountId, synced',
       goals: '++id, name, category, synced',
+      milestones: '++id, type, name, synced',
       settings: 'key'
     });
   }

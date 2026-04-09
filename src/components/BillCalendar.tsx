@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, ArrowUpRight, ArrowDownLeft, ArrowRightLeft, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle, ArrowUpRight, ArrowDownLeft, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { RecurringTransaction, Account } from '../lib/db';
 
@@ -7,15 +7,17 @@ interface BillCalendarProps {
   recurring: RecurringTransaction[];
   accounts: Account[];
   accountBalances: Record<number, number>;
+  compact?: boolean;
 }
 
-export default function BillCalendar({ recurring, accounts, accountBalances }: BillCalendarProps) {
+export default function BillCalendar({ recurring, accounts, accountBalances, compact = false }: BillCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState<number | null>(new Date().getDate());
 
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
 
-  const monthName = currentDate.toLocaleString('default', { month: 'long' });
+  const monthName = currentDate.toLocaleString('default', { month: 'short' });
   const year = currentDate.getFullYear();
 
   const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
@@ -25,18 +27,14 @@ export default function BillCalendar({ recurring, accounts, accountBalances }: B
     const events: Record<number, any[]> = {};
     
     recurring.forEach(r => {
-      // Parse YYYY-MM-DD manually to ensure local timezone interpretation
       const [y, m, d] = r.startDate.split('-').map(Number);
       const start = new Date(y, m - 1, d);
       
       for (let i = 1; i <= daysInMonth; i++) {
         const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
-        
-        // Normalize both to midnight for comparison
         const dateMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
         const startMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
 
-        // Skip if before start date
         if (dateMidnight < startMidnight) continue;
 
         let isMatch = false;
@@ -59,8 +57,6 @@ export default function BillCalendar({ recurring, accounts, accountBalances }: B
 
     return events;
   }, [recurring, currentDate, daysInMonth]);
-
-  const getAccountName = (id: number) => accounts.find(a => a.id === id)?.name || 'Unknown';
 
   const dailyProjectedBalances = useMemo(() => {
     const balances: Record<number, Record<number, number>> = {};
@@ -85,38 +81,39 @@ export default function BillCalendar({ recurring, accounts, accountBalances }: B
     return balances;
   }, [calendarEvents, accountBalances, daysInMonth]);
 
+  const selectedEvents = selectedDay ? calendarEvents[selectedDay] || [] : [];
+  const selectedBalances = selectedDay ? dailyProjectedBalances[selectedDay] : null;
+
   return (
-    <div className="space-y-6">
+    <div className={`flex flex-col ${compact ? 'gap-4' : 'gap-6'}`}>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600">
-            <CalendarIcon className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="text-xl font-black text-gray-900">Bill Calendar</h3>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Projected Cash Flow for {monthName}</p>
-          </div>
+        <div className="flex items-center gap-2">
+          <CalendarIcon className={`text-indigo-600 ${compact ? 'w-4 h-4' : 'w-5 h-5'}`} />
+          <span className={`font-bold text-gray-900 ${compact ? 'text-xs' : 'text-sm'}`}>Bill Calendar</span>
         </div>
-        <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-2xl">
-          <button onClick={prevMonth} className="p-2 hover:bg-white rounded-xl transition-all shadow-sm">
-            <ChevronLeft className="w-5 h-5 text-gray-400" />
+        <div className="flex items-center gap-1">
+          <button onClick={prevMonth} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+            <ChevronLeft className="w-4 h-4 text-gray-400" />
           </button>
-          <span className="px-4 text-sm font-black text-gray-900">{monthName} {year}</span>
-          <button onClick={nextMonth} className="p-2 hover:bg-white rounded-xl transition-all shadow-sm">
-            <ChevronRight className="w-5 h-5 text-gray-400" />
+          <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest min-w-[60px] text-center">
+            {monthName} {year}
+          </span>
+          <button onClick={nextMonth} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+            <ChevronRight className="w-4 h-4 text-gray-400" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-px bg-gray-100 rounded-[32px] overflow-hidden border border-gray-100 shadow-sm">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-          <div key={day} className="bg-gray-50/50 p-4 text-center">
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{day}</span>
+      {/* Grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => (
+          <div key={day} className="text-center py-1">
+            <span className="text-[8px] font-black text-gray-300 uppercase">{day}</span>
           </div>
         ))}
         
         {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-          <div key={`empty-${i}`} className="bg-white/50 h-32" />
+          <div key={`empty-${i}`} className="h-8" />
         ))}
 
         {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -124,90 +121,105 @@ export default function BillCalendar({ recurring, accounts, accountBalances }: B
           const events = calendarEvents[day] || [];
           const balances = dailyProjectedBalances[day];
           const hasRisk = Object.values(balances).some(b => b < 0);
+          const isSelected = selectedDay === day;
+          const isToday = day === new Date().getDate() && currentDate.getMonth() === new Date().getMonth() && currentDate.getFullYear() === new Date().getFullYear();
 
           return (
-            <div key={day} className="bg-white h-40 p-3 flex flex-col gap-1 border-t border-l border-gray-50 hover:bg-gray-50/50 transition-colors group">
-              <div className="flex items-center justify-between mb-1">
-                <span className={`text-xs font-black ${day === new Date().getDate() && currentDate.getMonth() === new Date().getMonth() ? 'w-6 h-6 bg-black text-white rounded-full flex items-center justify-center' : 'text-gray-400'}`}>
-                  {day}
-                </span>
+            <button
+              key={day}
+              onClick={() => setSelectedDay(day)}
+              className={`h-8 rounded-lg flex flex-col items-center justify-center relative transition-all ${
+                isSelected ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 
+                isToday ? 'bg-black text-white' :
+                'hover:bg-gray-50 text-gray-600'
+              }`}
+            >
+              <span className="text-[10px] font-bold">{day}</span>
+              <div className="flex gap-0.5 mt-0.5">
+                {events.length > 0 && (
+                  <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-indigo-400'}`} />
+                )}
                 {hasRisk && (
-                  <AlertCircle className="w-4 h-4 text-rose-500 animate-pulse" />
+                  <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-rose-500'}`} />
                 )}
               </div>
-              
-              <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar">
-                {events.map((e, idx) => (
-                  <div 
-                    key={idx}
-                    className={`px-2 py-1 rounded-lg text-[10px] font-bold truncate ${
-                      e.type === 'Income' ? 'bg-emerald-50 text-emerald-700' :
-                      e.type === 'Expense' ? 'bg-rose-50 text-rose-700' :
-                      'bg-indigo-50 text-indigo-700'
-                    }`}
-                    title={`${e.description}: $${e.amount}`}
-                  >
-                    {e.type === 'Income' ? '+' : e.type === 'Expense' ? '-' : '⇄'} ${e.amount} {e.description}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Day Details */}
+      <AnimatePresence mode="wait">
+        {selectedDay && (
+          <motion.div
+            key={selectedDay}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-gray-50 rounded-2xl p-3 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                {selectedDay} {monthName}
+              </span>
+              {selectedBalances && Object.values(selectedBalances).some(b => b < 0) && (
+                <div className="flex items-center gap-1 text-rose-600">
+                  <AlertCircle className="w-3 h-3" />
+                  <span className="text-[8px] font-bold uppercase">Risk</span>
+                </div>
+              )}
+            </div>
+
+            {selectedEvents.length > 0 ? (
+              <div className="space-y-2">
+                {selectedEvents.map((e, idx) => (
+                  <div key={idx} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={`p-1 rounded-md ${
+                        e.type === 'Income' ? 'bg-emerald-100 text-emerald-600' :
+                        e.type === 'Expense' ? 'bg-rose-100 text-rose-600' :
+                        'bg-indigo-100 text-indigo-600'
+                      }`}>
+                        {e.type === 'Income' ? <ArrowUpRight className="w-3 h-3" /> : 
+                         e.type === 'Expense' ? <ArrowDownLeft className="w-3 h-3" /> : 
+                         <RefreshCw className="w-3 h-3" />}
+                      </div>
+                      <span className="text-[10px] font-bold text-gray-700 truncate">{e.description}</span>
+                    </div>
+                    <span className={`text-[10px] font-black ${
+                      e.type === 'Income' ? 'text-emerald-600' : 
+                      e.type === 'Expense' ? 'text-rose-600' : 'text-indigo-600'
+                    }`}>
+                      ${e.amount}
+                    </span>
                   </div>
                 ))}
               </div>
+            ) : (
+              <p className="text-[10px] font-medium text-gray-400 italic">No scheduled transactions</p>
+            )}
 
-              <div className="pt-2 mt-auto border-t border-gray-50 opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="flex flex-col gap-0.5">
-                  {Object.entries(balances).map(([accId, bal]) => {
+            {selectedBalances && (
+              <div className="pt-2 border-t border-gray-200">
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.entries(selectedBalances).map(([accId, bal]) => {
                     const acc = accounts.find(a => a.id === Number(accId));
                     if (!acc || bal === 0) return null;
                     return (
-                      <div key={accId} className="flex items-center justify-between text-[8px] font-bold">
-                        <span className="text-gray-400 truncate max-w-[40px]">{acc.name}</span>
-                        <span className={bal < 0 ? 'text-rose-500' : 'text-gray-600'}>${bal.toFixed(0)}</span>
+                      <div key={accId} className="flex flex-col">
+                        <span className="text-[8px] font-bold text-gray-400 truncate uppercase">{acc.name}</span>
+                        <span className={`text-[10px] font-black ${bal < 0 ? 'text-rose-600' : 'text-gray-700'}`}>
+                          ${bal.toLocaleString()}
+                        </span>
                       </div>
                     );
                   })}
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm">
-        <h4 className="text-sm font-black text-gray-900 mb-6 uppercase tracking-widest">Cash Flow Analysis</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="p-6 bg-emerald-50 rounded-3xl border border-emerald-100">
-            <div className="flex items-center gap-3 mb-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-              <span className="text-xs font-black text-emerald-800 uppercase tracking-widest">Safe Days</span>
-            </div>
-            <p className="text-2xl font-black text-emerald-600">
-              {Object.values(dailyProjectedBalances).filter(b => Object.values(b).every(v => v >= 0)).length} / {daysInMonth}
-            </p>
-            <p className="text-[10px] font-bold text-emerald-700 mt-1">Days with positive balances in all accounts</p>
-          </div>
-
-          <div className="p-6 bg-rose-50 rounded-3xl border border-rose-100">
-            <div className="flex items-center gap-3 mb-2">
-              <AlertCircle className="w-5 h-5 text-rose-600" />
-              <span className="text-xs font-black text-rose-800 uppercase tracking-widest">Risk Alerts</span>
-            </div>
-            <p className="text-2xl font-black text-rose-600">
-              {Object.values(dailyProjectedBalances).filter(b => Object.values(b).some(v => v < 0)).length} Days
-            </p>
-            <p className="text-[10px] font-bold text-rose-700 mt-1">Potential overdrafts detected</p>
-          </div>
-
-          <div className="p-6 bg-indigo-50 rounded-3xl border border-indigo-100">
-            <div className="flex items-center gap-3 mb-2">
-              <ArrowRightLeft className="w-5 h-5 text-indigo-600" />
-              <span className="text-xs font-black text-indigo-800 uppercase tracking-widest">Total Recurring</span>
-            </div>
-            <p className="text-2xl font-black text-indigo-600">
-              ${recurring.reduce((sum, r) => sum + r.amount, 0).toLocaleString()}
-            </p>
-            <p className="text-[10px] font-bold text-indigo-700 mt-1">Total monthly fixed commitments</p>
-          </div>
-        </div>
-      </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

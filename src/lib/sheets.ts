@@ -167,16 +167,26 @@ export class SheetsService {
     try {
       console.log("SheetsService: Starting syncToLocal...");
       
-      // Fetch all data first before starting transaction to keep transaction short
-        const [accData, budData, recData, goalData, transData] = await Promise.all([
-          this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Accounts!A2:L`, { credentials: 'include', headers: this.getHeaders() }),
-          this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Budgets!A2:C`, { credentials: 'include', headers: this.getHeaders() }),
-          this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Recurring!A2:J`, { credentials: 'include', headers: this.getHeaders() }),
-          this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Goals!A2:H`, { credentials: 'include', headers: this.getHeaders() }),
-          this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Transactions!A2:I`, { credentials: 'include', headers: this.getHeaders() }),
-        ]);
+      const fetchRange = async (range: string) => {
+        try {
+          return await this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=${range}`, { credentials: 'include', headers: this.getHeaders() });
+        } catch (e) {
+          console.warn(`Failed to fetch range ${range}:`, e);
+          return { values: [] };
+        }
+      };
 
-      await db.transaction('rw', [db.accounts, db.budgets, db.recurringTransactions, db.goals, db.transactions], async () => {
+      // Fetch all data first before starting transaction to keep transaction short
+      const [accData, budData, recData, goalData, milestonesData, transData] = await Promise.all([
+        fetchRange('Accounts!A2:L'),
+        fetchRange('Budgets!A2:C'),
+        fetchRange('Recurring!A2:J'),
+        fetchRange('Goals!A2:H'),
+        fetchRange('Milestones!A2:G'),
+        fetchRange('Transactions!A2:I'),
+      ]);
+
+      await db.transaction('rw', [db.accounts, db.budgets, db.recurringTransactions, db.goals, db.milestones, db.transactions], async () => {
         // Sync Accounts
         if (accData.values) {
           const accounts: Account[] = accData.values
@@ -262,6 +272,25 @@ export class SheetsService {
           await db.goals.bulkPut(uniqueGoals);
         }
 
+        // Sync Milestones
+        if (milestonesData && milestonesData.values) {
+          const milestones: any[] = milestonesData.values
+            .filter((row: any[]) => row && row.length >= 3 && isFinite(parseInt(row[0])))
+            .map((row: any[]) => ({
+              id: parseInt(row[0]),
+              type: row[1],
+              name: row[2],
+              description: row[3] || '',
+              icon: row[4] || '',
+              achievedDate: row[5],
+              value: row[6] ? parseFloat(row[6]) : undefined,
+              synced: true,
+            }));
+          await db.milestones.clear();
+          const uniqueMilestones = Array.from(new Map(milestones.map(m => [m.id, m])).values());
+          await db.milestones.bulkPut(uniqueMilestones);
+        }
+
         // Sync Transactions
         if (transData.values) {
           const transactions: Transaction[] = transData.values
@@ -305,6 +334,7 @@ export class SheetsService {
       const recurring = await db.recurringTransactions.toArray();
       const transactions = await db.transactions.toArray();
       const goals = await db.goals.toArray();
+      const milestones = await db.milestones.toArray();
 
       // 2. Clear sheets (except headers)
       const clearPromises = [
@@ -337,6 +367,12 @@ export class SheetsService {
           credentials: 'include',
           headers: this.getHeaders({ 'Content-Type': 'application/json' }), 
           body: JSON.stringify({ spreadsheetId: this.spreadsheetId, range: 'Goals!A2:H' }) 
+        }),
+        this.safeFetch('/api/sheets/clear', { 
+          method: 'POST', 
+          credentials: 'include',
+          headers: this.getHeaders({ 'Content-Type': 'application/json' }), 
+          body: JSON.stringify({ spreadsheetId: this.spreadsheetId, range: 'Milestones!A2:G' }) 
         }),
       ];
       await Promise.all(clearPromises);
@@ -410,6 +446,19 @@ export class SheetsService {
         }));
       }
 
+      if (milestones.length > 0) {
+        appendPromises.push(this.safeFetch('/api/sheets/append', {
+          method: 'POST',
+          credentials: 'include',
+          headers: this.getHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            spreadsheetId: this.spreadsheetId,
+            range: 'Milestones!A2:G',
+            values: milestones.map(m => [m.id, m.type, m.name, m.description, m.icon, m.achievedDate, m.value || '']),
+          }),
+        }));
+      }
+
       await Promise.all(appendPromises);
 
       // 4. Mark all as synced locally
@@ -418,6 +467,7 @@ export class SheetsService {
       await db.recurringTransactions.toCollection().modify({ synced: true });
       await db.transactions.toCollection().modify({ synced: true });
       await db.goals.toCollection().modify({ synced: true });
+      await db.milestones.toCollection().modify({ synced: true });
 
     } catch (error) {
       console.error("Sync to remote error:", error);
@@ -688,6 +738,56 @@ export class SheetsService {
       }
     } catch (error) {
       console.error("Delete goal error:", error);
+    }
+  }
+
+  async appendMilestone(m: any) {
+    if (!this.spreadsheetId) return;
+    try {
+      await this.safeFetch('/api/sheets/append', {
+        method: 'POST',
+        credentials: 'include',
+        headers: this.getHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          spreadsheetId: this.spreadsheetId,
+          range: 'Milestones!A2:G',
+          values: [[m.id, m.type, m.name, m.description, m.icon, m.achievedDate, m.value || '']],
+        }),
+      });
+    } catch (error) {
+      console.error("Append milestone error:", error);
+    }
+  }
+
+  async deleteMilestone(id: number) {
+    if (!this.spreadsheetId) return;
+    try {
+      const meta = await this.safeFetch(`/api/sheets/metadata?spreadsheetId=${this.spreadsheetId}`, {
+        credentials: 'include',
+        headers: this.getHeaders()
+      });
+      const sheetId = meta.sheets.find((s: any) => s.properties.title === 'Milestones')?.properties.sheetId;
+
+      const data = await this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Milestones!A:A`, {
+        credentials: 'include',
+        headers: this.getHeaders()
+      });
+      const rowIndex = data.values?.findIndex((row: any[]) => parseInt(row[0]) === id);
+
+      if (sheetId !== undefined && rowIndex !== undefined && rowIndex !== -1) {
+        await this.safeFetch('/api/sheets/delete-row', {
+          method: 'POST',
+          credentials: 'include',
+          headers: this.getHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            spreadsheetId: this.spreadsheetId,
+            sheetId,
+            rowIndex,
+          }),
+        });
+      }
+    } catch (error) {
+      console.error("Delete milestone error:", error);
     }
   }
 

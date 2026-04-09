@@ -5,14 +5,14 @@ import {
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
 import { TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Landmark, Banknote, Trash2, Edit2, Target, X, Home, Briefcase, Car } from 'lucide-react';
-import { Transaction, Account, Budget, RecurringTransaction, Goal, db } from '../lib/db';
+import { Transaction, Account, Budget, RecurringTransaction, Goal, Milestone, db } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
 import { formatLocalDate } from '../lib/utils';
 import AccountManager from './AccountManager';
 import BudgetManager from './BudgetManager';
 import RecurringManager from './RecurringManager';
 import SavingsGoals from './SavingsGoals';
-import BillCalendar from './BillCalendar';
+import { Milestones } from './Milestones';
 
 interface DashboardProps {
   transactions: Transaction[];
@@ -20,11 +20,13 @@ interface DashboardProps {
   budgets: Budget[];
   recurring: RecurringTransaction[];
   goals: Goal[];
+  milestones: Milestone[];
+  accountBalances: Record<number, number>;
   householdView: boolean;
   onViewAllTransactions?: () => void;
 }
 
-export default function Dashboard({ transactions, accounts, budgets, recurring, goals, householdView, onViewAllTransactions }: DashboardProps) {
+export default function Dashboard({ transactions, accounts, budgets, recurring, goals, milestones, accountBalances, householdView, onViewAllTransactions }: DashboardProps) {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deletingTransactionId, setDeletingTransactionId] = useState<number | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -64,23 +66,6 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
   };
 
   const stats = useMemo(() => {
-    // Calculate ALL account balances first
-    const allAccountBalances = accounts.reduce((acc, account) => {
-      acc[account.id!] = account.initialBalance || 0;
-      return acc;
-    }, {} as Record<number, number>);
-
-    transactions.forEach(t => {
-      if (t.type === 'Income') {
-        allAccountBalances[t.accountId] = (allAccountBalances[t.accountId] || 0) + t.amount;
-      } else if (t.type === 'Expense') {
-        allAccountBalances[t.accountId] = (allAccountBalances[t.accountId] || 0) - t.amount;
-      } else if (t.type === 'Transfer' && t.toAccountId) {
-        allAccountBalances[t.accountId] = (allAccountBalances[t.accountId] || 0) - t.amount;
-        allAccountBalances[t.toAccountId] = (allAccountBalances[t.toAccountId] || 0) + t.amount;
-      }
-    });
-
     // Filter data based on householdView for stats
     const filteredAccounts = householdView 
       ? accounts 
@@ -100,16 +85,16 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
           return !acc?.owner || acc.owner === 'Me';
         });
 
-    const accountBalances = householdView 
-      ? allAccountBalances 
+    const filteredAccountBalances = householdView 
+      ? accountBalances 
       : Object.fromEntries(
-          Object.entries(allAccountBalances).filter(([id]) => {
+          Object.entries(accountBalances).filter(([id]) => {
             const acc = accounts.find(a => a.id === parseInt(id));
             return !acc?.owner || acc.owner === 'Me';
           })
         );
 
-    const totalBalance = Object.values(accountBalances).reduce((sum, b) => sum + b, 0);
+    const totalBalance = Object.values(filteredAccountBalances).reduce((sum, b) => sum + b, 0);
     const totalAssetValue = filteredAccounts.reduce((sum, acc) => sum + (acc.assetValue || 0), 0);
     const netWorth = totalBalance + totalAssetValue;
 
@@ -151,7 +136,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
     let totalDebt = 0;
 
     filteredAccounts.forEach(acc => {
-      const balance = accountBalances[acc.id!] || 0;
+      const balance = filteredAccountBalances[acc.id!] || 0;
       if (acc.type === 'Mortgage' || acc.type === 'Credit Card') {
         totalDebt += Math.abs(balance);
       } else {
@@ -182,7 +167,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       totalDebt, 
       pieData, 
       areaData, 
-      accountBalances, 
+      accountBalances: filteredAccountBalances, 
       budgetProgress, 
       unsyncedCount, 
       monthlySavings, 
@@ -190,7 +175,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       filteredTransactions,
       filteredRecurring
     };
-  }, [transactions, accounts, budgets, recurring, goals, householdView]);
+  }, [transactions, accounts, budgets, recurring, goals, householdView, accountBalances]);
 
   const getAccountName = (id: number) => accounts.find(a => a.id === id)?.name || 'Unknown';
 
@@ -361,8 +346,8 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       {/* Savings Goals Section */}
       <SavingsGoals goals={goals} accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} monthlySavings={stats.monthlySavings} />
 
-      {/* Bill Calendar Section */}
-      <BillCalendar recurring={stats.filteredRecurring} accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} />
+      {/* Milestones Section */}
+      <Milestones milestones={milestones} />
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

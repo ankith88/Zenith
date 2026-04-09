@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, MessageSquare, Plus, Settings as SettingsIcon, LogOut, User, Menu, X, Loader2, Tag } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { LayoutDashboard, MessageSquare, Plus, Settings as SettingsIcon, LogOut, User, Menu, X, Loader2, Tag, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, Transaction } from './lib/db';
+import { db, Transaction, Milestone } from './lib/db';
 import { sheetsService } from './lib/sheets';
+import { milestoneService } from './lib/milestones';
 import { formatLocalDate, parseLocalDate } from './lib/utils';
 import Dashboard from './components/Dashboard';
 import InsightsChat from './components/InsightsChat';
@@ -23,6 +24,7 @@ import MortgageSetupWizard from './components/MortgageSetupWizard';
 import CarLoanSetupWizard from './components/CarLoanSetupWizard';
 import LogoShowcase from './components/LogoShowcase';
 import ErrorBoundary from './components/ErrorBoundary';
+import BillCalendar from './components/BillCalendar';
 import { ArrowRightLeft, BarChart3, Search, Calendar, ShieldCheck, TrendingDown, Home, Car, Palette } from 'lucide-react';
 
 export default function App() {
@@ -53,6 +55,33 @@ export default function App() {
   const budgets = useLiveQuery(() => db.budgets.toArray()) || [];
   const recurring = useLiveQuery(() => db.recurringTransactions.toArray()) || [];
   const goals = useLiveQuery(() => db.goals.toArray()) || [];
+  const milestones = useLiveQuery(() => db.milestones.toArray()) || [];
+
+  const accountBalances = useMemo(() => {
+    const balances = accounts.reduce((acc, account) => {
+      acc[account.id!] = account.initialBalance || 0;
+      return acc;
+    }, {} as Record<number, number>);
+
+    transactions.forEach(t => {
+      if (t.type === 'Income') {
+        balances[t.accountId] = (balances[t.accountId] || 0) + t.amount;
+      } else if (t.type === 'Expense') {
+        balances[t.accountId] = (balances[t.accountId] || 0) - t.amount;
+      } else if (t.type === 'Transfer' && t.toAccountId) {
+        balances[t.accountId] = (balances[t.accountId] || 0) - t.amount;
+        balances[t.toAccountId] = (balances[t.toAccountId] || 0) + t.amount;
+      }
+    });
+
+    return balances;
+  }, [transactions, accounts]);
+
+  useEffect(() => {
+    if (isAuthenticated && isInitialSyncComplete) {
+      milestoneService.checkMilestones();
+    }
+  }, [transactions, budgets, goals, isAuthenticated, isInitialSyncComplete]);
 
   useEffect(() => {
     const init = async () => {
@@ -370,7 +399,7 @@ export default function App() {
             <h1 className="text-xl font-black text-gray-900 tracking-tight">Zenith</h1>
           </div>
 
-          <nav className="flex-1 space-y-2">
+          <nav className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-2">
             <button
               onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'dashboard' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
@@ -396,8 +425,8 @@ export default function App() {
               onClick={() => { setActiveTab('calendar'); setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'calendar' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
             >
-              <Calendar className="w-5 h-5" />
-              Cash Flow
+              <TrendingUp className="w-5 h-5" />
+              Projections
             </button>
             <button
               onClick={() => { setActiveTab('subscriptions'); setIsSidebarOpen(false); }}
@@ -468,6 +497,15 @@ export default function App() {
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${householdView ? 'left-5' : 'left-1'}`} />
                 </button>
               </div>
+            </div>
+
+            <div className="pt-6 px-4">
+              <BillCalendar 
+                compact 
+                recurring={recurring} 
+                accounts={accounts} 
+                accountBalances={accountBalances} 
+              />
             </div>
           </nav>
 
@@ -555,6 +593,8 @@ export default function App() {
                   budgets={budgets} 
                   recurring={recurring} 
                   goals={goals} 
+                  milestones={milestones}
+                  accountBalances={accountBalances}
                   householdView={householdView}
                   onViewAllTransactions={() => setActiveTab('transactions')}
                 />

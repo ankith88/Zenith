@@ -846,6 +846,29 @@ app.post("/api/sheets/create", async (req, res) => {
                       { userEnteredValue: { stringValue: "Deadline" } },
                       { userEnteredValue: { stringValue: "Category" } },
                       { userEnteredValue: { stringValue: "Color" } },
+                      { userEnteredValue: { stringValue: "AccountID" } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            properties: { title: "Milestones" },
+            data: [
+              {
+                startRow: 0,
+                startColumn: 0,
+                rowData: [
+                  {
+                    values: [
+                      { userEnteredValue: { stringValue: "ID" } },
+                      { userEnteredValue: { stringValue: "Type" } },
+                      { userEnteredValue: { stringValue: "Name" } },
+                      { userEnteredValue: { stringValue: "Description" } },
+                      { userEnteredValue: { stringValue: "Icon" } },
+                      { userEnteredValue: { stringValue: "AchievedDate" } },
+                      { userEnteredValue: { stringValue: "Value" } },
                     ],
                   },
                 ],
