@@ -244,7 +244,8 @@ app.post("/api/auth/logout", (req, res) => {
 
 // Gemini Proxy API
 app.post("/api/ai/insights", async (req, res) => {
-  const { query, transactions, accounts, budgets } = req.body;
+  const { query, transactions, accounts, budgets, userDate } = req.body;
+  const today = userDate || new Date().toISOString().split('T')[0];
   
   try {
     const transactionContext = transactions.map((t: any) => 
@@ -273,7 +274,7 @@ app.post("/api/ai/insights", async (req, res) => {
     TRANSACTIONS (CSV: Date, Amount, Category, Description, Type):
     ${transactionContext}
     
-    Current Date: ${new Date().toISOString().split('T')[0]}
+    Current Date: ${today}
     
     Your goals:
     1. Provide deep reasoning over the data.
@@ -300,7 +301,8 @@ app.post("/api/ai/insights", async (req, res) => {
 });
 
 app.post("/api/ai/health-checkup", async (req, res) => {
-  const { transactions, accounts, budgets } = req.body;
+  const { transactions, accounts, budgets, userDate } = req.body;
+  const today = userDate || new Date().toISOString().split('T')[0];
   
   try {
     const transactionContext = transactions.slice(-100).map((t: any) => 
@@ -328,7 +330,7 @@ app.post("/api/ai/health-checkup", async (req, res) => {
     RECENT TRANSACTIONS (CSV: Date, Amount, Category, Description, Type):
     ${transactionContext}
     
-    Current Date: ${new Date().toISOString().split('T')[0]}
+    Current Date: ${today}
     
     Your report MUST include:
     1. **Financial Health Score (0-100)**
@@ -464,7 +466,8 @@ app.post("/api/ai/detect-anomalies", async (req, res) => {
 });
 
 app.post("/api/ai/parse-receipt", async (req, res) => {
-  const { base64Image, mimeType } = req.body;
+  const { base64Image, mimeType, userDate } = req.body;
+  const today = userDate || new Date().toISOString().split('T')[0];
   try {
     const response = await genAI.models.generateContent({ 
       model: "gemini-3-flash-preview",
@@ -478,7 +481,7 @@ app.post("/api/ai/parse-receipt", async (req, res) => {
         {
           text: `Extract transaction details from this receipt. 
           Return a JSON object with: date (YYYY-MM-DD), amount (number), category (string), description (string), type (Income/Expense/Transfer).
-          If date is not found, use today's date: ${new Date().toISOString().split('T')[0]}.`,
+          If date is not found, use today's date: ${today}.`,
         },
       ],
       config: {
@@ -507,12 +510,13 @@ app.post("/api/ai/parse-receipt", async (req, res) => {
 });
 
 app.post("/api/ai/parse-voice", async (req, res) => {
-  const { text } = req.body;
+  const { text, userDate } = req.body;
+  const today = userDate || new Date().toISOString().split('T')[0];
   try {
     const response = await genAI.models.generateContent({ 
       model: "gemini-3-flash-preview",
       contents: `Parse this spoken transaction into structured JSON: "${text}". 
-      If date is not mentioned, use today's date: ${new Date().toISOString().split('T')[0]}.`,
+      If date is not mentioned, use today's date: ${today}.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {

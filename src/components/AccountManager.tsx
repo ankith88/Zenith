@@ -3,6 +3,7 @@ import { Plus, Wallet, Landmark, CreditCard, Banknote, Loader2, X, Edit2, Trash2
 import { motion, AnimatePresence } from 'motion/react';
 import { db, Account, Transaction } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
+import { formatLocalDate } from '../lib/utils';
 
 interface AccountManagerProps {
   accounts: Account[];
@@ -106,7 +107,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
 
       if (Math.abs(diff) > 0.01) {
         const adjustmentTx: Transaction = {
-          date: new Date().toISOString().split('T')[0],
+          date: formatLocalDate(),
           amount: Math.abs(diff),
           category: 'Adjustment',
           description: `Balance Adjustment`,

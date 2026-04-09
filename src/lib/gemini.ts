@@ -1,4 +1,5 @@
 import { Transaction, Account, Budget } from "./db";
+import { formatLocalDate } from "./utils";
 
 export class FinancialAnalystService {
   private async safeFetch(url: string, options: RequestInit) {
@@ -19,21 +20,21 @@ export class FinancialAnalystService {
   async parseReceipt(base64Image: string, mimeType: string): Promise<Partial<Transaction> & { sourceAccount?: string; destinationAccount?: string }> {
     return this.safeFetch('/api/ai/parse-receipt', {
       method: 'POST',
-      body: JSON.stringify({ base64Image, mimeType }),
+      body: JSON.stringify({ base64Image, mimeType, userDate: formatLocalDate() }),
     });
   }
 
   async parseVoiceTransaction(text: string): Promise<Partial<Transaction> & { sourceAccount?: string; destinationAccount?: string }> {
     return this.safeFetch('/api/ai/parse-voice', {
       method: 'POST',
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, userDate: formatLocalDate() }),
     });
   }
 
   async getInsights(query: string, transactions: Transaction[], accounts: Account[], budgets: Budget[]): Promise<string> {
     const data = await this.safeFetch('/api/ai/insights', {
       method: 'POST',
-      body: JSON.stringify({ query, transactions, accounts, budgets }),
+      body: JSON.stringify({ query, transactions, accounts, budgets, userDate: formatLocalDate() }),
     });
     return data.text;
   }
@@ -41,7 +42,7 @@ export class FinancialAnalystService {
   async getFinancialHealthCheckup(transactions: Transaction[], accounts: Account[], budgets: Budget[]): Promise<string> {
     const data = await this.safeFetch('/api/ai/health-checkup', {
       method: 'POST',
-      body: JSON.stringify({ transactions, accounts, budgets }),
+      body: JSON.stringify({ transactions, accounts, budgets, userDate: formatLocalDate() }),
     });
     return data.text;
   }
@@ -49,7 +50,7 @@ export class FinancialAnalystService {
   async predictCategory(description: string, categories: string[]): Promise<string> {
     const data = await this.safeFetch('/api/ai/predict-category', {
       method: 'POST',
-      body: JSON.stringify({ description, categories }),
+      body: JSON.stringify({ description, categories, userDate: formatLocalDate() }),
     });
     return data.category;
   }
@@ -68,7 +69,7 @@ export class FinancialAnalystService {
   }> {
     return this.safeFetch('/api/ai/audit-subscriptions', {
       method: 'POST',
-      body: JSON.stringify({ transactions }),
+      body: JSON.stringify({ transactions, userDate: formatLocalDate() }),
     });
   }
 
@@ -85,7 +86,7 @@ export class FinancialAnalystService {
   }> {
     return this.safeFetch('/api/ai/detect-anomalies', {
       method: 'POST',
-      body: JSON.stringify({ transactions }),
+      body: JSON.stringify({ transactions, userDate: formatLocalDate() }),
     });
   }
 }

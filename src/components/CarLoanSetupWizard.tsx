@@ -3,6 +3,7 @@ import { Car, ArrowRight, Check, X, Loader2, Info, Calendar, Clock } from 'lucid
 import { motion, AnimatePresence } from 'motion/react';
 import { db, Account, RecurringTransaction } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
+import { formatLocalDate } from '../lib/utils';
 
 interface CarLoanSetupWizardProps {
   accounts: Account[];
@@ -20,7 +21,7 @@ export default function CarLoanSetupWizard({ accounts, onClose, onComplete }: Ca
     monthlyPayment: '',
     sourceAccountId: accounts.find(a => a.name.toLowerCase().includes('salary') || a.name.toLowerCase().includes('checking'))?.id || 0,
     frequency: 'Monthly' as 'Monthly' | 'Weekly',
-    startDate: new Date().toISOString().split('T')[0]
+    startDate: formatLocalDate()
   });
 
   const handleNext = () => setStep(prev => prev + 1);

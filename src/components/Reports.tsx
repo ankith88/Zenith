@@ -27,7 +27,11 @@ export default function Reports({ transactions, accounts, budgets }: ReportsProp
   const generateAiReport = async () => {
     setIsGenerating(true);
     try {
-      const report = await analystService.getFinancialHealthCheckup(transactions, accounts, budgets);
+      const publicAccounts = accounts.filter(a => !a.isPrivate);
+      const publicAccountIds = new Set(publicAccounts.map(a => a.id));
+      const publicTransactions = transactions.filter(t => publicAccountIds.has(t.accountId));
+      
+      const report = await analystService.getFinancialHealthCheckup(publicTransactions, publicAccounts, budgets);
       setAiReport(report);
     } catch (error) {
       console.error("AI Report error:", error);
@@ -329,7 +333,7 @@ export default function Reports({ transactions, accounts, budgets }: ReportsProp
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
           >
-            <AnomalyDetection transactions={transactions} />
+            <AnomalyDetection transactions={transactions} accounts={accounts} />
           </motion.div>
         )}
       </AnimatePresence>

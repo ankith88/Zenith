@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { analystService } from '../lib/gemini';
 import { Transaction, Account, db } from '../lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { formatLocalDate } from '../lib/utils';
 
 interface VoiceInputProps {
   onConfirm: (t: Transaction) => void;
@@ -22,7 +23,7 @@ export default function VoiceInput({ onConfirm }: VoiceInputProps) {
     description: '',
     amount: '',
     category: '',
-    date: new Date().toISOString().split('T')[0],
+    date: formatLocalDate(),
     type: 'Expense' as 'Income' | 'Expense' | 'Transfer'
   });
   const [isPredicting, setIsPredicting] = useState(false);

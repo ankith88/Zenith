@@ -3,6 +3,7 @@ import { Plus, Repeat, Loader2, X, Trash2, Calendar, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react';
 import { db, RecurringTransaction, Account } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
+import { formatLocalDate } from '../lib/utils';
 
 interface RecurringManagerProps {
   recurring: RecurringTransaction[];
@@ -21,7 +22,7 @@ export default function RecurringManager({ recurring, accounts }: RecurringManag
     accountId: accounts[0]?.id || 0,
     toAccountId: 0,
     frequency: 'Monthly' as RecurringTransaction['frequency'],
-    startDate: new Date().toISOString().split('T')[0]
+    startDate: formatLocalDate()
   });
 
   const handleOpenEdit = (item: RecurringTransaction) => {
@@ -50,7 +51,7 @@ export default function RecurringManager({ recurring, accounts }: RecurringManag
       accountId: accounts[0]?.id || 0,
       toAccountId: 0,
       frequency: 'Monthly',
-      startDate: new Date().toISOString().split('T')[0]
+      startDate: formatLocalDate()
     });
   };
 

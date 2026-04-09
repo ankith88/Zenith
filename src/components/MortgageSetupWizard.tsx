@@ -3,6 +3,7 @@ import { Home, ArrowRight, Check, X, Loader2, Briefcase, User, Users, Info } fro
 import { motion, AnimatePresence } from 'motion/react';
 import { db, Account, RecurringTransaction } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
+import { formatLocalDate } from '../lib/utils';
 
 interface MortgageSetupWizardProps {
   accounts: Account[];
@@ -50,7 +51,7 @@ export default function MortgageSetupWizard({ accounts, onClose, onComplete }: M
 
       // 2. Create Recurring Transfers
       const recurringTransfers: RecurringTransaction[] = [];
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatLocalDate();
 
       if (formData.businessShare && formData.businessAccountId) {
         recurringTransfers.push({

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Transaction } from './lib/db';
 import { sheetsService } from './lib/sheets';
+import { formatLocalDate, parseLocalDate } from './lib/utils';
 import Dashboard from './components/Dashboard';
 import InsightsChat from './components/InsightsChat';
 import VoiceInput from './components/VoiceInput';
@@ -78,7 +79,7 @@ export default function App() {
         .anyOf(['Mortgage', 'Car Loan'])
         .toArray();
       const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
+      const todayStr = formatLocalDate(today);
 
       for (const acc of loanAccounts) {
         if (typeof acc.id !== 'number' || !acc.interestRate || acc.interestRate <= 0) continue;
@@ -98,13 +99,14 @@ export default function App() {
 
         // Only apply interest if balance is negative (debt)
         if (currentBalance >= 0) continue;
-
-        const lastDate = acc.lastInterestDate ? new Date(acc.lastInterestDate) : new Date(new Date().setMonth(new Date().getMonth() - 1));
+        
+        // Use parseLocalDate to ensure we treat the stored date as local time
+        const lastDate = acc.lastInterestDate ? parseLocalDate(acc.lastInterestDate) : new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
         let nextDate = new Date(lastDate);
         nextDate.setMonth(nextDate.getMonth() + 1);
 
         while (nextDate <= today) {
-          const dateStr = nextDate.toISOString().split('T')[0];
+          const dateStr = formatLocalDate(nextDate);
           const monthlyRate = (acc.interestRate / 100) / 12;
           const interestAmount = Math.abs(currentBalance) * monthlyRate;
 
@@ -161,13 +163,13 @@ export default function App() {
       for (const item of recurringItems) {
         let nextDate: Date;
         if (item.lastProcessedDate) {
-          nextDate = getNextDate(new Date(item.lastProcessedDate), item.frequency);
+          nextDate = getNextDate(parseLocalDate(item.lastProcessedDate), item.frequency);
         } else {
-          nextDate = new Date(item.startDate);
+          nextDate = parseLocalDate(item.startDate);
         }
 
         while (nextDate <= today) {
-          const dateStr = nextDate.toISOString().split('T')[0];
+          const dateStr = formatLocalDate(nextDate);
           
           const newTransaction: Transaction = {
             date: dateStr,
@@ -505,7 +507,7 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="h-full p-6 lg:p-8"
               >
-                <SubscriptionAudit transactions={transactions} />
+                <SubscriptionAudit transactions={transactions} accounts={accounts} />
               </motion.div>
             ) : activeTab === 'debt' ? (
               <motion.div

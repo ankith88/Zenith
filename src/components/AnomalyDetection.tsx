@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Transaction } from '../lib/db';
+import { Transaction, Account } from '../lib/db';
 import { analystService } from '../lib/gemini';
 import { AlertTriangle, Sparkles, Loader2, ChevronRight, TrendingUp, TrendingDown, DollarSign, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface AnomalyDetectionProps {
   transactions: Transaction[];
+  accounts: Account[];
 }
 
-export default function AnomalyDetection({ transactions }: AnomalyDetectionProps) {
+export default function AnomalyDetection({ transactions, accounts }: AnomalyDetectionProps) {
   const [anomalies, setAnomalies] = useState<any[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [hasScanned, setHasScanned] = useState(false);
@@ -16,7 +17,11 @@ export default function AnomalyDetection({ transactions }: AnomalyDetectionProps
   const scanForAnomalies = async () => {
     setIsScanning(true);
     try {
-      const result = await analystService.detectSpendingAnomalies(transactions);
+      const publicAccounts = accounts.filter(a => !a.isPrivate);
+      const publicAccountIds = new Set(publicAccounts.map(a => a.id));
+      const publicTransactions = transactions.filter(t => publicAccountIds.has(t.accountId));
+      
+      const result = await analystService.detectSpendingAnomalies(publicTransactions);
       setAnomalies(result.anomalies);
       setHasScanned(true);
     } catch (error) {

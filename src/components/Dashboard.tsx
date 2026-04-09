@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Landmark, Banknote, Trash2, Edit2, Target, X, Home, Briefcase, Car } from 'lucide-react';
 import { Transaction, Account, Budget, RecurringTransaction, Goal, db } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
+import { formatLocalDate } from '../lib/utils';
 import AccountManager from './AccountManager';
 import BudgetManager from './BudgetManager';
 import RecurringManager from './RecurringManager';
@@ -127,7 +128,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
     // Calculate monthly savings rate
     const last30Days = new Date();
     last30Days.setDate(last30Days.getDate() - 30);
-    const last30DaysStr = last30Days.toISOString().split('T')[0];
+    const last30DaysStr = formatLocalDate(last30Days);
     
     const recentIncome = filteredTransactions
       .filter(t => t.type === 'Income' && t.date >= last30DaysStr)

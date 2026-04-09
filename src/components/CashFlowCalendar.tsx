@@ -6,6 +6,7 @@ import {
 import { Calendar, TrendingUp, TrendingDown, Wallet, ArrowRight, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Transaction, Account, RecurringTransaction } from '../lib/db';
+import { formatLocalDate } from '../lib/utils';
 
 interface CashFlowCalendarProps {
   transactions: Transaction[];
@@ -50,7 +51,7 @@ export default function CashFlowCalendar({ transactions, accounts, recurring }: 
     for (let i = 0; i < days; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = formatLocalDate(date);
       const dayOfMonth = date.getDate();
 
       // Add recurring income/expenses

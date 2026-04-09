@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, AlertTriangle, CheckCircle2, Loader2, Sparkles, Trash2, ExternalLink, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Transaction } from '../lib/db';
+import { Transaction, Account } from '../lib/db';
 import { analystService } from '../lib/gemini';
 
 interface Subscription {
@@ -17,9 +17,10 @@ interface Subscription {
 
 interface SubscriptionAuditProps {
   transactions: Transaction[];
+  accounts: Account[];
 }
 
-export default function SubscriptionAudit({ transactions }: SubscriptionAuditProps) {
+export default function SubscriptionAudit({ transactions, accounts }: SubscriptionAuditProps) {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasRun, setHasRun] = useState(false);
@@ -27,7 +28,11 @@ export default function SubscriptionAudit({ transactions }: SubscriptionAuditPro
   const runAudit = async () => {
     setIsLoading(true);
     try {
-      const result = await analystService.auditSubscriptions(transactions);
+      const publicAccounts = accounts.filter(a => !a.isPrivate);
+      const publicAccountIds = new Set(publicAccounts.map(a => a.id));
+      const publicTransactions = transactions.filter(t => publicAccountIds.has(t.accountId));
+      
+      const result = await analystService.auditSubscriptions(publicTransactions);
       setSubscriptions(result.subscriptions);
       setHasRun(true);
     } catch (error) {

@@ -1,9 +1,11 @@
 import { Transaction, Account, db } from './db';
+import { parseLocalDate } from './utils';
 
 export class SheetsService {
   private spreadsheetId: string | null = null;
   private encodedTokens: string | null = null;
   private initialized: Promise<void>;
+  private isSyncing = false;
 
   constructor() {
     this.spreadsheetId = localStorage.getItem('zenith_spreadsheet_id');
@@ -156,147 +158,137 @@ export class SheetsService {
       console.warn("SheetsService: No spreadsheet ID for syncToLocal");
       return;
     }
+    if (this.isSyncing) {
+      console.log("SheetsService: Sync already in progress, skipping...");
+      return;
+    }
+
+    this.isSyncing = true;
     try {
       console.log("SheetsService: Starting syncToLocal...");
-      const accData = await this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Accounts!A2:J`, {
-        credentials: 'include',
-        headers: this.getHeaders()
-      });
       
-      if (accData.values) {
-        const accounts: Account[] = accData.values
-          .filter((row: any[]) => row && row.length >= 4 && isFinite(parseInt(row[0])))
-          .map((row: any[]) => ({
-            id: parseInt(row[0]),
-            name: row[1],
-            initialBalance: parseFloat(row[2]) || 0,
-            type: row[3],
-            interestRate: row[4] ? parseFloat(row[4]) : undefined,
-            minPayment: row[5] ? parseFloat(row[5]) : undefined,
-            owner: row[6] || undefined,
-            isPrivate: row[7] === 'TRUE',
-            assetValue: row[8] ? parseFloat(row[8]) : undefined,
-            creditLimit: row[9] ? parseFloat(row[9]) : undefined,
-            synced: true,
-          }));
-        // Merge logic: keep local private accounts
-        const allLocalAccounts = await db.accounts.toArray();
-        const localPrivate = allLocalAccounts.filter(a => a.isPrivate);
-        await db.accounts.clear();
-        await db.accounts.bulkAdd([...accounts, ...localPrivate]);
-      }
+      // Fetch all data first before starting transaction to keep transaction short
+      const [accData, budData, recData, goalData, transData] = await Promise.all([
+        this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Accounts!A2:J`, { credentials: 'include', headers: this.getHeaders() }),
+        this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Budgets!A2:C`, { credentials: 'include', headers: this.getHeaders() }),
+        this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Recurring!A2:J`, { credentials: 'include', headers: this.getHeaders() }),
+        this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Goals!A2:G`, { credentials: 'include', headers: this.getHeaders() }),
+        this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Transactions!A2:I`, { credentials: 'include', headers: this.getHeaders() })
+      ]);
 
-      // Sync Budgets
-      const budData = await this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Budgets!A2:C`, {
-        credentials: 'include',
-        headers: this.getHeaders()
-      });
-      
-      if (budData.values) {
-        const budgets: any[] = budData.values
-          .filter((row: any[]) => row && row.length >= 2)
-          .map((row: any[]) => ({
-            category: row[0],
-            amount: parseFloat(row[1]) || 0,
-            period: row[2] || 'Monthly',
-            synced: true,
-          }));
-        await db.budgets.clear();
-        await db.budgets.bulkAdd(budgets);
-      }
-
-      // Sync Recurring
-      const recData = await this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Recurring!A2:J`, {
-        credentials: 'include',
-        headers: this.getHeaders()
-      });
-      
-      if (recData.values) {
-        const recurring: any[] = recData.values
-          .filter((row: any[]) => row && row.length >= 8 && isFinite(parseInt(row[0])))
-          .map((row: any[]) => ({
-            id: parseInt(row[0]),
-            description: row[1],
-            amount: parseFloat(row[2]) || 0,
-            category: row[3],
-            type: row[4],
-            accountId: parseInt(row[5]),
-            frequency: row[6],
-            startDate: row[7],
-            lastProcessedDate: row[8] || undefined,
-            toAccountId: row[9] ? parseInt(row[9]) : undefined,
-            synced: true,
-          }));
-        await db.recurringTransactions.clear();
-        await db.recurringTransactions.bulkAdd(recurring);
-      }
-
-      // Sync Goals
-      const goalData = await this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Goals!A2:G`, {
-        credentials: 'include',
-        headers: this.getHeaders()
-      });
-      
-      if (goalData.values) {
-        const goals: any[] = goalData.values
-          .filter((row: any[]) => row && row.length >= 4 && isFinite(parseInt(row[0])))
-          .map((row: any[]) => ({
-            id: parseInt(row[0]),
-            name: row[1],
-            targetAmount: parseFloat(row[2]) || 0,
-            currentAmount: parseFloat(row[3]) || 0,
-            deadline: row[4] || undefined,
-            category: row[5],
-            color: row[6],
-            synced: true,
-          }));
-        await db.goals.clear();
-        await db.goals.bulkAdd(goals);
-      }
-
-      // Sync Transactions
-      const data = await this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Transactions!A2:I`, {
-        credentials: 'include',
-        headers: this.getHeaders()
-      });
-      
-      if (data.values) {
-        const transactions: Transaction[] = data.values
-          .filter((row: any[]) => row && row.length >= 7 && isFinite(parseInt(row[0])))
-          .map((row: any[]) => ({
-            id: parseInt(row[0]),
-            date: row[1],
-            amount: parseFloat(row[2]) || 0,
-            category: row[3],
-            description: row[4],
-            type: row[5] as 'Income' | 'Expense' | 'Transfer',
-            accountId: parseInt(row[6]),
-            toAccountId: row[7] ? parseInt(row[7]) : undefined,
-            owner: row[8] || undefined,
-            synced: true,
-          }));
-        
-        // Keep transactions from private accounts
-        const allAccounts = await db.accounts.toArray();
-        const privateAccounts = allAccounts.filter(a => a.isPrivate);
-        const privateAccountIds = privateAccounts
-          .map(a => a.id)
-          .filter((id): id is number => typeof id === 'number' && isFinite(id));
-        
-        let localPrivateTransactions: Transaction[] = [];
-        if (privateAccountIds.length > 0) {
-          localPrivateTransactions = await db.transactions
-            .where('accountId')
-            .anyOf(privateAccountIds)
-            .toArray();
+      await db.transaction('rw', [db.accounts, db.budgets, db.recurringTransactions, db.goals, db.transactions], async () => {
+        // Sync Accounts
+        if (accData.values) {
+          const accounts: Account[] = accData.values
+            .filter((row: any[]) => row && row.length >= 4 && isFinite(parseInt(row[0])))
+            .map((row: any[]) => ({
+              id: parseInt(row[0]),
+              name: row[1],
+              initialBalance: parseFloat(row[2]) || 0,
+              type: row[3],
+              interestRate: row[4] ? parseFloat(row[4]) : undefined,
+              minPayment: row[5] ? parseFloat(row[5]) : undefined,
+              owner: row[6] || undefined,
+              isPrivate: row[7] === 'TRUE',
+              assetValue: row[8] ? parseFloat(row[8]) : undefined,
+              creditLimit: row[9] ? parseFloat(row[9]) : undefined,
+              synced: true,
+            }));
+          await db.accounts.clear();
+          // Deduplicate by ID
+          const uniqueAccounts = Array.from(new Map(accounts.map(a => [a.id, a])).values());
+          await db.accounts.bulkPut(uniqueAccounts);
         }
-        
-        await db.transactions.clear();
-        await db.transactions.bulkAdd([...transactions, ...localPrivateTransactions]);
-      }
+
+        // Sync Budgets
+        if (budData.values) {
+          const budgets: any[] = budData.values
+            .filter((row: any[]) => row && row.length >= 2)
+            .map((row: any[]) => ({
+              category: row[0],
+              amount: parseFloat(row[1]) || 0,
+              period: row[2] || 'Monthly',
+              synced: true,
+            }));
+          await db.budgets.clear();
+          // Deduplicate by category
+          const uniqueBudgets = Array.from(new Map(budgets.map(b => [b.category, b])).values());
+          await db.budgets.bulkPut(uniqueBudgets);
+        }
+
+        // Sync Recurring
+        if (recData.values) {
+          const recurring: any[] = recData.values
+            .filter((row: any[]) => row && row.length >= 8 && isFinite(parseInt(row[0])))
+            .map((row: any[]) => ({
+              id: parseInt(row[0]),
+              description: row[1],
+              amount: parseFloat(row[2]) || 0,
+              category: row[3],
+              type: row[4],
+              accountId: parseInt(row[5]),
+              frequency: row[6],
+              startDate: row[7],
+              lastProcessedDate: row[8] || undefined,
+              toAccountId: row[9] ? parseInt(row[9]) : undefined,
+              synced: true,
+            }));
+          await db.recurringTransactions.clear();
+          // Deduplicate by ID
+          const uniqueRecurring = Array.from(new Map(recurring.map(r => [r.id, r])).values());
+          await db.recurringTransactions.bulkPut(uniqueRecurring);
+        }
+
+        // Sync Goals
+        if (goalData.values) {
+          const goals: any[] = goalData.values
+            .filter((row: any[]) => row && row.length >= 4 && isFinite(parseInt(row[0])))
+            .map((row: any[]) => ({
+              id: parseInt(row[0]),
+              name: row[1],
+              targetAmount: parseFloat(row[2]) || 0,
+              currentAmount: parseFloat(row[3]) || 0,
+              deadline: row[4] || undefined,
+              category: row[5],
+              color: row[6],
+              synced: true,
+            }));
+          await db.goals.clear();
+          // Deduplicate by ID
+          const uniqueGoals = Array.from(new Map(goals.map(g => [g.id, g])).values());
+          await db.goals.bulkPut(uniqueGoals);
+        }
+
+        // Sync Transactions
+        if (transData.values) {
+          const transactions: Transaction[] = transData.values
+            .filter((row: any[]) => row && row.length >= 7 && isFinite(parseInt(row[0])))
+            .map((row: any[]) => ({
+              id: parseInt(row[0]),
+              date: row[1],
+              amount: parseFloat(row[2]) || 0,
+              category: row[3],
+              description: row[4],
+              type: row[5] as 'Income' | 'Expense' | 'Transfer',
+              accountId: parseInt(row[6]),
+              toAccountId: row[7] ? parseInt(row[7]) : undefined,
+              owner: row[8] || undefined,
+              synced: true,
+            }));
+          
+          await db.transactions.clear();
+          // Deduplicate by ID
+          const uniqueTransactions = Array.from(new Map(transactions.map(t => [t.id, t])).values());
+          await db.transactions.bulkPut(uniqueTransactions);
+        }
+      });
+
+      console.log("SheetsService: SyncToLocal completed successfully.");
     } catch (error: any) {
       console.error("Sync error:", error);
       throw error;
+    } finally {
+      this.isSyncing = false;
     }
   }
 
@@ -349,8 +341,7 @@ export class SheetsService {
       // 3. Append all data
       const appendPromises = [];
 
-      const publicAccounts = accounts.filter(a => !a.isPrivate && a.id !== undefined);
-      if (publicAccounts.length > 0) {
+      if (accounts.length > 0) {
         appendPromises.push(this.safeFetch('/api/sheets/append', {
           method: 'POST',
           credentials: 'include',
@@ -358,7 +349,7 @@ export class SheetsService {
           body: JSON.stringify({
             spreadsheetId: this.spreadsheetId,
             range: 'Accounts!A2:J',
-            values: publicAccounts.map(a => [a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '', a.creditLimit || '']),
+            values: accounts.map(a => [a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '', a.creditLimit || '']),
           }),
         }));
       }
@@ -390,12 +381,7 @@ export class SheetsService {
         }));
       }
 
-      const publicTransactions = transactions.filter(t => {
-        const acc = accounts.find(a => a.id === t.accountId);
-        return acc && !acc.isPrivate && t.id !== undefined;
-      });
-
-      if (publicTransactions.length > 0) {
+      if (transactions.length > 0) {
         appendPromises.push(this.safeFetch('/api/sheets/append', {
           method: 'POST',
           credentials: 'include',
@@ -403,7 +389,7 @@ export class SheetsService {
           body: JSON.stringify({
             spreadsheetId: this.spreadsheetId,
             range: 'Transactions!A2:I',
-            values: publicTransactions.map(t => [t.id, t.date, t.amount, t.category, t.description, t.type, t.accountId, t.toAccountId || '', t.owner || '']),
+            values: transactions.map(t => [t.id, t.date, t.amount, t.category, t.description, t.type, t.accountId, t.toAccountId || '', t.owner || '']),
           }),
         }));
       }
@@ -437,7 +423,7 @@ export class SheetsService {
   }
 
   async appendAccount(a: Account) {
-    if (!this.spreadsheetId || a.isPrivate) return;
+    if (!this.spreadsheetId) return;
     try {
       return await this.safeFetch('/api/sheets/append', {
         method: 'POST',
@@ -456,9 +442,6 @@ export class SheetsService {
 
   async appendTransaction(t: Transaction) {
     if (!this.spreadsheetId || !t.accountId || !isFinite(t.accountId)) return;
-    // Check if account is private
-    const acc = await db.accounts.get(t.accountId);
-    if (acc?.isPrivate) return;
 
     try {
       return await this.safeFetch('/api/sheets/append', {
@@ -478,8 +461,6 @@ export class SheetsService {
 
   async updateTransaction(t: Transaction) {
     if (!this.spreadsheetId || !t.accountId || !isFinite(t.accountId)) return;
-    const acc = await db.accounts.get(t.accountId);
-    if (acc?.isPrivate) return;
 
     try {
       // Find row index
@@ -611,36 +592,19 @@ export class SheetsService {
       const rowIndex = data.values?.findIndex((row: any[]) => parseInt(row[0]) === a.id);
       
       if (rowIndex !== undefined && rowIndex !== -1) {
-        if (a.isPrivate) {
-          // If it became private, delete it from the sheet
-          const meta = await this.safeFetch(`/api/sheets/metadata?spreadsheetId=${this.spreadsheetId}`, {
-            credentials: 'include',
-            headers: this.getHeaders()
-          });
-          const sheetId = meta.sheets.find((s: any) => s.properties.title === 'Accounts')?.properties.sheetId;
-          if (sheetId !== undefined) {
-            await this.safeFetch('/api/sheets/delete-row', {
-              method: 'POST',
-              credentials: 'include',
-              headers: this.getHeaders({ 'Content-Type': 'application/json' }),
-              body: JSON.stringify({ spreadsheetId: this.spreadsheetId, sheetId, rowIndex }),
-            });
-          }
-        } else {
-          // Update existing row
-          await this.safeFetch('/api/sheets/update', {
-            method: 'POST',
-            credentials: 'include',
-            headers: this.getHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify({
-              spreadsheetId: this.spreadsheetId,
-              range: `Accounts!A${rowIndex + 1}:J${rowIndex + 1}`,
-              values: [[a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '', a.creditLimit || '']],
-            }),
-          });
-        }
-      } else if (!a.isPrivate) {
-        // If not in sheet and not private, append it
+        // Update existing row
+        await this.safeFetch('/api/sheets/update', {
+          method: 'POST',
+          credentials: 'include',
+          headers: this.getHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            spreadsheetId: this.spreadsheetId,
+            range: `Accounts!A${rowIndex + 1}:J${rowIndex + 1}`,
+            values: [[a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '', a.creditLimit || '']],
+          }),
+        });
+      } else {
+        // If not in sheet, append it
         await this.appendAccount(a);
       }
     } catch (error) {
