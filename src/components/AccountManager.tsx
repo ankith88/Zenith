@@ -26,7 +26,9 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
     owner: 'Me',
     isPrivate: false,
     assetValue: '',
-    creditLimit: ''
+    creditLimit: '',
+    paymentFrequency: 'Monthly',
+    paymentDueDay: ''
   });
 
   const commonNames = ['Main Checking', 'Emergency Fund', 'Mortgage Offset', 'Travel Savings', 'Side Hustle', 'Daily Cash', 'Salary Hub', 'Business Account', 'Home Mortgage'];
@@ -45,6 +47,8 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
         minPayment: formData.minPayment ? parseFloat(formData.minPayment) : undefined,
         assetValue: formData.assetValue ? parseFloat(formData.assetValue) : undefined,
         creditLimit: formData.creditLimit ? parseFloat(formData.creditLimit) : undefined,
+        paymentFrequency: formData.paymentFrequency as 'Monthly' | 'Weekly',
+        paymentDueDay: formData.paymentDueDay ? parseInt(formData.paymentDueDay) : undefined,
         owner: formData.owner,
         isPrivate: formData.isPrivate,
         synced: false
@@ -55,7 +59,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
       await db.accounts.update(newAccount.id!, { synced: true });
       
       setIsAdding(false);
-      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '' });
+      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '', paymentFrequency: 'Monthly', paymentDueDay: '' });
     } catch (error) {
       console.error("Add account error:", error);
     } finally {
@@ -76,7 +80,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
       await sheetsService.updateAccount(updatedAccount);
       await db.accounts.update(editingAccount.id!, { synced: true });
       setEditingAccount(null);
-      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '' });
+      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '', paymentFrequency: 'Monthly', paymentDueDay: '' });
     } catch (error) {
       console.error("Update account error:", error);
     } finally {
@@ -407,6 +411,56 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                         className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
                       />
                     </div>
+                  </div>
+                )}
+
+                {( (editingAccount && (editingAccount.type === 'Credit Card' || editingAccount.type === 'Mortgage')) || (!editingAccount && (formData.type === 'Credit Card' || formData.type === 'Mortgage')) ) && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Payment Frequency</label>
+                        <select
+                          value={editingAccount ? editingAccount.paymentFrequency || 'Monthly' : formData.paymentFrequency}
+                          onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, paymentFrequency: e.target.value as any }) : setFormData({ ...formData, paymentFrequency: e.target.value })}
+                          className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                        >
+                          <option value="Monthly">Monthly</option>
+                          <option value="Weekly">Weekly</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">
+                          {(editingAccount ? editingAccount.paymentFrequency : formData.paymentFrequency) === 'Weekly' ? 'Day of Week' : 'Day of Month'}
+                        </label>
+                        { (editingAccount ? editingAccount.paymentFrequency : formData.paymentFrequency) === 'Weekly' ? (
+                          <select
+                            value={editingAccount ? editingAccount.paymentDueDay ?? '' : formData.paymentDueDay}
+                            onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, paymentDueDay: parseInt(e.target.value) }) : setFormData({ ...formData, paymentDueDay: e.target.value })}
+                            className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                          >
+                            <option value="">Select Day</option>
+                            <option value="0">Sunday</option>
+                            <option value="1">Monday</option>
+                            <option value="2">Tuesday</option>
+                            <option value="3">Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5">Friday</option>
+                            <option value="6">Saturday</option>
+                          </select>
+                        ) : (
+                          <input
+                            type="number"
+                            min="1"
+                            max="31"
+                            value={editingAccount ? editingAccount.paymentDueDay ?? '' : formData.paymentDueDay}
+                            onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, paymentDueDay: parseInt(e.target.value) }) : setFormData({ ...formData, paymentDueDay: e.target.value })}
+                            placeholder="e.g. 15"
+                            className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                          />
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1 italic">Interest will be charged on this day each {(editingAccount ? editingAccount.paymentFrequency : formData.paymentFrequency) === 'Weekly' ? 'week' : 'month'}.</p>
                   </div>
                 )}
 

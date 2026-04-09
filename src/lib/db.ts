@@ -12,6 +12,8 @@ export interface Account {
   isPrivate?: boolean;
   assetValue?: number;
   creditLimit?: number;
+  paymentFrequency?: 'Monthly' | 'Weekly';
+  paymentDueDay?: number; // Day of month (1-31) or day of week (0-6)
   synced: boolean;
 }
 
@@ -76,7 +78,7 @@ export class ZenithDB extends Dexie {
 
   constructor() {
     super('ZenithDB');
-    this.version(9).stores({
+    this.version(11).stores({
       transactions: '++id, date, category, type, accountId, toAccountId, synced',
       accounts: '++id, name, type, isPrivate, synced',
       budgets: '++id, category, synced',

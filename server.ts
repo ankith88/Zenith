@@ -779,6 +779,8 @@ app.post("/api/sheets/create", async (req, res) => {
                       { userEnteredValue: { stringValue: "IsPrivate" } },
                       { userEnteredValue: { stringValue: "AssetValue" } },
                       { userEnteredValue: { stringValue: "CreditLimit" } },
+                      { userEnteredValue: { stringValue: "PaymentFrequency" } },
+                      { userEnteredValue: { stringValue: "PaymentDueDay" } },
                     ],
                   },
                 ],

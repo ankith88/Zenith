@@ -26,6 +26,7 @@ import { ArrowRightLeft, BarChart3, Search, Calendar, ShieldCheck, TrendingDown,
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isInitialSyncComplete, setIsInitialSyncComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'categories' | 'settings' | 'transfers' | 'reports' | 'subscriptions' | 'calendar' | 'debt'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -66,11 +67,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated !== null) {
+    if (isAuthenticated && isInitialSyncComplete) {
       processRecurring();
       processInterest();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isInitialSyncComplete]);
 
   const processInterest = async () => {
     try {
@@ -101,32 +102,79 @@ export default function App() {
         if (currentBalance >= 0) continue;
         
         // Use parseLocalDate to ensure we treat the stored date as local time
-        const lastDate = acc.lastInterestDate ? parseLocalDate(acc.lastInterestDate) : new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+        let lastDate: Date;
+        if (acc.lastInterestDate) {
+          lastDate = parseLocalDate(acc.lastInterestDate);
+        } else {
+          // Default to previous period
+          lastDate = new Date(today);
+          if (acc.paymentFrequency === 'Weekly') {
+            lastDate.setDate(lastDate.getDate() - 7);
+          } else {
+            lastDate.setMonth(lastDate.getMonth() - 1);
+          }
+          if (acc.paymentDueDay !== undefined) {
+            if (acc.paymentFrequency === 'Weekly') {
+              // Adjust to the correct day of week
+              const currentDay = lastDate.getDay();
+              const diff = acc.paymentDueDay - currentDay;
+              lastDate.setDate(lastDate.getDate() + diff);
+            } else {
+              lastDate.setDate(acc.paymentDueDay);
+            }
+          }
+        }
+        
         let nextDate = new Date(lastDate);
-        nextDate.setMonth(nextDate.getMonth() + 1);
+        if (acc.paymentFrequency === 'Weekly') {
+          nextDate.setDate(nextDate.getDate() + 7);
+        } else {
+          nextDate.setMonth(nextDate.getMonth() + 1);
+        }
+
+        if (acc.paymentDueDay !== undefined) {
+          if (acc.paymentFrequency === 'Weekly') {
+            const currentDay = nextDate.getDay();
+            const diff = acc.paymentDueDay - currentDay;
+            nextDate.setDate(nextDate.getDate() + diff);
+          } else {
+            nextDate.setDate(acc.paymentDueDay);
+          }
+        }
 
         while (nextDate <= today) {
           const dateStr = formatLocalDate(nextDate);
-          const monthlyRate = (acc.interestRate / 100) / 12;
-          const interestAmount = Math.abs(currentBalance) * monthlyRate;
+          
+          // Check if already exists to prevent duplicates on refresh
+          const existing = await db.transactions
+            .where('date').equals(dateStr)
+            .and(t => t.description === `[Interest] Monthly Interest Charge` && t.accountId === acc.id)
+            .first();
 
-          if (interestAmount > 0.01) {
-            const interestTx: Transaction = {
-              date: dateStr,
-              amount: interestAmount,
-              category: 'Interest',
-              description: `[Interest] Monthly Interest Charge`,
-              type: 'Expense',
-              accountId: acc.id!,
-              synced: false
-            };
+          if (!existing) {
+            const rate = acc.interestRate / 100;
+            const interestAmount = acc.paymentFrequency === 'Weekly' 
+              ? Math.abs(currentBalance) * (rate / 52)
+              : Math.abs(currentBalance) * (rate / 12);
 
-            const tId = await db.transactions.add(interestTx);
-            await sheetsService.appendTransaction({ ...interestTx, id: tId });
-            await db.transactions.update(tId, { synced: true });
-            
-            // Update balance for next month calculation
-            currentBalance -= interestAmount;
+            if (interestAmount > 0.01) {
+              const interestTx: Transaction = {
+                date: dateStr,
+                amount: interestAmount,
+                category: 'Interest',
+                description: `[Interest] Monthly Interest Charge`,
+                type: 'Expense',
+                accountId: acc.id!,
+                synced: false
+              };
+
+              const tId = await db.transactions.add(interestTx);
+              await sheetsService.appendTransaction({ ...interestTx, id: tId });
+              await db.transactions.update(tId, { synced: true });
+              
+              // Update balance for next period calculation
+              currentBalance -= interestAmount;
+            }
           }
 
           acc.lastInterestDate = dateStr;
@@ -134,7 +182,21 @@ export default function App() {
           await sheetsService.updateAccount(acc);
           await db.accounts.update(acc.id!, { synced: true });
 
-          nextDate.setMonth(nextDate.getMonth() + 1);
+          if (acc.paymentFrequency === 'Weekly') {
+            nextDate.setDate(nextDate.getDate() + 7);
+          } else {
+            nextDate.setMonth(nextDate.getMonth() + 1);
+          }
+
+          if (acc.paymentDueDay !== undefined) {
+            if (acc.paymentFrequency === 'Weekly') {
+              const currentDay = nextDate.getDay();
+              const diff = acc.paymentDueDay - currentDay;
+              nextDate.setDate(nextDate.getDate() + diff);
+            } else {
+              nextDate.setDate(acc.paymentDueDay);
+            }
+          }
           
           // Add a small delay to avoid hitting rate limits in tight loops
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -171,20 +233,28 @@ export default function App() {
         while (nextDate <= today) {
           const dateStr = formatLocalDate(nextDate);
           
-          const newTransaction: Transaction = {
-            date: dateStr,
-            amount: item.amount,
-            category: item.category,
-            description: `[Recurring] ${item.description}`,
-            type: item.type,
-            accountId: item.accountId,
-            toAccountId: item.toAccountId,
-            synced: false
-          };
+          // Check if already exists to prevent duplicates on refresh
+          const existing = await db.transactions
+            .where('date').equals(dateStr)
+            .and(t => t.description === `[Recurring] ${item.description}` && t.accountId === item.accountId)
+            .first();
 
-          const tId = await db.transactions.add(newTransaction);
-          await sheetsService.appendTransaction({ ...newTransaction, id: tId });
-          await db.transactions.update(tId, { synced: true });
+          if (!existing) {
+            const newTransaction: Transaction = {
+              date: dateStr,
+              amount: item.amount,
+              category: item.category,
+              description: `[Recurring] ${item.description}`,
+              type: item.type,
+              accountId: item.accountId,
+              toAccountId: item.toAccountId,
+              synced: false
+            };
+
+            const tId = await db.transactions.add(newTransaction);
+            await sheetsService.appendTransaction({ ...newTransaction, id: tId });
+            await db.transactions.update(tId, { synced: true });
+          }
 
           item.lastProcessedDate = dateStr;
           await db.recurringTransactions.update(item.id!, { lastProcessedDate: dateStr, synced: false });
@@ -220,6 +290,7 @@ export default function App() {
           setSyncError(null);
           try {
             await sheetsService.syncToLocal();
+            setIsInitialSyncComplete(true);
           } catch (err: any) {
             console.error("Initial sync failed:", err);
             setSyncError(err.message || "Failed to pull data from cloud.");

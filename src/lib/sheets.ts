@@ -169,7 +169,7 @@ export class SheetsService {
       
       // Fetch all data first before starting transaction to keep transaction short
       const [accData, budData, recData, goalData, transData] = await Promise.all([
-        this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Accounts!A2:J`, { credentials: 'include', headers: this.getHeaders() }),
+        this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Accounts!A2:L`, { credentials: 'include', headers: this.getHeaders() }),
         this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Budgets!A2:C`, { credentials: 'include', headers: this.getHeaders() }),
         this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Recurring!A2:J`, { credentials: 'include', headers: this.getHeaders() }),
         this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Goals!A2:G`, { credentials: 'include', headers: this.getHeaders() }),
@@ -192,6 +192,8 @@ export class SheetsService {
               isPrivate: row[7] === 'TRUE',
               assetValue: row[8] ? parseFloat(row[8]) : undefined,
               creditLimit: row[9] ? parseFloat(row[9]) : undefined,
+              paymentFrequency: (row[10] as 'Monthly' | 'Weekly') || undefined,
+              paymentDueDay: row[11] ? parseInt(row[11]) : undefined,
               synced: true,
             }));
           await db.accounts.clear();
@@ -348,8 +350,8 @@ export class SheetsService {
           headers: this.getHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             spreadsheetId: this.spreadsheetId,
-            range: 'Accounts!A2:J',
-            values: accounts.map(a => [a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '', a.creditLimit || '']),
+            range: 'Accounts!A2:L',
+            values: accounts.map(a => [a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '', a.creditLimit || '', a.paymentFrequency || '', a.paymentDueDay || '']),
           }),
         }));
       }
@@ -431,8 +433,8 @@ export class SheetsService {
         headers: this.getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           spreadsheetId: this.spreadsheetId,
-          range: 'Accounts!A2:J',
-          values: [[a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '', a.creditLimit || '']],
+          range: 'Accounts!A2:L',
+          values: [[a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '', a.creditLimit || '', a.paymentFrequency || '', a.paymentDueDay || '']],
         }),
       });
     } catch (error) {
@@ -599,8 +601,8 @@ export class SheetsService {
           headers: this.getHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             spreadsheetId: this.spreadsheetId,
-            range: `Accounts!A${rowIndex + 1}:J${rowIndex + 1}`,
-            values: [[a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '', a.creditLimit || '']],
+            range: `Accounts!A${rowIndex + 1}:L${rowIndex + 1}`,
+            values: [[a.id, a.name, a.initialBalance, a.type, a.interestRate || '', a.minPayment || '', a.owner || '', a.isPrivate ? 'TRUE' : 'FALSE', a.assetValue || '', a.creditLimit || '', a.paymentFrequency || '', a.paymentDueDay || '']],
           }),
         });
       } else {
