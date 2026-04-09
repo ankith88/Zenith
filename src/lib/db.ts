@@ -65,6 +65,7 @@ export interface Goal {
   deadline?: string;
   category: string;
   color: string;
+  accountId?: number;
   synced: boolean;
 }
 

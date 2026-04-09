@@ -1,4 +1,4 @@
-import { Transaction, Account, Budget } from "./db";
+import { Transaction, Account, Budget, Goal } from "./db";
 import { formatLocalDate } from "./utils";
 
 export class FinancialAnalystService {
@@ -31,18 +31,18 @@ export class FinancialAnalystService {
     });
   }
 
-  async getInsights(query: string, transactions: Transaction[], accounts: Account[], budgets: Budget[]): Promise<string> {
+  async getInsights(query: string, transactions: Transaction[], accounts: Account[], budgets: Budget[], goals: Goal[]): Promise<string> {
     const data = await this.safeFetch('/api/ai/insights', {
       method: 'POST',
-      body: JSON.stringify({ query, transactions, accounts, budgets, userDate: formatLocalDate() }),
+      body: JSON.stringify({ query, transactions, accounts, budgets, goals, userDate: formatLocalDate() }),
     });
     return data.text;
   }
 
-  async getFinancialHealthCheckup(transactions: Transaction[], accounts: Account[], budgets: Budget[]): Promise<string> {
+  async getFinancialHealthCheckup(transactions: Transaction[], accounts: Account[], budgets: Budget[], goals: Goal[]): Promise<string> {
     const data = await this.safeFetch('/api/ai/health-checkup', {
       method: 'POST',
-      body: JSON.stringify({ transactions, accounts, budgets, userDate: formatLocalDate() }),
+      body: JSON.stringify({ transactions, accounts, budgets, goals, userDate: formatLocalDate() }),
     });
     return data.text;
   }

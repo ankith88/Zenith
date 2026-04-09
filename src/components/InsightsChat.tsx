@@ -3,7 +3,7 @@ import { Send, Bot, User, Loader2, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
 import { analystService } from '../lib/gemini';
-import { Transaction, Account, Budget } from '../lib/db';
+import { Transaction, Account, Budget, Goal } from '../lib/db';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -14,9 +14,10 @@ interface InsightsChatProps {
   transactions: Transaction[];
   accounts: Account[];
   budgets: Budget[];
+  goals: Goal[];
 }
 
-export default function InsightsChat({ transactions, accounts, budgets }: InsightsChatProps) {
+export default function InsightsChat({ transactions, accounts, budgets, goals }: InsightsChatProps) {
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: "Hello! I'm Zenith, your financial analyst. I have analyzed your accounts, budgets, and transactions. Ask me anything!" }
   ]);
@@ -39,7 +40,7 @@ export default function InsightsChat({ transactions, accounts, budgets }: Insigh
     setIsLoading(true);
 
     try {
-      const response = await analystService.getInsights(userMsg, transactions, accounts, budgets);
+      const response = await analystService.getInsights(userMsg, transactions, accounts, budgets, goals);
       setMessages(prev => [...prev, { role: 'assistant', content: response }]);
     } catch (error) {
       console.error("Insights error:", error);

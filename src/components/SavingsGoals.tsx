@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { Target, Plus, X, Loader2, Trash2, TrendingUp, Calendar, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, Goal } from '../lib/db';
+import { db, Goal, Account } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
 
 interface SavingsGoalsProps {
   goals: Goal[];
+  accounts: Account[];
+  accountBalances: Record<number, number>;
   monthlySavings: number;
 }
 
-export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProps) {
+export default function SavingsGoals({ goals, accounts, accountBalances, monthlySavings }: SavingsGoalsProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [deletingGoalId, setDeletingGoalId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -19,7 +21,8 @@ export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProp
     currentAmount: '0',
     deadline: '',
     category: 'Travel',
-    color: '#4f46e5'
+    color: '#4f46e5',
+    accountId: '' as string | number
   });
 
   const categories = [
@@ -39,10 +42,11 @@ export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProp
         id: Date.now(),
         name: formData.name,
         targetAmount: parseFloat(formData.targetAmount),
-        currentAmount: parseFloat(formData.currentAmount),
+        currentAmount: formData.accountId ? (accountBalances[Number(formData.accountId)] || 0) : parseFloat(formData.currentAmount),
         deadline: formData.deadline || undefined,
         category: formData.category,
         color: formData.color,
+        accountId: formData.accountId ? Number(formData.accountId) : undefined,
         synced: false
       };
       await db.goals.add(newGoal);
@@ -50,7 +54,7 @@ export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProp
       await db.goals.update(newGoal.id!, { synced: true });
       
       setIsAdding(false);
-      setFormData({ name: '', targetAmount: '', currentAmount: '0', deadline: '', category: 'Travel', color: '#4f46e5' });
+      setFormData({ name: '', targetAmount: '', currentAmount: '0', deadline: '', category: 'Travel', color: '#4f46e5', accountId: '' });
     } catch (error) {
       console.error("Add goal error:", error);
     } finally {
@@ -106,7 +110,10 @@ export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProp
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {goals.map((goal) => {
-          const progress = Math.min((goal.currentAmount / goal.targetAmount) * 100, 100);
+          const currentAmount = goal.accountId ? (accountBalances[goal.accountId] || 0) : goal.currentAmount;
+          const progress = Math.min((currentAmount / goal.targetAmount) * 100, 100);
+          const linkedAccount = goal.accountId ? accounts.find(a => a.id === goal.accountId) : null;
+
           return (
             <motion.div
               key={goal.id}
@@ -124,7 +131,15 @@ export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProp
                   </div>
                   <div>
                     <h4 className="font-black text-gray-900">{goal.name}</h4>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{goal.category}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{goal.category}</p>
+                      {linkedAccount && (
+                        <>
+                          <span className="w-1 h-1 bg-gray-200 rounded-full" />
+                          <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Linked: {linkedAccount.name}</p>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <button 
@@ -138,7 +153,7 @@ export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProp
               <div className="space-y-4">
                 <div className="flex items-end justify-between">
                   <div>
-                    <p className="text-2xl font-black text-gray-900">${goal.currentAmount.toLocaleString()}</p>
+                    <p className="text-2xl font-black text-gray-900">${currentAmount.toLocaleString()}</p>
                     <p className="text-xs font-bold text-gray-400">of ${goal.targetAmount.toLocaleString()}</p>
                   </div>
                   <div className="text-right">
@@ -271,6 +286,21 @@ export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProp
                     />
                   </div>
                   <div>
+                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Link to Account</label>
+                    <select
+                      value={formData.accountId}
+                      onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
+                      className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-black outline-none font-bold"
+                    >
+                      <option value="">Manual Entry</option>
+                      {accounts.map(acc => (
+                        <option key={acc.id} value={acc.id}>{acc.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {!formData.accountId && (
+                  <div>
                     <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Current Saved</label>
                     <input
                       required
@@ -281,7 +311,7 @@ export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProp
                       className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-black outline-none font-bold"
                     />
                   </div>
-                </div>
+                )}
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Deadline (Optional)</label>
                   <input

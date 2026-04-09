@@ -359,7 +359,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       <AccountManager accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} />
 
       {/* Savings Goals Section */}
-      <SavingsGoals goals={goals} monthlySavings={stats.monthlySavings} />
+      <SavingsGoals goals={goals} accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} monthlySavings={stats.monthlySavings} />
 
       {/* Bill Calendar Section */}
       <BillCalendar recurring={stats.filteredRecurring} accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} />

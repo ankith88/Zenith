@@ -577,7 +577,7 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="h-full p-6 lg:p-8"
               >
-                <Reports transactions={transactions} accounts={accounts} budgets={budgets} />
+                <Reports transactions={transactions} accounts={accounts} budgets={budgets} goals={goals} />
               </motion.div>
             ) : activeTab === 'calendar' ? (
               <motion.div
@@ -642,7 +642,7 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="h-full p-6 lg:p-8"
               >
-                <InsightsChat transactions={transactions} accounts={accounts} budgets={budgets} />
+                <InsightsChat transactions={transactions} accounts={accounts} budgets={budgets} goals={goals} />
               </motion.div>
             ) : activeTab === 'categories' ? (
               <motion.div

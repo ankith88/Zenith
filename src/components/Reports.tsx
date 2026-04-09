@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, AreaChart, Area, Legend, Cell, PieChart, Pie
 } from 'recharts';
-import { Transaction, Account, Budget } from '../lib/db';
+import { Transaction, Account, Budget, Goal } from '../lib/db';
 import { TrendingUp, TrendingDown, Wallet, PieChart as PieIcon, BarChart3, Activity, Sparkles, Loader2, ChevronRight, AlertTriangle, Scale } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { analystService } from '../lib/gemini';
@@ -15,11 +15,12 @@ interface ReportsProps {
   transactions: Transaction[];
   accounts: Account[];
   budgets: Budget[];
+  goals: Goal[];
 }
 
 type ReportTab = 'overview' | 'networth' | 'anomalies';
 
-export default function Reports({ transactions, accounts, budgets }: ReportsProps) {
+export default function Reports({ transactions, accounts, budgets, goals }: ReportsProps) {
   const [activeSubTab, setActiveSubTab] = useState<ReportTab>('overview');
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -31,7 +32,7 @@ export default function Reports({ transactions, accounts, budgets }: ReportsProp
       const publicAccountIds = new Set(publicAccounts.map(a => a.id));
       const publicTransactions = transactions.filter(t => publicAccountIds.has(t.accountId));
       
-      const report = await analystService.getFinancialHealthCheckup(publicTransactions, publicAccounts, budgets);
+      const report = await analystService.getFinancialHealthCheckup(publicTransactions, publicAccounts, budgets, goals);
       setAiReport(report);
     } catch (error) {
       console.error("AI Report error:", error);

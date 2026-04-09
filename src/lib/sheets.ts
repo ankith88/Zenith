@@ -168,13 +168,13 @@ export class SheetsService {
       console.log("SheetsService: Starting syncToLocal...");
       
       // Fetch all data first before starting transaction to keep transaction short
-      const [accData, budData, recData, goalData, transData] = await Promise.all([
-        this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Accounts!A2:L`, { credentials: 'include', headers: this.getHeaders() }),
-        this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Budgets!A2:C`, { credentials: 'include', headers: this.getHeaders() }),
-        this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Recurring!A2:J`, { credentials: 'include', headers: this.getHeaders() }),
-        this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Goals!A2:G`, { credentials: 'include', headers: this.getHeaders() }),
-        this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Transactions!A2:I`, { credentials: 'include', headers: this.getHeaders() })
-      ]);
+        const [accData, budData, recData, goalData, transData] = await Promise.all([
+          this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Accounts!A2:L`, { credentials: 'include', headers: this.getHeaders() }),
+          this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Budgets!A2:C`, { credentials: 'include', headers: this.getHeaders() }),
+          this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Recurring!A2:J`, { credentials: 'include', headers: this.getHeaders() }),
+          this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Goals!A2:H`, { credentials: 'include', headers: this.getHeaders() }),
+          this.safeFetch(`/api/sheets/data?spreadsheetId=${this.spreadsheetId}&range=Transactions!A2:I`, { credentials: 'include', headers: this.getHeaders() }),
+        ]);
 
       await db.transaction('rw', [db.accounts, db.budgets, db.recurringTransactions, db.goals, db.transactions], async () => {
         // Sync Accounts
@@ -253,6 +253,7 @@ export class SheetsService {
               deadline: row[4] || undefined,
               category: row[5],
               color: row[6],
+              accountId: row[7] ? parseInt(row[7]) : undefined,
               synced: true,
             }));
           await db.goals.clear();
@@ -335,7 +336,7 @@ export class SheetsService {
           method: 'POST', 
           credentials: 'include',
           headers: this.getHeaders({ 'Content-Type': 'application/json' }), 
-          body: JSON.stringify({ spreadsheetId: this.spreadsheetId, range: 'Goals!A2:G' }) 
+          body: JSON.stringify({ spreadsheetId: this.spreadsheetId, range: 'Goals!A2:H' }) 
         }),
       ];
       await Promise.all(clearPromises);
@@ -403,8 +404,8 @@ export class SheetsService {
           headers: this.getHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             spreadsheetId: this.spreadsheetId,
-            range: 'Goals!A2:G',
-            values: goals.map(g => [g.id, g.name, g.targetAmount, g.currentAmount, g.deadline || '', g.category, g.color]),
+            range: 'Goals!A2:H',
+            values: goals.map(g => [g.id, g.name, g.targetAmount, g.currentAmount, g.deadline || '', g.category, g.color, g.accountId || '']),
           }),
         }));
       }
@@ -623,8 +624,8 @@ export class SheetsService {
         headers: this.getHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
           spreadsheetId: this.spreadsheetId,
-          range: 'Goals!A2:G',
-          values: [[g.id, g.name, g.targetAmount, g.currentAmount, g.deadline || '', g.category, g.color]],
+          range: 'Goals!A2:H',
+          values: [[g.id, g.name, g.targetAmount, g.currentAmount, g.deadline || '', g.category, g.color, g.accountId || '']],
         }),
       });
     } catch (error) {
@@ -648,8 +649,8 @@ export class SheetsService {
           headers: this.getHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             spreadsheetId: this.spreadsheetId,
-            range: `Goals!A${rowIndex + 1}:G${rowIndex + 1}`,
-            values: [[g.id, g.name, g.targetAmount, g.currentAmount, g.deadline || '', g.category, g.color]],
+            range: `Goals!A${rowIndex + 1}:H${rowIndex + 1}`,
+            values: [[g.id, g.name, g.targetAmount, g.currentAmount, g.deadline || '', g.category, g.color, g.accountId || '']],
           }),
         });
       }
