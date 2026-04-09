@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Target, Plus, X, Loader2, Trash2, TrendingUp, Calendar, Sparkles } from 'lucide-react';
+import { Target, Plus, X, Loader2, Trash2, TrendingUp, Calendar, Sparkles, Edit2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, Goal, Account } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
@@ -13,6 +13,7 @@ interface SavingsGoalsProps {
 
 export default function SavingsGoals({ goals, accounts, accountBalances, monthlySavings }: SavingsGoalsProps) {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [deletingGoalId, setDeletingGoalId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -62,6 +63,48 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
     }
   };
 
+  const handleUpdateGoal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingGoal) return;
+    setIsLoading(true);
+    try {
+      const updatedGoal: Goal = {
+        ...editingGoal,
+        name: formData.name,
+        targetAmount: parseFloat(formData.targetAmount),
+        currentAmount: formData.accountId ? (accountBalances[Number(formData.accountId)] || 0) : parseFloat(formData.currentAmount),
+        deadline: formData.deadline || undefined,
+        category: formData.category,
+        color: formData.color,
+        accountId: formData.accountId ? Number(formData.accountId) : undefined,
+        synced: false
+      };
+      await db.goals.update(editingGoal.id!, updatedGoal);
+      await sheetsService.updateGoal(updatedGoal);
+      await db.goals.update(editingGoal.id!, { synced: true });
+      
+      setEditingGoal(null);
+      setFormData({ name: '', targetAmount: '', currentAmount: '0', deadline: '', category: 'Travel', color: '#4f46e5', accountId: '' });
+    } catch (error) {
+      console.error("Update goal error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const startEditing = (goal: Goal) => {
+    setEditingGoal(goal);
+    setFormData({
+      name: goal.name,
+      targetAmount: goal.targetAmount.toString(),
+      currentAmount: goal.currentAmount.toString(),
+      deadline: goal.deadline || '',
+      category: goal.category,
+      color: goal.color,
+      accountId: goal.accountId?.toString() || ''
+    });
+  };
+
   const handleDeleteGoal = async (id: number) => {
     setIsLoading(true);
     try {
@@ -76,7 +119,8 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
   };
 
   const calculateETA = (goal: Goal) => {
-    const remaining = goal.targetAmount - goal.currentAmount;
+    const currentAmount = goal.accountId ? (accountBalances[goal.accountId] || 0) : goal.currentAmount;
+    const remaining = goal.targetAmount - currentAmount;
     if (remaining <= 0) return "Goal Reached!";
     if (monthlySavings <= 0) return "Infinite (No savings)";
     
@@ -101,7 +145,10 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
           </div>
         </div>
         <button
-          onClick={() => setIsAdding(true)}
+          onClick={() => {
+            setFormData({ name: '', targetAmount: '', currentAmount: '0', deadline: '', category: 'Travel', color: '#4f46e5', accountId: '' });
+            setIsAdding(true);
+          }}
           className="p-3 bg-black text-white rounded-2xl hover:bg-gray-800 transition-all active:scale-95 shadow-lg shadow-black/10"
         >
           <Plus className="w-5 h-5" />
@@ -133,21 +180,36 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
                     <h4 className="font-black text-gray-900">{goal.name}</h4>
                     <div className="flex items-center gap-2">
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{goal.category}</p>
-                      {linkedAccount && (
-                        <>
-                          <span className="w-1 h-1 bg-gray-200 rounded-full" />
-                          <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Linked: {linkedAccount.name}</p>
-                        </>
+                      {linkedAccount ? (
+                        <div className="flex items-center gap-1 px-2 py-0.5 bg-indigo-50 rounded-full border border-indigo-100">
+                          <div className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse" />
+                          <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Linked: {linkedAccount.name}</p>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => startEditing(goal)}
+                          className="text-[9px] font-black text-gray-400 hover:text-indigo-500 uppercase tracking-widest transition-colors"
+                        >
+                          + Link Account
+                        </button>
                       )}
                     </div>
                   </div>
                 </div>
-                <button 
-                  onClick={() => goal.id && setDeletingGoalId(goal.id)}
-                  className="p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={() => startEditing(goal)}
+                    className="p-2 text-gray-300 hover:text-black hover:bg-gray-50 rounded-xl transition-all"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => goal.id && setDeletingGoalId(goal.id)}
+                    className="p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -241,9 +303,9 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
           </motion.div>
         )}
 
-        {isAdding && (
+        {(isAdding || editingGoal) && (
           <motion.div
-            key="add-goal-modal"
+            key="goal-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -256,12 +318,12 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
               className="bg-white rounded-[40px] shadow-2xl w-full max-w-md overflow-hidden"
             >
               <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
-                <h3 className="text-xl font-black text-gray-900">New Goal</h3>
-                <button onClick={() => setIsAdding(false)} className="p-3 hover:bg-white rounded-2xl transition-colors shadow-sm">
+                <h3 className="text-xl font-black text-gray-900">{editingGoal ? 'Edit Goal' : 'New Goal'}</h3>
+                <button onClick={() => { setIsAdding(false); setEditingGoal(null); }} className="p-3 hover:bg-white rounded-2xl transition-colors shadow-sm">
                   <X className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
-              <form onSubmit={handleAddGoal} className="p-8 space-y-6">
+              <form onSubmit={editingGoal ? handleUpdateGoal : handleAddGoal} className="p-8 space-y-6">
                 <div>
                   <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Goal Name</label>
                   <input
@@ -344,7 +406,7 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
                   className="w-full py-5 bg-black text-white rounded-[24px] font-black flex items-center justify-center gap-2 hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50 shadow-xl shadow-black/10"
                 >
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Target className="w-5 h-5" />}
-                  Create Goal
+                  {editingGoal ? 'Update Goal' : 'Create Goal'}
                 </button>
               </form>
             </motion.div>
