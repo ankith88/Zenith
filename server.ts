@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import { google } from "googleapis";
 import cookieSession from "cookie-session";
 import dotenv from "dotenv";
+import { GoogleGenAI, Type } from "@google/genai";
 
 import fs from "fs";
 
@@ -15,6 +16,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
+
+// Initialize Gemini
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 // Trust proxy is required for secure cookies behind Cloud Run/Nginx
 app.set("trust proxy", 1);
@@ -236,6 +240,302 @@ app.get("/api/auth/status", (req, res) => {
 app.post("/api/auth/logout", (req, res) => {
   req.session = null;
   res.json({ success: true });
+});
+
+// Gemini Proxy API
+app.post("/api/ai/insights", async (req, res) => {
+  const { query, transactions, accounts, budgets } = req.body;
+  
+  try {
+    const transactionContext = transactions.map((t: any) => 
+      `${t.date}, ${t.amount}, ${t.category}, ${t.description}, ${t.type}`
+    ).join('\n');
+
+    const accountContext = accounts.map((a: any) => 
+      `${a.name}, ${a.type}, Initial Balance: ${a.initialBalance}`
+    ).join('\n');
+
+    const budgetContext = budgets.map((b: any) => 
+      `${b.category}, ${b.amount}, ${b.period}`
+    ).join('\n');
+
+    const systemPrompt = `You are Zenith, a high-end personal finance AI analyst. 
+    You have access to the user's full financial profile.
+    
+    Data Context:
+    
+    ACCOUNTS:
+    ${accountContext}
+    
+    BUDGETS:
+    ${budgetContext}
+    
+    TRANSACTIONS (CSV: Date, Amount, Category, Description, Type):
+    ${transactionContext}
+    
+    Current Date: ${new Date().toISOString().split('T')[0]}
+    
+    Your goals:
+    1. Provide deep reasoning over the data.
+    2. Identify spending outliers and trends.
+    3. Compare actual spending against the user's defined BUDGETS.
+    4. Suggest actionable savings strategies based on their specific habits.
+    5. Calculate "Safe to Spend" daily limits.
+    
+    Answer the user's query concisely but with high-end financial insight. Use Markdown for formatting.`;
+
+    const response = await genAI.models.generateContent({
+      model: "gemini-3.1-pro-preview",
+      contents: query,
+      config: {
+        systemInstruction: systemPrompt,
+      },
+    });
+
+    res.json({ text: response.text });
+  } catch (error: any) {
+    console.error("Gemini Insights error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/health-checkup", async (req, res) => {
+  const { transactions, accounts, budgets } = req.body;
+  
+  try {
+    const transactionContext = transactions.slice(-100).map((t: any) => 
+      `${t.date}, ${t.amount}, ${t.category}, ${t.description}, ${t.type}`
+    ).join('\n');
+
+    const accountContext = accounts.map((a: any) => 
+      `${a.name}, ${a.type}, Initial Balance: ${a.initialBalance}`
+    ).join('\n');
+
+    const budgetContext = budgets.map((b: any) => 
+      `${b.category}, ${b.amount}, ${b.period}`
+    ).join('\n');
+
+    const systemPrompt = `You are Zenith, a high-end personal finance AI analyst. 
+    Perform a comprehensive "Financial Health Checkup" for the user.
+    
+    Data Context:
+    ACCOUNTS:
+    ${accountContext}
+    
+    BUDGETS:
+    ${budgetContext}
+    
+    RECENT TRANSACTIONS (CSV: Date, Amount, Category, Description, Type):
+    ${transactionContext}
+    
+    Current Date: ${new Date().toISOString().split('T')[0]}
+    
+    Your report MUST include:
+    1. **Financial Health Score (0-100)**
+    2. **Spending Efficiency**
+    3. **Burn Rate Analysis**
+    4. **Top 3 Actionable Recommendations**
+    5. **Forecasting**
+    
+    Use Markdown with clear headings and bullet points.`;
+
+    const response = await genAI.models.generateContent({
+      model: "gemini-3.1-pro-preview",
+      contents: "Generate my comprehensive financial health checkup report.",
+      config: {
+        systemInstruction: systemPrompt,
+      },
+    });
+
+    res.json({ text: response.text });
+  } catch (error: any) {
+    console.error("Gemini Health Checkup error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/predict-category", async (req, res) => {
+  const { description, categories } = req.body;
+  try {
+    const response = await genAI.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Predict the best category for this transaction description: "${description}". 
+      Available categories: ${categories.join(', ')}.
+      Return ONLY the category name from the list. If none fit well, return "Other".`,
+    });
+    res.json({ category: response.text.trim() });
+  } catch (error: any) {
+    console.error("Gemini Predict Category error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/audit-subscriptions", async (req, res) => {
+  const { transactions } = req.body;
+  try {
+    const recentTransactions = transactions.slice(-200).map((t: any) => 
+      `${t.date}, ${t.amount}, ${t.category}, ${t.description}`
+    ).join('\n');
+
+    const response = await genAI.models.generateContent({ 
+      model: "gemini-3-flash-preview",
+      contents: `Analyze these transactions to identify recurring subscriptions or fixed monthly costs.
+      Transactions:
+      ${recentTransactions}`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            subscriptions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  amount: { type: Type.NUMBER },
+                  frequency: { type: Type.STRING },
+                  category: { type: Type.STRING },
+                  lastDate: { type: Type.STRING },
+                  confidence: { type: Type.NUMBER },
+                  isPotentialWaste: { type: Type.BOOLEAN },
+                  reason: { type: Type.STRING },
+                },
+                required: ["name", "amount", "frequency", "category", "lastDate", "confidence", "isPotentialWaste"],
+              },
+            },
+          },
+          required: ["subscriptions"],
+        },
+      }
+    });
+
+    res.json(JSON.parse(response.text));
+  } catch (error: any) {
+    console.error("Gemini Audit Subscriptions error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/detect-anomalies", async (req, res) => {
+  const { transactions } = req.body;
+  try {
+    const recentTransactions = transactions.slice(-300).map((t: any) => 
+      `${t.date}, ${t.amount}, ${t.category}, ${t.description}`
+    ).join('\n');
+
+    const response = await genAI.models.generateContent({ 
+      model: "gemini-3-flash-preview",
+      contents: `Analyze these transactions for spending anomalies or unusual patterns.
+      Transactions:
+      ${recentTransactions}`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            anomalies: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  type: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  amount: { type: Type.NUMBER },
+                  category: { type: Type.STRING },
+                  date: { type: Type.STRING },
+                  insight: { type: Type.STRING },
+                  severity: { type: Type.STRING, enum: ["Low", "Medium", "High"] },
+                },
+                required: ["type", "description", "amount", "category", "date", "insight", "severity"],
+              },
+            },
+          },
+          required: ["anomalies"],
+        },
+      }
+    });
+
+    res.json(JSON.parse(response.text));
+  } catch (error: any) {
+    console.error("Gemini Detect Anomalies error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/parse-receipt", async (req, res) => {
+  const { base64Image, mimeType } = req.body;
+  try {
+    const response = await genAI.models.generateContent({ 
+      model: "gemini-3-flash-preview",
+      contents: [
+        {
+          inlineData: {
+            data: base64Image,
+            mimeType: mimeType,
+          },
+        },
+        {
+          text: `Extract transaction details from this receipt. 
+          Return a JSON object with: date (YYYY-MM-DD), amount (number), category (string), description (string), type (Income/Expense/Transfer).
+          If date is not found, use today's date: ${new Date().toISOString().split('T')[0]}.`,
+        },
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            date: { type: Type.STRING },
+            amount: { type: Type.NUMBER },
+            category: { type: Type.STRING },
+            description: { type: Type.STRING },
+            type: { type: Type.STRING, enum: ["Income", "Expense", "Transfer"] },
+            sourceAccount: { type: Type.STRING },
+            destinationAccount: { type: Type.STRING },
+          },
+          required: ["date", "amount", "category", "description", "type"],
+        },
+      }
+    });
+    
+    res.json(JSON.parse(response.text));
+  } catch (error: any) {
+    console.error("Gemini Parse Receipt error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/parse-voice", async (req, res) => {
+  const { text } = req.body;
+  try {
+    const response = await genAI.models.generateContent({ 
+      model: "gemini-3-flash-preview",
+      contents: `Parse this spoken transaction into structured JSON: "${text}". 
+      If date is not mentioned, use today's date: ${new Date().toISOString().split('T')[0]}.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            date: { type: Type.STRING },
+            amount: { type: Type.NUMBER },
+            category: { type: Type.STRING },
+            description: { type: Type.STRING },
+            type: { type: Type.STRING, enum: ["Income", "Expense", "Transfer"] },
+            sourceAccount: { type: Type.STRING },
+            destinationAccount: { type: Type.STRING },
+          },
+          required: ["date", "amount", "category", "description", "type"],
+        },
+      }
+    });
+    
+    res.json(JSON.parse(response.text));
+  } catch (error: any) {
+    console.error("Gemini Parse Voice error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Google Sheets Proxy API
