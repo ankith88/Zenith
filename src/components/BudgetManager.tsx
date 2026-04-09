@@ -12,6 +12,7 @@ export default function BudgetManager({ budgets }: BudgetManagerProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     category: '',
     amount: '',
@@ -61,9 +62,14 @@ export default function BudgetManager({ budgets }: BudgetManagerProps) {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm("Are you sure you want to delete this budget?")) {
+    setIsLoading(true);
+    try {
       await db.budgets.delete(id);
-      // Note: Sheets deletion for budgets not implemented for simplicity in this turn
+      setDeletingId(null);
+    } catch (error) {
+      console.error("Delete budget error:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -99,7 +105,7 @@ export default function BudgetManager({ budgets }: BudgetManagerProps) {
                   <Edit2 className="w-3 h-3" />
                 </button>
                 <button 
-                  onClick={() => budget.id && handleDelete(budget.id)}
+                  onClick={() => budget.id && setDeletingId(budget.id)}
                   className="p-1 text-red-400 hover:text-red-600"
                 >
                   <Trash2 className="w-3 h-3" />
@@ -111,8 +117,47 @@ export default function BudgetManager({ budgets }: BudgetManagerProps) {
       </div>
 
       <AnimatePresence>
+        {deletingId && (
+          <motion.div
+            key="delete-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] bg-black/20 backdrop-blur-sm flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-8 text-center"
+            >
+              <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Budget?</h3>
+              <p className="text-gray-500 mb-8 text-sm">This will remove the spending target for this category.</p>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setDeletingId(null)}
+                  className="py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDelete(deletingId)}
+                  disabled={isLoading}
+                  className="py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {isAdding && (
           <motion.div
+            key="add-edit-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

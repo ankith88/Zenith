@@ -13,6 +13,7 @@ interface RecurringManagerProps {
 export default function RecurringManager({ recurring, accounts }: RecurringManagerProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     description: '',
@@ -104,8 +105,14 @@ export default function RecurringManager({ recurring, accounts }: RecurringManag
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm("Stop this recurring transaction?")) {
+    setIsLoading(true);
+    try {
       await db.recurringTransactions.delete(id);
+      setDeletingId(null);
+    } catch (error) {
+      console.error("Delete recurring error:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -134,7 +141,7 @@ export default function RecurringManager({ recurring, accounts }: RecurringManag
             <div className="text-right">
               <p className="text-sm font-black text-gray-900">${item.amount.toLocaleString()}</p>
               <button 
-                onClick={() => item.id && handleDelete(item.id)}
+                onClick={() => item.id && setDeletingId(item.id)}
                 className="lg:opacity-0 lg:group-hover:opacity-100 transition-opacity p-1 text-red-400 hover:text-red-600"
               >
                 <Trash2 className="w-3 h-3" />
@@ -145,8 +152,47 @@ export default function RecurringManager({ recurring, accounts }: RecurringManag
       </div>
 
       <AnimatePresence>
+        {deletingId && (
+          <motion.div
+            key="delete-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] bg-black/20 backdrop-blur-sm flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-8 text-center"
+            >
+              <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Stop Recurring?</h3>
+              <p className="text-gray-500 mb-8 text-sm">This will stop future transactions from being automatically created.</p>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setDeletingId(null)}
+                  className="py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDelete(deletingId)}
+                  disabled={isLoading}
+                  className="py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Stop'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {isAdding && (
           <motion.div
+            key="add-edit-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

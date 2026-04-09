@@ -11,6 +11,7 @@ interface SavingsGoalsProps {
 
 export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProps) {
   const [isAdding, setIsAdding] = useState(false);
+  const [deletingGoalId, setDeletingGoalId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -58,9 +59,15 @@ export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProp
   };
 
   const handleDeleteGoal = async (id: number) => {
-    if (confirm("Delete this goal?")) {
+    setIsLoading(true);
+    try {
       await db.goals.delete(id);
       await sheetsService.deleteGoal(id);
+      setDeletingGoalId(null);
+    } catch (error) {
+      console.error("Delete goal error:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -121,7 +128,7 @@ export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProp
                   </div>
                 </div>
                 <button 
-                  onClick={() => goal.id && handleDeleteGoal(goal.id)}
+                  onClick={() => goal.id && setDeletingGoalId(goal.id)}
                   className="p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -181,8 +188,47 @@ export default function SavingsGoals({ goals, monthlySavings }: SavingsGoalsProp
       </div>
 
       <AnimatePresence>
+        {deletingGoalId && (
+          <motion.div
+            key="delete-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] bg-black/20 backdrop-blur-sm flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-8 text-center"
+            >
+              <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Goal?</h3>
+              <p className="text-gray-500 mb-8 text-sm">This will remove your savings target and progress tracking.</p>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setDeletingGoalId(null)}
+                  className="py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteGoal(deletingGoalId)}
+                  disabled={isLoading}
+                  className="py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {isAdding && (
           <motion.div
+            key="add-goal-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

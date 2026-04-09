@@ -21,10 +21,12 @@ interface DashboardProps {
   recurring: RecurringTransaction[];
   goals: Goal[];
   householdView: boolean;
+  onViewAllTransactions?: () => void;
 }
 
-export default function Dashboard({ transactions, accounts, budgets, recurring, goals, householdView }: DashboardProps) {
+export default function Dashboard({ transactions, accounts, budgets, recurring, goals, householdView, onViewAllTransactions }: DashboardProps) {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [deletingTransactionId, setDeletingTransactionId] = useState<number | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showLiquidBreakdown, setShowLiquidBreakdown] = useState(false);
 
@@ -49,9 +51,15 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
   };
 
   const handleDeleteTransaction = async (id: number) => {
-    if (confirm("Are you sure you want to delete this transaction?")) {
+    setIsSyncing(true);
+    try {
       await db.transactions.delete(id);
       await sheetsService.deleteTransaction(id);
+      setDeletingTransactionId(null);
+    } catch (error) {
+      console.error("Delete transaction error:", error);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -482,7 +490,12 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-8 border-b border-gray-50 flex items-center justify-between">
           <h3 className="text-xl font-bold text-gray-900">Recent Transactions</h3>
-          <button className="text-sm font-bold text-gray-400 hover:text-black transition-colors">View All</button>
+          <button 
+            onClick={onViewAllTransactions}
+            className="text-sm font-bold text-gray-400 hover:text-black transition-colors"
+          >
+            View All
+          </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -542,7 +555,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
-                        onClick={() => t.id && handleDeleteTransaction(t.id)}
+                        onClick={() => t.id && setDeletingTransactionId(t.id)}
                         className="p-2 hover:bg-rose-50 text-rose-600 rounded-xl transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -557,8 +570,47 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       </div>
       {/* Edit Transaction Modal */}
       <AnimatePresence>
+        {deletingTransactionId && (
+          <motion.div
+            key="delete-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] bg-black/20 backdrop-blur-sm flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-8 text-center"
+            >
+              <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Transaction?</h3>
+              <p className="text-gray-500 mb-8">This action cannot be undone and will be synced to your Google Sheet.</p>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setDeletingTransactionId(null)}
+                  className="py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteTransaction(deletingTransactionId)}
+                  disabled={isSyncing}
+                  className="py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {editingTransaction && (
           <motion.div
+            key="edit-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -631,6 +683,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
         )}
         {showLiquidBreakdown && (
           <motion.div
+            key="liquid-breakdown"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

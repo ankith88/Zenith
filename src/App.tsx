@@ -13,6 +13,7 @@ import CategoryManager from './components/CategoryManager';
 import Settings from './components/Settings';
 import TransferReport from './components/TransferReport';
 import Reports from './components/Reports';
+import Transactions from './components/Transactions';
 import GlobalSearch from './components/GlobalSearch';
 import SubscriptionAudit from './components/SubscriptionAudit';
 import CashFlowCalendar from './components/CashFlowCalendar';
@@ -28,7 +29,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isInitialSyncComplete, setIsInitialSyncComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'categories' | 'settings' | 'transfers' | 'reports' | 'subscriptions' | 'calendar' | 'debt'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'categories' | 'settings' | 'transfers' | 'reports' | 'subscriptions' | 'calendar' | 'debt' | 'transactions'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showMortgageWizard, setShowMortgageWizard] = useState(false);
   const [showCarLoanWizard, setShowCarLoanWizard] = useState(false);
@@ -378,6 +379,13 @@ export default function App() {
               Dashboard
             </button>
             <button
+              onClick={() => { setActiveTab('transactions'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'transactions' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+            >
+              <ArrowRightLeft className="w-5 h-5" />
+              Transactions
+            </button>
+            <button
               onClick={() => { setActiveTab('reports'); setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'reports' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
             >
@@ -423,7 +431,7 @@ export default function App() {
               onClick={() => { setActiveTab('transfers'); setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'transfers' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
             >
-              <ArrowRightLeft className="w-5 h-5" />
+              <BarChart3 className="w-5 h-5" />
               Transfer Report
             </button>
             <button
@@ -548,7 +556,18 @@ export default function App() {
                   recurring={recurring} 
                   goals={goals} 
                   householdView={householdView}
+                  onViewAllTransactions={() => setActiveTab('transactions')}
                 />
+              </motion.div>
+            ) : activeTab === 'transactions' ? (
+              <motion.div
+                key="transactions"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full p-6 lg:p-8"
+              >
+                <Transactions transactions={transactions} accounts={accounts} />
               </motion.div>
             ) : activeTab === 'reports' ? (
               <motion.div
