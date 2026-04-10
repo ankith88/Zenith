@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
-import { Plus, Target, Loader2, X, Trash2, Edit2 } from 'lucide-react';
+import { Plus, Target, Loader2, X, Trash2, Edit2, Layout } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, Budget } from '../lib/db';
+import { db, Budget, Transaction, Account } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
+import BudgetFraming from './BudgetFraming';
 
 interface BudgetManagerProps {
   budgets: Budget[];
+  transactions: Transaction[];
+  accounts: Account[];
 }
 
-export default function BudgetManager({ budgets }: BudgetManagerProps) {
+export default function BudgetManager({ budgets, transactions, accounts }: BudgetManagerProps) {
   const [isAdding, setIsAdding] = useState(false);
+  const [isFraming, setIsFraming] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -77,12 +81,21 @@ export default function BudgetManager({ budgets }: BudgetManagerProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Budgets</h3>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="p-2 bg-black dark:bg-white text-white dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95"
-        >
-          <Plus className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsFraming(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-sm hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all"
+          >
+            <Layout className="w-4 h-4" />
+            AI Framing
+          </button>
+          <button
+            onClick={() => setIsAdding(true)}
+            className="p-2 bg-black dark:bg-white text-white dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -207,6 +220,37 @@ export default function BudgetManager({ budgets }: BudgetManagerProps) {
                   Set Budget
                 </button>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isFraming && (
+          <motion.div
+            key="framing-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[130] bg-black/40 backdrop-blur-md flex items-center justify-center p-6 overflow-y-auto"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-gray-50 dark:bg-gray-950 rounded-[3rem] shadow-2xl w-full max-w-5xl overflow-hidden relative"
+            >
+              <button 
+                onClick={() => setIsFraming(false)}
+                className="absolute top-8 right-8 z-50 p-3 bg-white dark:bg-gray-900 rounded-2xl shadow-lg hover:scale-110 transition-transform"
+              >
+                <X className="w-6 h-6 text-gray-400" />
+              </button>
+              <div className="p-8 lg:p-12">
+                <BudgetFraming 
+                  transactions={transactions} 
+                  accounts={accounts} 
+                  onComplete={() => setIsFraming(false)} 
+                />
+              </div>
             </motion.div>
           </motion.div>
         )}

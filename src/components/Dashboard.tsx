@@ -477,7 +477,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
             <p className="text-gray-400 dark:text-gray-500 max-w-[240px]">Track your spending by setting monthly category budgets.</p>
           </div>
         )}
-        <BudgetManager budgets={budgets} />
+        <BudgetManager budgets={budgets} transactions={transactions} accounts={accounts} />
       </div>
 
       {/* Recurring Transactions */}

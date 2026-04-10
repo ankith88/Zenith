@@ -133,11 +133,31 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
     setIsParsing(true);
     setError(null);
     try {
+      // Use the new chatWithAgent for more complex interactions
+      const result = await analystService.chatWithAgent(text, { 
+        transactions: (await db.transactions.toArray()), 
+        accounts: (await db.accounts.toArray()), 
+        budgets: (await db.budgets.toArray()) 
+      });
+      
+      if (result.actionPerformed) {
+        // If an action was performed, we might want to show a success message or refresh data
+        setTranscript(result.text);
+        // We don't need to setParsedData because the action is already done in db
+        setTimeout(() => {
+          setTranscript('');
+          // Refresh the page or trigger a global update if needed
+          window.location.reload(); 
+        }, 5000);
+        return;
+      }
+
+      // Fallback to the old parsing if no function was called, or if it's a simple query
       const data = await analystService.parseVoiceTransaction(text);
       
       if (data.intent === 'query' && data.query) {
         if (onQuery) {
-          onQuery(data.query);
+          onQuery(result.text || data.query);
         } else {
           setError("Query handling not available here.");
         }
@@ -146,6 +166,12 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
       }
 
       if (!data || !data.amount) {
+        // If chatWithAgent didn't perform an action but returned text, show that text
+        if (result.text) {
+          if (onQuery) onQuery(result.text);
+          setTranscript('');
+          return;
+        }
         setError("Could not understand the transaction. Try speaking more clearly.");
         return;
       }

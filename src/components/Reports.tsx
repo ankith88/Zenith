@@ -4,12 +4,14 @@ import {
   LineChart, Line, AreaChart, Area, Legend, Cell, PieChart, Pie
 } from 'recharts';
 import { Transaction, Account, Budget, Goal } from '../lib/db';
-import { TrendingUp, TrendingDown, Wallet, PieChart as PieIcon, BarChart3, Activity, Sparkles, Loader2, ChevronRight, AlertTriangle, Scale } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, PieChart as PieIcon, BarChart3, Activity, Sparkles, Loader2, ChevronRight, AlertTriangle, Scale, Brain, Layout } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { analystService } from '../lib/gemini';
 import Markdown from 'react-markdown';
 import NetWorthAnalysis from './NetWorthAnalysis';
 import AnomalyDetection from './AnomalyDetection';
+import SpendingMood from './SpendingMood';
+import BudgetFraming from './BudgetFraming';
 
 interface ReportsProps {
   transactions: Transaction[];
@@ -18,7 +20,7 @@ interface ReportsProps {
   goals: Goal[];
 }
 
-type ReportTab = 'overview' | 'networth' | 'anomalies';
+type ReportTab = 'overview' | 'networth' | 'anomalies' | 'mood' | 'framing';
 
 export default function Reports({ transactions, accounts, budgets, goals }: ReportsProps) {
   const [activeSubTab, setActiveSubTab] = useState<ReportTab>('overview');
@@ -145,6 +147,24 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
           >
             <AlertTriangle className="w-4 h-4" />
             AI Anomalies
+          </button>
+          <button
+            onClick={() => setActiveSubTab('mood')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+              activeSubTab === 'mood' ? 'bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+            }`}
+          >
+            <Brain className="w-4 h-4" />
+            Spending Mood
+          </button>
+          <button
+            onClick={() => setActiveSubTab('framing')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+              activeSubTab === 'framing' ? 'bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+            }`}
+          >
+            <Layout className="w-4 h-4" />
+            Budget Framing
           </button>
         </div>
       </div>
@@ -341,7 +361,7 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
           >
             <NetWorthAnalysis transactions={transactions} accounts={accounts} />
           </motion.div>
-        ) : (
+        ) : activeSubTab === 'anomalies' ? (
           <motion.div
             key="anomalies"
             initial={{ opacity: 0, y: 20 }}
@@ -349,6 +369,24 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
             exit={{ opacity: 0, y: -20 }}
           >
             <AnomalyDetection transactions={transactions} accounts={accounts} />
+          </motion.div>
+        ) : activeSubTab === 'mood' ? (
+          <motion.div
+            key="mood"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <SpendingMood transactions={transactions} />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="framing"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <BudgetFraming transactions={transactions} accounts={accounts} />
           </motion.div>
         )}
       </AnimatePresence>
