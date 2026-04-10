@@ -8,9 +8,10 @@ import { formatLocalDate } from '../lib/utils';
 
 interface VoiceInputProps {
   onConfirm: (t: Transaction) => void;
+  onQuery?: (query: string) => void;
 }
 
-export default function VoiceInput({ onConfirm }: VoiceInputProps) {
+export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [isParsing, setIsParsing] = useState(false);
@@ -133,11 +134,22 @@ export default function VoiceInput({ onConfirm }: VoiceInputProps) {
     setError(null);
     try {
       const data = await analystService.parseVoiceTransaction(text);
+      
+      if (data.intent === 'query' && data.query) {
+        if (onQuery) {
+          onQuery(data.query);
+        } else {
+          setError("Query handling not available here.");
+        }
+        setTranscript('');
+        return;
+      }
+
       if (!data || !data.amount) {
         setError("Could not understand the transaction. Try speaking more clearly.");
         return;
       }
-      setParsedData(data);
+      setParsedData(data as any);
 
       // Auto-select accounts if AI found them
       if (data.sourceAccount) {

@@ -515,22 +515,29 @@ app.post("/api/ai/parse-voice", async (req, res) => {
   try {
     const response = await genAI.models.generateContent({ 
       model: "gemini-3-flash-preview",
-      contents: `Parse this spoken transaction into structured JSON: "${text}". 
-      If date is not mentioned, use today's date: ${today}.`,
+      contents: `Analyze this spoken input: "${text}". 
+      Determine if the user wants to record a transaction (intent: "transaction") or ask a question about their finances (intent: "query").
+      
+      If it's a transaction, parse it into structured JSON.
+      If it's a query, just return the intent and the original text.
+      
+      Today's date: ${today}.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            date: { type: Type.STRING },
-            amount: { type: Type.NUMBER },
-            category: { type: Type.STRING },
-            description: { type: Type.STRING },
-            type: { type: Type.STRING, enum: ["Income", "Expense", "Transfer"] },
-            sourceAccount: { type: Type.STRING },
-            destinationAccount: { type: Type.STRING },
+            intent: { type: Type.STRING, enum: ["transaction", "query"] },
+            date: { type: Type.STRING, description: "Only for transactions" },
+            amount: { type: Type.NUMBER, description: "Only for transactions" },
+            category: { type: Type.STRING, description: "Only for transactions" },
+            description: { type: Type.STRING, description: "Only for transactions" },
+            type: { type: Type.STRING, enum: ["Income", "Expense", "Transfer"], description: "Only for transactions" },
+            sourceAccount: { type: Type.STRING, description: "Only for transactions" },
+            destinationAccount: { type: Type.STRING, description: "Only for transactions" },
+            query: { type: Type.STRING, description: "The original text if intent is query" }
           },
-          required: ["date", "amount", "category", "description", "type"],
+          required: ["intent"],
         },
       }
     });
@@ -543,6 +550,42 @@ app.post("/api/ai/parse-voice", async (req, res) => {
 });
 
 // Google Sheets Proxy API
+const REQUIRED_SHEETS: Record<string, string[]> = {
+  "Transactions": ["ID", "Date", "Amount", "Category", "Description", "Type", "AccountID", "ToAccountID", "Owner"],
+  "Accounts": ["AccountID", "Name", "InitialBalance", "Type", "InterestRate", "MinPayment", "Owner", "IsPrivate", "AssetValue", "CreditLimit", "PaymentFrequency", "PaymentDueDay"],
+  "Budgets": ["Category", "Amount", "Period"],
+  "Recurring": ["ID", "Description", "Amount", "Category", "Type", "AccountID", "Frequency", "StartDate", "LastProcessedDate", "ToAccountID"],
+  "Goals": ["ID", "Name", "TargetAmount", "CurrentAmount", "Deadline", "Category", "Color", "AccountID"],
+  "Milestones": ["ID", "Type", "Name", "Description", "Icon", "AchievedDate", "Value"]
+};
+
+async function ensureSheetExists(sheets: any, spreadsheetId: string, range: string) {
+  const sheetName = range.split("!")[0];
+  if (!REQUIRED_SHEETS[sheetName]) return;
+
+  try {
+    await sheets.spreadsheets.values.get({ spreadsheetId, range: `${sheetName}!A1` });
+  } catch (error: any) {
+    if (error.message?.includes("Unable to parse range")) {
+      console.log(`Sheet "${sheetName}" missing in spreadsheet ${spreadsheetId}. Attempting to create...`);
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{ addSheet: { properties: { title: sheetName } } }]
+        }
+      });
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${sheetName}!A1`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: { values: [REQUIRED_SHEETS[sheetName]] }
+      });
+    } else {
+      throw error;
+    }
+  }
+}
+
 app.get("/api/sheets/data", async (req, res) => {
   const tokens = getAuthTokens(req);
   if (!tokens) return res.status(401).json({ error: "Unauthorized" });
@@ -553,6 +596,9 @@ app.get("/api/sheets/data", async (req, res) => {
   try {
     const client = getOAuth2Client(req, tokens);
     const sheets = google.sheets({ version: "v4", auth: client });
+    
+    await ensureSheetExists(sheets, spreadsheetId as string, range as string);
+    
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: spreadsheetId as string,
       range: range as string,
@@ -579,6 +625,9 @@ app.post("/api/sheets/append", async (req, res) => {
   try {
     const client = getOAuth2Client(req, tokens);
     const sheets = google.sheets({ version: "v4", auth: client });
+    
+    await ensureSheetExists(sheets, spreadsheetId, range);
+    
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId,
       range,
@@ -606,6 +655,9 @@ app.post("/api/sheets/update", async (req, res) => {
   try {
     const client = getOAuth2Client(req, tokens);
     const sheets = google.sheets({ version: "v4", auth: client });
+    
+    await ensureSheetExists(sheets, spreadsheetId, range);
+    
     const response = await sheets.spreadsheets.values.update({
       spreadsheetId,
       range,

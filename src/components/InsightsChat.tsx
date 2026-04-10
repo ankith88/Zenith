@@ -15,9 +15,11 @@ interface InsightsChatProps {
   accounts: Account[];
   budgets: Budget[];
   goals: Goal[];
+  initialQuery?: string;
+  onQueryHandled?: () => void;
 }
 
-export default function InsightsChat({ transactions, accounts, budgets, goals }: InsightsChatProps) {
+export default function InsightsChat({ transactions, accounts, budgets, goals, initialQuery, onQueryHandled }: InsightsChatProps) {
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: "Hello! I'm Zenith, your financial analyst. I have analyzed your accounts, budgets, and transactions. Ask me anything!" }
   ]);
@@ -26,16 +28,18 @@ export default function InsightsChat({ transactions, accounts, budgets, goals }:
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (initialQuery && !isLoading) {
+      handleSend(initialQuery);
+      if (onQueryHandled) onQueryHandled();
     }
-  }, [messages]);
+  }, [initialQuery]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = async (queryOverride?: string) => {
+    const textToSend = queryOverride || input;
+    if (!textToSend.trim() || isLoading) return;
 
-    const userMsg = input.trim();
-    setInput('');
+    const userMsg = textToSend.trim();
+    if (!queryOverride) setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setIsLoading(true);
 
@@ -103,7 +107,7 @@ export default function InsightsChat({ transactions, accounts, budgets, goals }:
             className="w-full pl-4 pr-12 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black transition-all outline-none"
           />
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={!input.trim() || isLoading}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-all"
           >

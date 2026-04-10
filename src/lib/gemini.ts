@@ -24,7 +24,17 @@ export class FinancialAnalystService {
     });
   }
 
-  async parseVoiceTransaction(text: string): Promise<Partial<Transaction> & { sourceAccount?: string; destinationAccount?: string }> {
+  async parseVoiceTransaction(text: string): Promise<{
+    intent: 'transaction' | 'query';
+    date?: string;
+    amount?: number;
+    category?: string;
+    description?: string;
+    type?: 'Income' | 'Expense' | 'Transfer';
+    sourceAccount?: string;
+    destinationAccount?: string;
+    query?: string;
+  }> {
     return this.safeFetch('/api/ai/parse-voice', {
       method: 'POST',
       body: JSON.stringify({ text, userDate: formatLocalDate() }),

@@ -253,10 +253,10 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
 
       {/* Summary Cards */}
       <div className="flex items-center justify-between">
-        <h3 className="text-2xl font-black text-gray-900">Overview</h3>
+        <h3 className="text-2xl font-black text-gray-900 dark:text-white">Overview</h3>
         <div className="flex items-center gap-3">
           {stats.unsyncedCount > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 animate-pulse">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl border border-amber-100 dark:border-amber-900/30 animate-pulse">
               <RefreshCw className="w-3.5 h-3.5" />
               <span className="text-xs font-bold">{stats.unsyncedCount} unsynced items</span>
             </div>
@@ -264,7 +264,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
           <button
             onClick={handleSync}
             disabled={isSyncing}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50"
           >
             {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             Sync Sheets
@@ -273,67 +273,67 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-all group">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-emerald-50 rounded-2xl group-hover:bg-emerald-100 transition-colors">
-              <ArrowUpRight className="w-6 h-6 text-emerald-600" />
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/30 transition-colors">
+              <ArrowUpRight className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
             </div>
           </div>
-          <p className="text-sm font-medium text-gray-500">Income</p>
-          <h3 className="text-2xl font-bold text-gray-900 mt-1">${stats.income.toLocaleString()}</h3>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Income</p>
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">${stats.income.toLocaleString()}</h3>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-all group">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-red-50 rounded-2xl group-hover:bg-red-100 transition-colors">
-              <ArrowDownLeft className="w-6 h-6 text-red-600" />
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl group-hover:bg-red-100 dark:group-hover:bg-red-900/30 transition-colors">
+              <ArrowDownLeft className="w-6 h-6 text-red-600 dark:text-red-400" />
             </div>
           </div>
-          <p className="text-sm font-medium text-gray-500">Expenses</p>
-          <h3 className="text-2xl font-bold text-gray-900 mt-1">${stats.expenses.toLocaleString()}</h3>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Expenses</p>
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">${stats.expenses.toLocaleString()}</h3>
         </div>
 
         <div 
           onClick={() => setShowLiquidBreakdown(true)}
-          className="bg-white p-6 rounded-3xl border border-indigo-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden cursor-pointer active:scale-95"
+          className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-indigo-100 dark:border-indigo-900/30 shadow-sm hover:shadow-md transition-all group relative overflow-hidden cursor-pointer active:scale-95"
         >
-          <div className="absolute top-0 right-0 p-4 opacity-5">
-            <Wallet className="w-16 h-16 text-indigo-600" />
+          <div className="absolute top-0 right-0 p-4 opacity-5 dark:opacity-10">
+            <Wallet className="w-16 h-16 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div className="flex items-center justify-between mb-4 relative z-10">
-            <div className="p-3 bg-indigo-50 rounded-2xl group-hover:bg-indigo-100 transition-colors">
-              <Wallet className="w-6 h-6 text-indigo-600" />
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/30 transition-colors">
+              <Wallet className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
             </div>
           </div>
-          <p className="text-sm font-medium text-gray-500 relative z-10">Liquid Assets</p>
-          <h3 className="text-2xl font-bold text-indigo-600 mt-1 relative z-10">${stats.liquidBalance.toLocaleString()}</h3>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 relative z-10">Liquid Assets</p>
+          <h3 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1 relative z-10">${stats.liquidBalance.toLocaleString()}</h3>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-rose-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-5">
-            <TrendingDown className="w-16 h-16 text-rose-600" />
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-rose-100 dark:border-rose-900/30 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-5 dark:opacity-10">
+            <TrendingDown className="w-16 h-16 text-rose-600 dark:text-rose-400" />
           </div>
           <div className="flex items-center justify-between mb-4 relative z-10">
-            <div className="p-3 bg-rose-50 rounded-2xl group-hover:bg-rose-100 transition-colors">
-              <TrendingDown className="w-6 h-6 text-rose-600" />
+            <div className="p-3 bg-rose-50 dark:bg-rose-900/20 rounded-2xl group-hover:bg-rose-100 dark:group-hover:bg-rose-900/30 transition-colors">
+              <TrendingDown className="w-6 h-6 text-rose-600 dark:text-rose-400" />
             </div>
           </div>
-          <p className="text-sm font-medium text-gray-500 relative z-10">Total Debt</p>
-          <h3 className="text-2xl font-bold text-rose-600 mt-1 relative z-10">${stats.totalDebt.toLocaleString()}</h3>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 relative z-10">Total Debt</p>
+          <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1 relative z-10">${stats.totalDebt.toLocaleString()}</h3>
         </div>
 
-        <div className="bg-black p-6 rounded-3xl shadow-xl group relative overflow-hidden">
+        <div className="bg-black dark:bg-white p-6 rounded-3xl shadow-xl dark:shadow-white/5 group relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-10">
-            <TrendingUp className="w-16 h-16 text-white" />
+            <TrendingUp className="w-16 h-16 text-white dark:text-black" />
           </div>
           <div className="flex items-center justify-between mb-4 relative z-10">
-            <div className="p-3 bg-white/10 rounded-2xl backdrop-blur-md">
+            <div className="p-3 bg-white/10 dark:bg-black/10 rounded-2xl backdrop-blur-md">
               <TrendingUp className="w-6 h-6 text-emerald-400" />
             </div>
           </div>
-          <p className="text-sm font-medium text-gray-400 relative z-10">Net Worth</p>
-          <h3 className="text-2xl font-bold text-white mt-1 relative z-10">${stats.netWorth.toLocaleString()}</h3>
-          <div className="mt-2 flex items-center gap-1 text-[9px] font-bold text-gray-500 uppercase tracking-wider relative z-10">
+          <p className="text-sm font-medium text-gray-400 dark:text-gray-600 relative z-10">Net Worth</p>
+          <h3 className="text-2xl font-bold text-white dark:text-black mt-1 relative z-10">${stats.netWorth.toLocaleString()}</h3>
+          <div className="mt-2 flex items-center gap-1 text-[9px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative z-10">
             <span>Assets:</span>
             <span className="text-emerald-400">${stats.totalAssetValue.toLocaleString()}</span>
           </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LayoutDashboard, MessageSquare, Plus, Settings as SettingsIcon, LogOut, User, Menu, X, Loader2, Tag, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Plus, Settings as SettingsIcon, LogOut, User, Menu, X, Loader2, Tag, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Transaction, Milestone } from './lib/db';
@@ -22,10 +22,9 @@ import DebtSimulator from './components/DebtSimulator';
 import LoanOffsetSimulator from './components/LoanOffsetSimulator';
 import MortgageSetupWizard from './components/MortgageSetupWizard';
 import CarLoanSetupWizard from './components/CarLoanSetupWizard';
-import LogoShowcase from './components/LogoShowcase';
 import ErrorBoundary from './components/ErrorBoundary';
 import BillCalendar from './components/BillCalendar';
-import { ArrowRightLeft, BarChart3, Search, Calendar, ShieldCheck, TrendingDown, Home, Car, Palette } from 'lucide-react';
+import { ArrowRightLeft, BarChart3, Search, Calendar, ShieldCheck, TrendingDown, Home, Car, Palette, Moon, Sun } from 'lucide-react';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -33,19 +32,39 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'categories' | 'settings' | 'transfers' | 'reports' | 'subscriptions' | 'calendar' | 'debt' | 'transactions'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('zenith_sidebar_collapsed');
+    return saved ? JSON.parse(saved) : false;
+  });
   const [showMortgageWizard, setShowMortgageWizard] = useState(false);
   const [showCarLoanWizard, setShowCarLoanWizard] = useState(false);
-  const [showLogoShowcase, setShowLogoShowcase] = useState(false);
   const [appLogo, setAppLogo] = useState<string | null>('/logo.svg');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [householdView, setHouseholdView] = useState(false);
   const [debtView, setDebtView] = useState<'general' | 'offset'>('general');
+  const [voiceQuery, setVoiceQuery] = useState<string | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('zenith_dark_mode');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('zenith_dark_mode', JSON.stringify(isDarkMode));
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
+  useEffect(() => {
+    localStorage.setItem('zenith_sidebar_collapsed', JSON.stringify(isSidebarCollapsed));
+  }, [isSidebarCollapsed]);
 
   useEffect(() => {
     (window as any).showMortgageWizard = () => setShowMortgageWizard(true);
     (window as any).showCarLoanWizard = () => setShowCarLoanWizard(true);
-    (window as any).showLogoShowcase = () => setShowLogoShowcase(true);
     (window as any).runRecurringCheck = () => processRecurring();
     (window as any).runInterestCheck = () => processInterest();
   }, []);
@@ -98,8 +117,8 @@ export default function App() {
 
   useEffect(() => {
     if (isAuthenticated && isInitialSyncComplete) {
-      processRecurring();
       processInterest();
+      processRecurring();
     }
   }, [isAuthenticated, isInitialSyncComplete]);
 
@@ -131,6 +150,14 @@ export default function App() {
         // Only apply interest if balance is negative (debt)
         if (currentBalance >= 0) continue;
         
+        // Ensure paymentDueDay is set if missing
+        if (acc.paymentDueDay === undefined) {
+          acc.paymentDueDay = today.getDate();
+          await db.accounts.update(acc.id!, { paymentDueDay: acc.paymentDueDay, synced: false });
+          await sheetsService.updateAccount(acc);
+          await db.accounts.update(acc.id!, { synced: true });
+        }
+
         // Use parseLocalDate to ensure we treat the stored date as local time
         let lastDate: Date;
         if (acc.lastInterestDate) {
@@ -143,15 +170,24 @@ export default function App() {
           } else {
             lastDate.setMonth(lastDate.getMonth() - 1);
           }
-          if (acc.paymentDueDay !== undefined) {
-            if (acc.paymentFrequency === 'Weekly') {
-              // Adjust to the correct day of week
-              const currentDay = lastDate.getDay();
-              const diff = acc.paymentDueDay - currentDay;
-              lastDate.setDate(lastDate.getDate() + diff);
-            } else {
-              lastDate.setDate(acc.paymentDueDay);
-            }
+          
+          if (acc.paymentFrequency === 'Weekly') {
+            // Adjust to the correct day of week
+            const currentDay = lastDate.getDay();
+            const diff = acc.paymentDueDay - currentDay;
+            lastDate.setDate(lastDate.getDate() + diff);
+          } else {
+            lastDate.setDate(acc.paymentDueDay);
+          }
+
+          // If the calculated lastDate is still in the future relative to today - period, 
+          // pull it back one more period to ensure we have a valid starting point
+          if (lastDate > today) {
+             if (acc.paymentFrequency === 'Weekly') {
+               lastDate.setDate(lastDate.getDate() - 7);
+             } else {
+               lastDate.setMonth(lastDate.getMonth() - 1);
+             }
           }
         }
         
@@ -382,140 +418,169 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className={`min-h-screen bg-gray-50 dark:bg-gray-950 flex transition-colors duration-300`}>
         {!isAuthenticated && <AuthOverlay onAuthenticated={() => setIsAuthenticated(true)} />}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-white border-r border-gray-100 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="h-full flex flex-col p-6">
-          <div className="flex items-center gap-3 mb-12">
-            <div className="w-10 h-10 bg-black rounded-2xl flex items-center justify-center shadow-lg overflow-hidden">
+      <aside className={`fixed inset-y-0 left-0 z-40 bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 transform transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${isSidebarCollapsed ? 'w-20' : 'w-72'}`}>
+        <div className={`h-full flex flex-col ${isSidebarCollapsed ? 'p-4' : 'p-6'}`}>
+          <div className={`flex items-center gap-3 mb-12 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+            <div className="w-10 h-10 bg-black dark:bg-white rounded-2xl flex items-center justify-center shadow-lg overflow-hidden shrink-0">
               {appLogo ? (
                 <img src={appLogo} alt="Zenith" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               ) : (
-                <span className="text-white font-black text-xl">Z</span>
+                <span className="text-white dark:text-black font-black text-xl">Z</span>
               )}
             </div>
-            <h1 className="text-xl font-black text-gray-900 tracking-tight">Zenith</h1>
+            {!isSidebarCollapsed && <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Zenith</h1>}
           </div>
 
           <nav className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-2">
             <button
               onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'dashboard' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'dashboard' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Dashboard"
             >
-              <LayoutDashboard className="w-5 h-5" />
-              Dashboard
+              <LayoutDashboard className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Dashboard</span>}
             </button>
             <button
               onClick={() => { setActiveTab('transactions'); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'transactions' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'transactions' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Transactions"
             >
-              <ArrowRightLeft className="w-5 h-5" />
-              Transactions
+              <ArrowRightLeft className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Transactions</span>}
             </button>
             <button
               onClick={() => { setActiveTab('reports'); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'reports' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'reports' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Reports"
             >
-              <BarChart3 className="w-5 h-5" />
-              Reports
+              <BarChart3 className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Reports</span>}
             </button>
             <button
               onClick={() => { setActiveTab('calendar'); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'calendar' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'calendar' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Projections"
             >
-              <TrendingUp className="w-5 h-5" />
-              Projections
+              <TrendingUp className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Projections</span>}
             </button>
             <button
               onClick={() => { setActiveTab('subscriptions'); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'subscriptions' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'subscriptions' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Sub Audit"
             >
-              <ShieldCheck className="w-5 h-5" />
-              Sub Audit
+              <ShieldCheck className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Sub Audit</span>}
             </button>
             <button
               onClick={() => { setActiveTab('debt'); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'debt' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'debt' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Debt & Loans"
             >
-              <TrendingDown className="w-5 h-5" />
-              Debt & Loans
+              <TrendingDown className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Debt & Loans</span>}
             </button>
             <button
               onClick={() => { setActiveTab('chat'); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'chat' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'chat' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Ask Zenith"
             >
-              <MessageSquare className="w-5 h-5" />
-              Ask Zenith
+              <MessageSquare className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Ask Zenith</span>}
             </button>
             <button
               onClick={() => { setActiveTab('categories'); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'categories' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'categories' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Categories"
             >
-              <Tag className="w-5 h-5" />
-              Categories
+              <Tag className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Categories</span>}
             </button>
             <button
               onClick={() => { setActiveTab('transfers'); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'transfers' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'transfers' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Transfer Report"
             >
-              <BarChart3 className="w-5 h-5" />
-              Transfer Report
+              <BarChart3 className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Transfer Report</span>}
             </button>
             <button
               onClick={() => { setShowMortgageWizard(true); setIsSidebarOpen(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-indigo-500 hover:bg-indigo-50 transition-all"
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Setup Mortgage"
             >
-              <Home className="w-5 h-5" />
-              Setup Mortgage
+              <Home className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Setup Mortgage</span>}
             </button>
             <button
               onClick={() => { setShowCarLoanWizard(true); setIsSidebarOpen(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-blue-500 hover:bg-blue-50 transition-all"
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Setup Car Loan"
             >
-              <Car className="w-5 h-5" />
-              Setup Car Loan
+              <Car className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Setup Car Loan</span>}
             </button>
-            <button
-              onClick={() => { setShowLogoShowcase(true); setIsSidebarOpen(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-emerald-500 hover:bg-emerald-50 transition-all"
-            >
-              <Palette className="w-5 h-5" />
-              Design Logo
-            </button>
-            <div className="pt-4 px-4">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl">
+
+            <div className={`pt-4 ${isSidebarCollapsed ? 'px-0' : 'px-4'} space-y-2`}>
+              <div className={`flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-2xl transition-colors ${isSidebarCollapsed ? 'flex-col gap-2' : ''}`}>
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-gray-400" />
-                  <span className="text-xs font-bold text-gray-600">Household View</span>
+                  {!isSidebarCollapsed && <span className="text-xs font-bold text-gray-600 dark:text-gray-400">Household</span>}
                 </div>
                 <button
                   onClick={() => setHouseholdView(!householdView)}
-                  className={`w-10 h-6 rounded-full transition-all relative ${householdView ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                  className={`w-10 h-6 rounded-full transition-all relative ${householdView ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}`}
                 >
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${householdView ? 'left-5' : 'left-1'}`} />
                 </button>
               </div>
+
+              <div className={`flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-2xl transition-colors ${isSidebarCollapsed ? 'flex-col gap-2' : ''}`}>
+                <div className="flex items-center gap-2">
+                  {isDarkMode ? <Moon className="w-4 h-4 text-gray-400" /> : <Sun className="w-4 h-4 text-gray-400" />}
+                  {!isSidebarCollapsed && <span className="text-xs font-bold text-gray-600 dark:text-gray-400">Dark Mode</span>}
+                </div>
+                <button
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  className={`w-10 h-6 rounded-full transition-all relative ${isDarkMode ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isDarkMode ? 'left-5' : 'left-1'}`} />
+                </button>
+              </div>
             </div>
 
-            <div className="pt-6 px-4">
-              <BillCalendar 
-                compact 
-                recurring={recurring} 
-                accounts={accounts} 
-                accountBalances={accountBalances} 
-              />
-            </div>
+            {!isSidebarCollapsed && (
+              <div className="pt-6 px-4">
+                <BillCalendar 
+                  compact 
+                  recurring={recurring} 
+                  accounts={accounts} 
+                  accountBalances={accountBalances} 
+                />
+              </div>
+            )}
           </nav>
 
-          <div className="pt-6 border-t border-gray-50 space-y-2">
+          <div className="pt-6 border-t border-gray-50 dark:border-gray-800 space-y-2">
+            <button
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+              {isSidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+              {!isSidebarCollapsed && <span>Collapse Sidebar</span>}
+            </button>
             <button
               onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'settings' ? 'bg-black text-white shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-900'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'settings' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Settings"
             >
-              <SettingsIcon className="w-5 h-5" />
-              Settings
+              <SettingsIcon className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Settings</span>}
             </button>
             <button 
               onClick={async () => {
@@ -523,10 +588,11 @@ export default function App() {
                 await sheetsService.setTokens(null);
                 setIsAuthenticated(false);
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-red-400 hover:bg-red-50 transition-all"
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Logout"
             >
-              <LogOut className="w-5 h-5" />
-              Logout
+              <LogOut className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Logout</span>}
             </button>
           </div>
         </div>
@@ -535,31 +601,31 @@ export default function App() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Header */}
-        <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 p-4 flex items-center justify-between lg:px-8">
-          <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 hover:bg-gray-100 rounded-xl">
-            <Menu className="w-6 h-6 text-gray-900" />
+        <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 p-4 flex items-center justify-between lg:px-8 transition-colors">
+          <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl">
+            <Menu className="w-6 h-6 text-gray-900 dark:text-white" />
           </button>
           
           <div className="flex-1 lg:flex-none flex items-center gap-4">
-            <h2 className="text-lg font-bold text-gray-900 capitalize hidden md:block">{activeTab}</h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white capitalize hidden md:block">{activeTab}</h2>
             <GlobalSearch onNavigate={setActiveTab} />
           </div>
 
           <div className="flex items-center gap-4">
             {isSyncing && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-full animate-pulse">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-full animate-pulse">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 <span className="text-[10px] font-bold uppercase tracking-wider">Syncing Cloud</span>
               </div>
             )}
             {syncError && !isSyncing && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 rounded-full group relative cursor-help">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-full group relative cursor-help">
                 <span className="text-[10px] font-bold uppercase tracking-wider">Sync Error</span>
-                <div className="absolute top-full right-0 mt-2 w-64 p-3 bg-white border border-red-100 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                  <p className="text-xs text-red-600 font-medium">{syncError}</p>
+                <div className="absolute top-full right-0 mt-2 w-64 p-3 bg-white dark:bg-gray-800 border border-red-100 dark:border-red-900 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                  <p className="text-xs text-red-600 dark:text-red-400 font-medium">{syncError}</p>
                   <button 
                     onClick={() => checkAuth()}
-                    className="mt-2 text-[10px] font-bold text-red-700 underline"
+                    className="mt-2 text-[10px] font-bold text-red-700 dark:text-red-400 underline"
                   >
                     Retry Sync
                   </button>
@@ -567,17 +633,17 @@ export default function App() {
               </div>
             )}
             <div className="hidden md:flex flex-col items-end">
-              <span className="text-sm font-bold text-gray-900">Ankith</span>
+              <span className="text-sm font-bold text-gray-900 dark:text-white">Ankith</span>
               <span className="text-xs font-medium text-gray-400">Premium Plan</span>
             </div>
-            <div className="w-10 h-10 rounded-full bg-gray-100 border-2 border-white shadow-sm overflow-hidden">
+            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 border-2 border-white dark:border-gray-700 shadow-sm overflow-hidden">
               <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Ankith" alt="Avatar" referrerPolicy="no-referrer" />
             </div>
           </div>
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto bg-gray-50/50">
+        <div className="flex-1 overflow-y-auto bg-gray-50/50 dark:bg-gray-950/50 transition-colors">
           <AnimatePresence mode="wait">
             {activeTab === 'dashboard' ? (
               <motion.div
@@ -682,7 +748,14 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="h-full p-6 lg:p-8"
               >
-                <InsightsChat transactions={transactions} accounts={accounts} budgets={budgets} goals={goals} />
+                <InsightsChat 
+                  transactions={transactions} 
+                  accounts={accounts} 
+                  budgets={budgets} 
+                  goals={goals}
+                  initialQuery={voiceQuery || undefined}
+                  onQueryHandled={() => setVoiceQuery(null)}
+                />
               </motion.div>
             ) : activeTab === 'categories' ? (
               <motion.div
@@ -718,7 +791,13 @@ export default function App() {
           </AnimatePresence>
         </div>
 
-        <VoiceInput onConfirm={handleTransactionConfirm} />
+        <VoiceInput 
+          onConfirm={handleTransactionConfirm} 
+          onQuery={(query) => {
+            setVoiceQuery(query);
+            setActiveTab('chat');
+          }}
+        />
 
           <AnimatePresence>
             {showMortgageWizard && (
@@ -738,15 +817,6 @@ export default function App() {
                 onComplete={() => {
                   setShowCarLoanWizard(false);
                   setActiveTab('dashboard');
-                }}
-              />
-            )}
-            {showLogoShowcase && (
-              <LogoShowcase 
-                onClose={() => setShowLogoShowcase(false)} 
-                onSelect={(logo) => {
-                  setAppLogo(logo);
-                  setShowLogoShowcase(false);
                 }}
               />
             )}

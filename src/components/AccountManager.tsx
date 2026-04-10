@@ -474,8 +474,13 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                         </label>
                         { (editingAccount ? editingAccount.paymentFrequency : formData.paymentFrequency) === 'Weekly' ? (
                           <select
-                            value={editingAccount ? editingAccount.paymentDueDay ?? '' : formData.paymentDueDay}
-                            onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, paymentDueDay: parseInt(e.target.value) }) : setFormData({ ...formData, paymentDueDay: e.target.value })}
+                            value={editingAccount ? (editingAccount.paymentDueDay ?? '') : formData.paymentDueDay}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? undefined : parseInt(e.target.value);
+                              editingAccount 
+                                ? setEditingAccount({ ...editingAccount, paymentDueDay: val }) 
+                                : setFormData({ ...formData, paymentDueDay: e.target.value });
+                            }}
                             className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
                           >
                             <option value="">Select Day</option>
@@ -492,8 +497,13 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                             type="number"
                             min="1"
                             max="31"
-                            value={editingAccount ? editingAccount.paymentDueDay ?? '' : formData.paymentDueDay}
-                            onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, paymentDueDay: parseInt(e.target.value) }) : setFormData({ ...formData, paymentDueDay: e.target.value })}
+                            value={editingAccount ? (editingAccount.paymentDueDay ?? '') : formData.paymentDueDay}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? undefined : parseInt(e.target.value);
+                              editingAccount 
+                                ? setEditingAccount({ ...editingAccount, paymentDueDay: val }) 
+                                : setFormData({ ...formData, paymentDueDay: e.target.value });
+                            }}
                             placeholder="e.g. 15"
                             className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
                           />

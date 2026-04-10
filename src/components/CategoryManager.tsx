@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Tag, Edit2, Check, X, Loader2, AlertCircle } from 'lucide-react';
+import { Tag, Edit2, Check, X, Loader2, AlertCircle, Palette } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, Transaction, Budget, RecurringTransaction } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
@@ -10,10 +10,16 @@ interface CategoryManagerProps {
   recurring: RecurringTransaction[];
 }
 
+const PRESET_COLORS = [
+  '#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', 
+  '#8b5cf6', '#f43f5e', '#06b6d4', '#84cc16', '#71717a'
+];
+
 export default function CategoryManager({ transactions, budgets, recurring }: CategoryManagerProps) {
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState<string | null>(null);
 
   const categories = useMemo(() => {
     const allCats = new Set<string>();
@@ -22,6 +28,42 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
     recurring.forEach(r => allCats.add(r.category));
     return Array.from(allCats).sort();
   }, [transactions, budgets, recurring]);
+
+  const categoryStats = useMemo(() => {
+    const stats: Record<string, { total: number; color?: string }> = {};
+    
+    categories.forEach(cat => {
+      const total = transactions
+        .filter(t => t.category === cat && t.type === 'Expense')
+        .reduce((sum, t) => sum + t.amount, 0);
+      
+      const budget = budgets.find(b => b.category === cat);
+      stats[cat] = { total, color: budget?.color };
+    });
+    
+    return stats;
+  }, [categories, transactions, budgets]);
+
+  const handleUpdateColor = async (category: string, color: string) => {
+    try {
+      const budget = budgets.find(b => b.category === category);
+      if (budget) {
+        await db.budgets.update(budget.id!, { color, synced: false });
+        await db.budgets.update(budget.id!, { synced: true });
+      } else {
+        await db.budgets.add({
+          category,
+          amount: 0,
+          period: 'Monthly',
+          color,
+          synced: true
+        });
+      }
+      setShowColorPicker(null);
+    } catch (error) {
+      console.error("Update color error:", error);
+    }
+  };
 
   const handleRename = async (oldName: string) => {
     if (!newName.trim() || newName === oldName) {
@@ -73,24 +115,62 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {categories.map((cat) => (
-          <div key={cat} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between group">
+          <div key={cat} className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center justify-between group relative">
             <div className="flex items-center gap-3 flex-1">
-              <div className="p-2 bg-gray-50 rounded-xl text-gray-400">
-                <Tag className="w-4 h-4" />
+              <button
+                onClick={() => setShowColorPicker(showColorPicker === cat ? null : cat)}
+                className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-sm"
+                style={{ backgroundColor: categoryStats[cat].color || '#f3f4f6' }}
+              >
+                <Palette className={`w-4 h-4 ${categoryStats[cat].color ? 'text-white' : 'text-gray-400'}`} />
+              </button>
+              
+              <div className="flex flex-col">
+                {editingCategory === cat ? (
+                  <input
+                    autoFocus
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleRename(cat)}
+                    className="bg-gray-50 dark:bg-gray-800 border-none rounded-lg px-3 py-1 text-sm font-bold focus:ring-2 focus:ring-black dark:focus:ring-white outline-none text-gray-900 dark:text-white"
+                  />
+                ) : (
+                  <>
+                    <span className="text-sm font-bold text-gray-900 dark:text-white">{cat}</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                      Total Spend: <span className="text-rose-500">${categoryStats[cat].total.toLocaleString()}</span>
+                    </span>
+                  </>
+                )}
               </div>
-              {editingCategory === cat ? (
-                <input
-                  autoFocus
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleRename(cat)}
-                  className="flex-1 bg-gray-50 border-none rounded-lg px-3 py-1 text-sm font-bold focus:ring-2 focus:ring-black outline-none"
-                />
-              ) : (
-                <span className="text-sm font-bold text-gray-900">{cat}</span>
-              )}
             </div>
+
+            <AnimatePresence>
+              {showColorPicker === cat && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                  className="absolute left-0 top-full mt-2 p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-2xl z-50 grid grid-cols-5 gap-2"
+                >
+                  {PRESET_COLORS.map(color => (
+                    <button
+                      key={color}
+                      onClick={() => handleUpdateColor(cat, color)}
+                      className="w-6 h-6 rounded-full border-2 border-white dark:border-gray-900 shadow-sm hover:scale-110 transition-transform"
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                  <button
+                    onClick={() => handleUpdateColor(cat, '')}
+                    className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 flex items-center justify-center hover:scale-110 transition-transform"
+                  >
+                    <X className="w-3 h-3 text-gray-400" />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <div className="flex items-center gap-2">
               {editingCategory === cat ? (

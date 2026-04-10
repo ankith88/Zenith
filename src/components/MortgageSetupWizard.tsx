@@ -19,6 +19,8 @@ export default function MortgageSetupWizard({ accounts, onClose, onComplete }: M
     totalBalance: '',
     interestRate: '',
     minPayment: '',
+    paymentFrequency: 'Monthly' as 'Monthly' | 'Weekly',
+    paymentDueDay: new Date().getDate().toString(),
     businessShare: '',
     selfShare: '',
     wifeShare: '',
@@ -42,6 +44,8 @@ export default function MortgageSetupWizard({ accounts, onClose, onComplete }: M
         type: 'Mortgage',
         interestRate: parseFloat(formData.interestRate),
         minPayment: parseFloat(formData.minPayment),
+        paymentFrequency: formData.paymentFrequency,
+        paymentDueDay: parseInt(formData.paymentDueDay),
         synced: false
       };
 
@@ -62,7 +66,7 @@ export default function MortgageSetupWizard({ accounts, onClose, onComplete }: M
           type: 'Transfer',
           accountId: formData.businessAccountId,
           toAccountId: mortgageId,
-          frequency: 'Monthly',
+          frequency: formData.paymentFrequency,
           startDate: today,
           synced: false
         });
@@ -77,7 +81,7 @@ export default function MortgageSetupWizard({ accounts, onClose, onComplete }: M
           type: 'Transfer',
           accountId: formData.selfAccountId,
           toAccountId: mortgageId,
-          frequency: 'Monthly',
+          frequency: formData.paymentFrequency,
           startDate: today,
           synced: false
         });
@@ -92,7 +96,7 @@ export default function MortgageSetupWizard({ accounts, onClose, onComplete }: M
           type: 'Transfer',
           accountId: formData.wifeAccountId,
           toAccountId: mortgageId,
-          frequency: 'Monthly',
+          frequency: formData.paymentFrequency,
           startDate: today,
           synced: false
         });
@@ -223,6 +227,31 @@ export default function MortgageSetupWizard({ accounts, onClose, onComplete }: M
                 </div>
 
                 <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-black text-gray-400 uppercase mb-2 block tracking-wider">Frequency</label>
+                      <select
+                        value={formData.paymentFrequency}
+                        onChange={(e) => setFormData({ ...formData, paymentFrequency: e.target.value as any })}
+                        className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-black outline-none font-bold"
+                      >
+                        <option value="Monthly">Monthly</option>
+                        <option value="Weekly">Weekly</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-black text-gray-400 uppercase mb-2 block tracking-wider">Due Day</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max={formData.paymentFrequency === 'Weekly' ? '7' : '31'}
+                        value={formData.paymentDueDay}
+                        onChange={(e) => setFormData({ ...formData, paymentDueDay: e.target.value })}
+                        placeholder={formData.paymentFrequency === 'Weekly' ? "1-7" : "1-31"}
+                        className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-black outline-none font-bold"
+                      />
+                    </div>
+                  </div>
                   {/* Business Share */}
                   <div className="p-5 bg-gray-50 rounded-3xl space-y-4">
                     <div className="flex items-center gap-3">

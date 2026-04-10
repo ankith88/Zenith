@@ -3,7 +3,7 @@ import { Car, ArrowRight, Check, X, Loader2, Info, Calendar, Clock } from 'lucid
 import { motion, AnimatePresence } from 'motion/react';
 import { db, Account, RecurringTransaction } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
-import { formatLocalDate } from '../lib/utils';
+import { formatLocalDate, parseLocalDate } from '../lib/utils';
 
 interface CarLoanSetupWizardProps {
   accounts: Account[];
@@ -39,6 +39,8 @@ export default function CarLoanSetupWizard({ accounts, onClose, onComplete }: Ca
         type: 'Car Loan',
         interestRate: parseFloat(formData.interestRate),
         minPayment: parseFloat(formData.monthlyPayment),
+        paymentFrequency: formData.frequency,
+        paymentDueDay: parseLocalDate(formData.startDate).getDate(),
         synced: false
       };
 

@@ -35,6 +35,7 @@ export interface Budget {
   category: string;
   amount: number;
   period: 'Monthly' | 'Weekly';
+  color?: string;
   synced: boolean;
 }
 

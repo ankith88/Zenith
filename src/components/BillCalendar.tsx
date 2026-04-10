@@ -106,8 +106,8 @@ export default function BillCalendar({ recurring, accounts, accountBalances, com
 
       {/* Grid */}
       <div className="grid grid-cols-7 gap-1">
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => (
-          <div key={day} className="text-center py-1">
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
+          <div key={`${day}-${idx}`} className="text-center py-1">
             <span className="text-[8px] font-black text-gray-300 uppercase">{day}</span>
           </div>
         ))}
