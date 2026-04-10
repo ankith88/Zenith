@@ -88,17 +88,17 @@ export default function BillCalendar({ recurring, accounts, accountBalances, com
     <div className={`flex flex-col ${compact ? 'gap-4' : 'gap-6'}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <CalendarIcon className={`text-indigo-600 ${compact ? 'w-4 h-4' : 'w-5 h-5'}`} />
-          <span className={`font-bold text-gray-900 ${compact ? 'text-xs' : 'text-sm'}`}>Bill Calendar</span>
+          <CalendarIcon className={`text-indigo-600 dark:text-indigo-400 ${compact ? 'w-4 h-4' : 'w-5 h-5'}`} />
+          <span className={`font-bold text-gray-900 dark:text-white ${compact ? 'text-xs' : 'text-sm'}`}>Bill Calendar</span>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={prevMonth} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+          <button onClick={prevMonth} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
             <ChevronLeft className="w-4 h-4 text-gray-400" />
           </button>
-          <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest min-w-[60px] text-center">
+          <span className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-widest min-w-[60px] text-center">
             {monthName} {year}
           </span>
-          <button onClick={nextMonth} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+          <button onClick={nextMonth} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
             <ChevronRight className="w-4 h-4 text-gray-400" />
           </button>
         </div>
@@ -108,7 +108,7 @@ export default function BillCalendar({ recurring, accounts, accountBalances, com
       <div className="grid grid-cols-7 gap-1">
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
           <div key={`${day}-${idx}`} className="text-center py-1">
-            <span className="text-[8px] font-black text-gray-300 uppercase">{day}</span>
+            <span className="text-[8px] font-black text-gray-300 dark:text-gray-600 uppercase">{day}</span>
           </div>
         ))}
         
@@ -129,15 +129,15 @@ export default function BillCalendar({ recurring, accounts, accountBalances, com
               key={day}
               onClick={() => setSelectedDay(day)}
               className={`h-8 rounded-lg flex flex-col items-center justify-center relative transition-all ${
-                isSelected ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 
-                isToday ? 'bg-black text-white' :
-                'hover:bg-gray-50 text-gray-600'
+                isSelected ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none' : 
+                isToday ? 'bg-black dark:bg-white text-white dark:text-black' :
+                'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
               }`}
             >
               <span className="text-[10px] font-bold">{day}</span>
               <div className="flex gap-0.5 mt-0.5">
                 {events.length > 0 && (
-                  <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-indigo-400'}`} />
+                  <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-indigo-400 dark:bg-indigo-500'}`} />
                 )}
                 {hasRisk && (
                   <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-rose-500'}`} />
@@ -156,14 +156,14 @@ export default function BillCalendar({ recurring, accounts, accountBalances, com
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-gray-50 rounded-2xl p-3 space-y-3"
+            className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-3 space-y-3"
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                 {selectedDay} {monthName}
               </span>
               {selectedBalances && Object.values(selectedBalances).some(b => b < 0) && (
-                <div className="flex items-center gap-1 text-rose-600">
+                <div className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
                   <AlertCircle className="w-3 h-3" />
                   <span className="text-[8px] font-bold uppercase">Risk</span>
                 </div>
@@ -176,19 +176,19 @@ export default function BillCalendar({ recurring, accounts, accountBalances, com
                   <div key={idx} className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className={`p-1 rounded-md ${
-                        e.type === 'Income' ? 'bg-emerald-100 text-emerald-600' :
-                        e.type === 'Expense' ? 'bg-rose-100 text-rose-600' :
-                        'bg-indigo-100 text-indigo-600'
+                        e.type === 'Income' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400' :
+                        e.type === 'Expense' ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400' :
+                        'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400'
                       }`}>
                         {e.type === 'Income' ? <ArrowUpRight className="w-3 h-3" /> : 
                          e.type === 'Expense' ? <ArrowDownLeft className="w-3 h-3" /> : 
                          <RefreshCw className="w-3 h-3" />}
                       </div>
-                      <span className="text-[10px] font-bold text-gray-700 truncate">{e.description}</span>
+                      <span className="text-[10px] font-bold text-gray-700 dark:text-gray-300 truncate">{e.description}</span>
                     </div>
                     <span className={`text-[10px] font-black ${
-                      e.type === 'Income' ? 'text-emerald-600' : 
-                      e.type === 'Expense' ? 'text-rose-600' : 'text-indigo-600'
+                      e.type === 'Income' ? 'text-emerald-600 dark:text-emerald-400' : 
+                      e.type === 'Expense' ? 'text-rose-600 dark:text-rose-400' : 'text-indigo-600 dark:text-indigo-400'
                     }`}>
                       ${e.amount}
                     </span>
@@ -196,19 +196,19 @@ export default function BillCalendar({ recurring, accounts, accountBalances, com
                 ))}
               </div>
             ) : (
-              <p className="text-[10px] font-medium text-gray-400 italic">No scheduled transactions</p>
+              <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 italic">No scheduled transactions</p>
             )}
 
             {selectedBalances && (
-              <div className="pt-2 border-t border-gray-200">
+              <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
                 <div className="grid grid-cols-2 gap-2">
                   {Object.entries(selectedBalances).map(([accId, bal]) => {
                     const acc = accounts.find(a => a.id === Number(accId));
                     if (!acc || bal === 0) return null;
                     return (
                       <div key={accId} className="flex flex-col">
-                        <span className="text-[8px] font-bold text-gray-400 truncate uppercase">{acc.name}</span>
-                        <span className={`text-[10px] font-black ${bal < 0 ? 'text-rose-600' : 'text-gray-700'}`}>
+                        <span className="text-[8px] font-bold text-gray-400 dark:text-gray-500 truncate uppercase">{acc.name}</span>
+                        <span className={`text-[10px] font-black ${bal < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-700 dark:text-gray-300'}`}>
                           ${bal.toLocaleString()}
                         </span>
                       </div>

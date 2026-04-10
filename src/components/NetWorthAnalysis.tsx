@@ -82,36 +82,36 @@ export default function NetWorthAnalysis({ transactions, accounts }: NetWorthAna
     <div className="space-y-8">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm relative overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden transition-colors">
           <div className="absolute top-0 right-0 p-6 opacity-5">
             <TrendingUp className="w-24 h-24 text-emerald-600" />
           </div>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Total Assets</p>
-          <h4 className="text-3xl font-black text-gray-900 mb-2">${currentAssets.toLocaleString()}</h4>
+          <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Total Assets</p>
+          <h4 className="text-3xl font-black text-gray-900 dark:text-white mb-2">${currentAssets.toLocaleString()}</h4>
           <div className="flex items-center gap-1 text-emerald-500 text-xs font-bold">
             <ArrowUpRight className="w-3 h-3" />
             <span>Growing Trend</span>
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm relative overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden transition-colors">
           <div className="absolute top-0 right-0 p-6 opacity-5">
             <TrendingDown className="w-24 h-24 text-rose-600" />
           </div>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Total Liabilities</p>
-          <h4 className="text-3xl font-black text-gray-900 mb-2">${currentDebt.toLocaleString()}</h4>
+          <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Total Liabilities</p>
+          <h4 className="text-3xl font-black text-gray-900 dark:text-white mb-2">${currentDebt.toLocaleString()}</h4>
           <div className="flex items-center gap-1 text-rose-500 text-xs font-bold">
             <ArrowDownRight className="w-3 h-3" />
             <span>Decreasing Trend</span>
           </div>
         </div>
 
-        <div className="bg-black p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
+        <div className="bg-black dark:bg-white p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden transition-colors">
           <div className="absolute top-0 right-0 p-6 opacity-10">
-            <Scale className="w-24 h-24 text-white" />
+            <Scale className="w-24 h-24 text-white dark:text-black" />
           </div>
-          <p className="text-xs font-bold text-white/40 uppercase tracking-widest mb-2">Net Worth</p>
-          <h4 className="text-3xl font-black text-white mb-2">${netWorth.toLocaleString()}</h4>
+          <p className="text-xs font-bold text-white/40 dark:text-black/40 uppercase tracking-widest mb-2">Net Worth</p>
+          <h4 className="text-3xl font-black text-white dark:text-black mb-2">${netWorth.toLocaleString()}</h4>
           <div className={`flex items-center gap-1 text-xs font-bold ${netWorth >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
             {netWorth >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
             <span>{netWorth >= 0 ? 'Positive Equity' : 'Negative Equity'}</span>
@@ -120,24 +120,24 @@ export default function NetWorthAnalysis({ transactions, accounts }: NetWorthAna
       </div>
 
       {/* Main Chart */}
-      <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+      <div className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-12">
           <div>
-            <h3 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-              <Activity className="w-7 h-7 text-indigo-600" />
+            <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+              <Activity className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
               Assets vs. Debt Trend
             </h3>
-            <p className="text-gray-500 font-medium mt-1">Tracking your journey to financial independence.</p>
+            <p className="text-gray-500 dark:text-gray-400 font-medium mt-1">Tracking your journey to financial independence.</p>
           </div>
           
           {crossover && (
-            <div className="bg-emerald-50 px-4 py-2 rounded-2xl border border-emerald-100 flex items-center gap-3">
-              <div className="w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
+            <div className="bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-2xl border border-emerald-100 dark:border-emerald-800 flex items-center gap-3">
+              <div className="w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200 dark:shadow-none">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <div>
-                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Crossover Point</p>
-                <p className="text-sm font-black text-emerald-900">{crossover}</p>
+                <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Crossover Point</p>
+                <p className="text-sm font-black text-emerald-900 dark:text-emerald-100">{crossover}</p>
               </div>
             </div>
           )}
@@ -156,7 +156,7 @@ export default function NetWorthAnalysis({ transactions, accounts }: NetWorthAna
                   <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-chart-grid)" />
               <XAxis 
                 dataKey="date" 
                 axisLine={false} 
@@ -175,9 +175,11 @@ export default function NetWorthAnalysis({ transactions, accounts }: NetWorthAna
                   borderRadius: '24px', 
                   border: 'none', 
                   boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
-                  padding: '20px'
+                  padding: '20px',
+                  backgroundColor: 'var(--color-chart-tooltip-bg)',
+                  color: 'var(--color-chart-tooltip-text)'
                 }}
-                itemStyle={{ fontWeight: 800, fontSize: '14px' }}
+                itemStyle={{ fontWeight: 800, fontSize: '14px', color: 'var(--color-chart-tooltip-text)' }}
               />
               <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: '40px' }} />
               
@@ -207,14 +209,14 @@ export default function NetWorthAnalysis({ transactions, accounts }: NetWorthAna
           </ResponsiveContainer>
         </div>
         
-        <div className="mt-8 p-6 bg-gray-50 rounded-3xl border border-gray-100">
+        <div className="mt-8 p-6 bg-gray-50 dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 transition-colors">
           <div className="flex items-start gap-4">
-            <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm">
-              <Sparkles className="w-5 h-5 text-indigo-600" />
+            <div className="w-10 h-10 bg-white dark:bg-gray-900 rounded-2xl flex items-center justify-center shadow-sm">
+              <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div>
-              <h5 className="text-sm font-bold text-gray-900 mb-1">Zenith Insight</h5>
-              <p className="text-xs text-gray-500 font-medium leading-relaxed">
+              <h5 className="text-sm font-bold text-gray-900 dark:text-white mb-1">Zenith Insight</h5>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium leading-relaxed">
                 Your net worth is the ultimate scorecard. The "Crossover Point" is the moment your assets exceed your liabilities. 
                 Focus on increasing the gap between the green and red lines to accelerate your financial freedom.
               </p>

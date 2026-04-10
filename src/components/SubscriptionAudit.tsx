@@ -103,7 +103,7 @@ export default function SubscriptionAudit({ transactions, accounts }: Subscripti
 
       {hasRun && (
         <div className="grid grid-cols-1 gap-4">
-          <h3 className="text-lg font-black text-gray-900 px-2">Detected Subscriptions</h3>
+          <h3 className="text-lg font-black text-gray-900 dark:text-white px-2">Detected Subscriptions</h3>
           <AnimatePresence>
             {subscriptions.map((sub, i) => (
               <motion.div
@@ -111,30 +111,30 @@ export default function SubscriptionAudit({ transactions, accounts }: Subscripti
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
-                className={`bg-white p-6 rounded-[2rem] border shadow-sm flex flex-col md:flex-row md:items-center gap-6 group transition-all hover:shadow-md ${
-                  sub.isPotentialWaste ? 'border-rose-100 bg-rose-50/30' : 'border-gray-100'
+                className={`bg-white dark:bg-gray-900 p-6 rounded-[2rem] border shadow-sm flex flex-col md:flex-row md:items-center gap-6 group transition-all hover:shadow-md ${
+                  sub.isPotentialWaste ? 'border-rose-100 dark:border-rose-900/30 bg-rose-50/30 dark:bg-rose-900/10' : 'border-gray-100 dark:border-gray-800'
                 }`}
               >
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${
-                  sub.isPotentialWaste ? 'bg-rose-100 text-rose-600' : 'bg-gray-50 text-gray-400'
+                  sub.isPotentialWaste ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
                 }`}>
                   {sub.isPotentialWaste ? <AlertTriangle className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="text-lg font-black text-gray-900 truncate">{sub.name}</h4>
+                    <h4 className="text-lg font-black text-gray-900 dark:text-white truncate">{sub.name}</h4>
                     {sub.isPotentialWaste && (
-                      <span className="px-2 py-0.5 bg-rose-100 text-rose-600 text-[10px] font-black uppercase tracking-wider rounded-md">
+                      <span className="px-2 py-0.5 bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 text-[10px] font-black uppercase tracking-wider rounded-md">
                         Flagged
                       </span>
                     )}
                   </div>
-                  <p className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <p className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-2">
                     {sub.category} • {sub.frequency}
                   </p>
                   {sub.reason && (
-                    <p className="text-sm text-rose-600 font-medium mt-2 flex items-center gap-1.5">
+                    <p className="text-sm text-rose-600 dark:text-rose-400 font-medium mt-2 flex items-center gap-1.5">
                       <AlertTriangle className="w-3.5 h-3.5" />
                       {sub.reason}
                     </p>
@@ -143,16 +143,16 @@ export default function SubscriptionAudit({ transactions, accounts }: Subscripti
 
                 <div className="flex items-center justify-between md:justify-end gap-8">
                   <div className="text-right">
-                    <p className="text-2xl font-black text-gray-900">${sub.amount.toFixed(2)}</p>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Last: {sub.lastDate}</p>
+                    <p className="text-2xl font-black text-gray-900 dark:text-white">${sub.amount.toFixed(2)}</p>
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Last: {sub.lastDate}</p>
                   </div>
                   
                   <div className="flex gap-2">
-                    <button className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-black hover:text-white transition-all">
+                    <button className="p-3 bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 rounded-xl hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-all">
                       <ExternalLink className="w-5 h-5" />
                     </button>
                     {sub.isPotentialWaste && (
-                      <button className="p-3 bg-rose-100 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-all">
+                      <button className="p-3 bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 rounded-xl hover:bg-rose-600 dark:hover:bg-rose-500 hover:text-white transition-all">
                         <Trash2 className="w-5 h-5" />
                       </button>
                     )}
@@ -165,12 +165,12 @@ export default function SubscriptionAudit({ transactions, accounts }: Subscripti
       )}
 
       {hasRun && subscriptions.length === 0 && (
-        <div className="py-20 text-center bg-gray-50 rounded-[3rem] border-2 border-dashed border-gray-200">
-          <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
-            <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+        <div className="py-20 text-center bg-gray-50 dark:bg-gray-900 rounded-[3rem] border-2 border-dashed border-gray-200 dark:border-gray-800 transition-colors">
+          <div className="w-20 h-20 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
+            <CheckCircle2 className="w-10 h-10 text-emerald-500 dark:text-emerald-400" />
           </div>
-          <h3 className="text-xl font-black text-gray-900 mb-2">Clean Slate!</h3>
-          <p className="text-gray-400 max-w-sm mx-auto font-medium">
+          <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2">Clean Slate!</h3>
+          <p className="text-gray-400 dark:text-gray-500 max-w-sm mx-auto font-medium">
             Zenith couldn't find any suspicious recurring costs in your recent history. You're running a tight ship!
           </p>
         </div>

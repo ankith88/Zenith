@@ -136,12 +136,12 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600">
+          <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl text-indigo-600 dark:text-indigo-400">
             <Target className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-xl font-black text-gray-900">Savings Goals</h3>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Give your money a purpose</p>
+            <h3 className="text-xl font-black text-gray-900 dark:text-white">Savings Goals</h3>
+            <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Give your money a purpose</p>
           </div>
         </div>
         <button
@@ -149,7 +149,7 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
             setFormData({ name: '', targetAmount: '', currentAmount: '0', deadline: '', category: 'Travel', color: '#4f46e5', accountId: '' });
             setIsAdding(true);
           }}
-          className="p-3 bg-black text-white rounded-2xl hover:bg-gray-800 transition-all active:scale-95 shadow-lg shadow-black/10"
+          className="p-3 bg-black dark:bg-white text-white dark:text-black rounded-2xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95 shadow-lg shadow-black/10"
         >
           <Plus className="w-5 h-5" />
         </button>
@@ -166,7 +166,7 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
               key={goal.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
+              className="bg-white dark:bg-gray-900 p-6 rounded-[32px] border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
             >
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
@@ -177,18 +177,18 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
                     <Sparkles className="w-6 h-6" />
                   </div>
                   <div>
-                    <h4 className="font-black text-gray-900">{goal.name}</h4>
+                    <h4 className="font-black text-gray-900 dark:text-white">{goal.name}</h4>
                     <div className="flex items-center gap-2">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{goal.category}</p>
+                      <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">{goal.category}</p>
                       {linkedAccount ? (
-                        <div className="flex items-center gap-1 px-2 py-0.5 bg-indigo-50 rounded-full border border-indigo-100">
+                        <div className="flex items-center gap-1 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-full border border-indigo-100 dark:border-indigo-800">
                           <div className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse" />
-                          <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Linked: {linkedAccount.name}</p>
+                          <p className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Linked: {linkedAccount.name}</p>
                         </div>
                       ) : (
                         <button 
                           onClick={() => startEditing(goal)}
-                          className="text-[9px] font-black text-gray-400 hover:text-indigo-500 uppercase tracking-widest transition-colors"
+                          className="text-[9px] font-black text-gray-400 dark:text-gray-500 hover:text-indigo-500 uppercase tracking-widest transition-colors"
                         >
                           + Link Account
                         </button>
@@ -199,13 +199,13 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
                     onClick={() => startEditing(goal)}
-                    className="p-2 text-gray-300 hover:text-black hover:bg-gray-50 rounded-xl transition-all"
+                    className="p-2 text-gray-300 hover:text-black dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={() => goal.id && setDeletingGoalId(goal.id)}
-                    className="p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                    className="p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -215,16 +215,16 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
               <div className="space-y-4">
                 <div className="flex items-end justify-between">
                   <div>
-                    <p className="text-2xl font-black text-gray-900">${currentAmount.toLocaleString()}</p>
-                    <p className="text-xs font-bold text-gray-400">of ${goal.targetAmount.toLocaleString()}</p>
+                    <p className="text-2xl font-black text-gray-900 dark:text-white">${currentAmount.toLocaleString()}</p>
+                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500">of ${goal.targetAmount.toLocaleString()}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-black text-gray-900">{progress.toFixed(0)}%</p>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Progress</p>
+                    <p className="text-sm font-black text-gray-900 dark:text-white">{progress.toFixed(0)}%</p>
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Progress</p>
                   </div>
                 </div>
 
-                <div className="h-3 bg-gray-50 rounded-full overflow-hidden">
+                <div className="h-3 bg-gray-50 dark:bg-gray-800 rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}
@@ -233,13 +233,13 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
                   />
                 </div>
 
-                <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-emerald-600">
+                <div className="pt-4 border-t border-gray-50 dark:border-gray-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                     <TrendingUp className="w-4 h-4" />
                     <span className="text-xs font-bold">ETA: {calculateETA(goal)}</span>
                   </div>
                   {goal.deadline && (
-                    <div className="flex items-center gap-2 text-gray-400">
+                    <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500">
                       <Calendar className="w-4 h-4" />
                       <span className="text-xs font-bold">{new Date(goal.deadline).toLocaleDateString()}</span>
                     </div>
@@ -251,12 +251,12 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
         })}
 
         {goals.length === 0 && (
-          <div className="col-span-full py-12 flex flex-col items-center justify-center bg-gray-50/50 rounded-[40px] border-2 border-dashed border-gray-200">
-            <Target className="w-12 h-12 text-gray-300 mb-4" />
-            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No active goals</p>
+          <div className="col-span-full py-12 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-gray-800/50 rounded-[40px] border-2 border-dashed border-gray-200 dark:border-gray-700">
+            <Target className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-4" />
+            <p className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">No active goals</p>
             <button 
               onClick={() => setIsAdding(true)}
-              className="mt-4 text-xs font-black text-indigo-600 hover:underline"
+              className="mt-4 text-xs font-black text-indigo-600 dark:text-indigo-400 hover:underline"
             >
               Create your first goal
             </button>
@@ -277,17 +277,17 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-8 text-center"
+              className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-8 text-center"
             >
-              <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Goal?</h3>
-              <p className="text-gray-500 mb-8 text-sm">This will remove your savings target and progress tracking.</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Delete Goal?</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-8 text-sm">This will remove your savings target and progress tracking.</p>
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => setDeletingGoalId(null)}
-                  className="py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                  className="py-3 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
                 >
                   Cancel
                 </button>
@@ -315,44 +315,44 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white rounded-[40px] shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-white dark:bg-gray-900 rounded-[40px] shadow-2xl w-full max-w-md overflow-hidden"
             >
-              <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
-                <h3 className="text-xl font-black text-gray-900">{editingGoal ? 'Edit Goal' : 'New Goal'}</h3>
-                <button onClick={() => { setIsAdding(false); setEditingGoal(null); }} className="p-3 hover:bg-white rounded-2xl transition-colors shadow-sm">
+              <div className="p-8 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/50">
+                <h3 className="text-xl font-black text-gray-900 dark:text-white">{editingGoal ? 'Edit Goal' : 'New Goal'}</h3>
+                <button onClick={() => { setIsAdding(false); setEditingGoal(null); }} className="p-3 hover:bg-white dark:hover:bg-gray-800 rounded-2xl transition-colors shadow-sm">
                   <X className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
               <form onSubmit={editingGoal ? handleUpdateGoal : handleAddGoal} className="p-8 space-y-6">
                 <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Goal Name</label>
+                  <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2 block">Goal Name</label>
                   <input
                     required
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g. Dream Holiday"
-                    className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-black outline-none font-bold"
+                    className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none font-bold"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Target Amount</label>
+                    <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2 block">Target Amount</label>
                     <input
                       required
                       type="number"
                       value={formData.targetAmount}
                       onChange={(e) => setFormData({ ...formData, targetAmount: e.target.value })}
                       placeholder="0.00"
-                      className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-black outline-none font-bold"
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none font-bold"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Link to Account</label>
+                    <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2 block">Link to Account</label>
                     <select
                       value={formData.accountId}
                       onChange={(e) => setFormData({ ...formData, accountId: e.target.value })}
-                      className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-black outline-none font-bold"
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none font-bold"
                     >
                       <option value="">Manual Entry</option>
                       {accounts.map(acc => (
@@ -363,28 +363,28 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
                 </div>
                 {!formData.accountId && (
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Current Saved</label>
+                    <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2 block">Current Saved</label>
                     <input
                       required
                       type="number"
                       value={formData.currentAmount}
                       onChange={(e) => setFormData({ ...formData, currentAmount: e.target.value })}
                       placeholder="0.00"
-                      className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-black outline-none font-bold"
+                      className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none font-bold"
                     />
                   </div>
                 )}
                 <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Deadline (Optional)</label>
+                  <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2 block">Deadline (Optional)</label>
                   <input
                     type="date"
                     value={formData.deadline}
                     onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-                    className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-black outline-none font-bold"
+                    className="w-full px-6 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none font-bold"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Category & Color</label>
+                  <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2 block">Category & Color</label>
                   <div className="grid grid-cols-3 gap-2">
                     {categories.map((cat) => (
                       <button
@@ -392,18 +392,18 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
                         type="button"
                         onClick={() => setFormData({ ...formData, category: cat.name, color: cat.color })}
                         className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-1 ${
-                          formData.category === cat.name ? 'border-black bg-gray-50' : 'border-transparent bg-gray-50/50'
+                          formData.category === cat.name ? 'border-black dark:border-white bg-gray-50 dark:bg-gray-800' : 'border-transparent bg-gray-50/50 dark:bg-gray-800/50'
                         }`}
                       >
                         <div className="w-4 h-4 rounded-full" style={{ backgroundColor: cat.color }} />
-                        <span className="text-[10px] font-bold text-gray-500">{cat.name}</span>
+                        <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400">{cat.name}</span>
                       </button>
                     ))}
                   </div>
                 </div>
                 <button
                   disabled={isLoading}
-                  className="w-full py-5 bg-black text-white rounded-[24px] font-black flex items-center justify-center gap-2 hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50 shadow-xl shadow-black/10"
+                  className="w-full py-5 bg-black dark:bg-white text-white dark:text-black rounded-[24px] font-black flex items-center justify-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95 disabled:opacity-50 shadow-xl shadow-black/10"
                 >
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Target className="w-5 h-5" />}
                   {editingGoal ? 'Update Goal' : 'Create Goal'}

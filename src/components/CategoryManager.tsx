@@ -109,8 +109,8 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
   return (
     <div className="space-y-6 max-w-4xl mx-auto p-6">
       <div className="flex flex-col gap-2">
-        <h2 className="text-3xl font-black text-gray-900 tracking-tight">Manage Categories</h2>
-        <p className="text-gray-500 font-medium">Correct typos or reorganize your spending groups globally.</p>
+        <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Manage Categories</h2>
+        <p className="text-gray-500 dark:text-gray-400 font-medium">Correct typos or reorganize your spending groups globally.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -184,7 +184,7 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
                   </button>
                   <button
                     onClick={() => setEditingCategory(null)}
-                    className="p-2 bg-gray-100 text-gray-500 rounded-xl hover:bg-gray-200 transition-all"
+                    className="p-2 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -192,7 +192,7 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
               ) : (
                 <button
                   onClick={() => { setEditingCategory(cat); setNewName(cat); }}
-                  className="p-2 text-gray-400 hover:text-black hover:bg-gray-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                  className="p-2 text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all opacity-0 group-hover:opacity-100"
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
@@ -202,9 +202,9 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
         ))}
       </div>
 
-      <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 flex gap-3">
-        <AlertCircle className="w-5 h-5 text-indigo-600 shrink-0" />
-        <p className="text-xs text-indigo-700 leading-relaxed">
+      <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800 flex gap-3">
+        <AlertCircle className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+        <p className="text-xs text-indigo-700 dark:text-indigo-300 leading-relaxed">
           <strong>Note:</strong> Renaming a category will update all existing transactions, budgets, and recurring schedules that use this name. This change will also be synced to your Google Sheet.
         </p>
       </div>

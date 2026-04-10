@@ -186,47 +186,47 @@ export default function Settings() {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
       <div className="flex flex-col gap-2">
-        <h2 className="text-3xl font-black text-gray-900 tracking-tight">Settings</h2>
-        <p className="text-gray-500 font-medium">Manage your connection and data security.</p>
+        <h2 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Settings</h2>
+        <p className="text-gray-500 dark:text-gray-400 font-medium">Manage your connection and data security.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         {/* Mobile Session Warning */}
-        <div className="bg-amber-50 p-6 rounded-3xl border border-amber-100 flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="bg-amber-50 dark:bg-amber-900/20 p-6 rounded-3xl border border-amber-100 dark:border-amber-900/30 flex flex-col sm:flex-row gap-4 items-center justify-between">
           <div className="flex gap-4 items-center">
-            <div className="p-2 bg-amber-100 rounded-xl">
-              <Shield className="w-5 h-5 text-amber-600" />
+            <div className="p-2 bg-amber-100 dark:bg-amber-900/40 rounded-xl">
+              <Shield className="w-5 h-5 text-amber-600 dark:text-amber-400" />
             </div>
             <div>
-              <p className="text-sm font-bold text-amber-900">Mobile Sync Issues?</p>
-              <p className="text-xs text-amber-700">Always use the "Open in New Tab" button for the best sync experience.</p>
+              <p className="text-sm font-bold text-amber-900 dark:text-amber-100">Mobile Sync Issues?</p>
+              <p className="text-xs text-amber-700 dark:text-amber-300">Always use the "Open in New Tab" button for the best sync experience.</p>
             </div>
           </div>
           <button 
             onClick={() => window.open(window.location.href, '_blank')}
-            className="w-full sm:w-auto px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-xl hover:bg-amber-700 transition-all whitespace-nowrap"
+            className="w-full sm:w-auto px-4 py-2 bg-amber-600 dark:bg-amber-500 text-white text-xs font-bold rounded-xl hover:bg-amber-700 dark:hover:bg-amber-600 transition-all whitespace-nowrap"
           >
             Open in New Tab
           </button>
         </div>
 
         {/* Household Sharing Card */}
-        <div className="bg-indigo-50 p-8 rounded-3xl border border-indigo-100 shadow-sm space-y-6">
+        <div className="bg-indigo-50 dark:bg-indigo-900/20 p-8 rounded-3xl border border-indigo-100 dark:border-indigo-900/30 shadow-sm space-y-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-indigo-600 rounded-2xl">
+            <div className="p-3 bg-indigo-600 dark:bg-indigo-500 rounded-2xl">
               <User className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-indigo-900">Household Sharing</h3>
-              <p className="text-sm text-indigo-600">Share your financial journey with a partner.</p>
+              <h3 className="text-xl font-bold text-indigo-900 dark:text-indigo-100">Household Sharing</h3>
+              <p className="text-sm text-indigo-600 dark:text-indigo-300">Share your financial journey with a partner.</p>
             </div>
           </div>
 
-          <div className="space-y-4 pt-4 border-t border-indigo-100">
+          <div className="space-y-4 pt-4 border-t border-indigo-100 dark:border-indigo-900/30">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <h4 className="text-sm font-bold text-indigo-900">How to share:</h4>
-                <ol className="text-xs text-indigo-700 space-y-2 list-decimal pl-4">
+                <h4 className="text-sm font-bold text-indigo-900 dark:text-indigo-100">How to share:</h4>
+                <ol className="text-xs text-indigo-700 dark:text-indigo-300 space-y-2 list-decimal pl-4">
                   <li>Open your Google Sheet (using the button above).</li>
                   <li>Click <strong>Share</strong> in Google Sheets and add your partner's email.</li>
                   <li>Give them your <strong>Spreadsheet ID</strong> (shown above).</li>
@@ -234,8 +234,8 @@ export default function Settings() {
                 </ol>
               </div>
               <div className="space-y-2">
-                <h4 className="text-sm font-bold text-indigo-900">Privacy Controls:</h4>
-                <p className="text-xs text-indigo-700 leading-relaxed">
+                <h4 className="text-sm font-bold text-indigo-900 dark:text-indigo-100">Privacy Controls:</h4>
+                <p className="text-xs text-indigo-700 dark:text-indigo-300 leading-relaxed">
                   Mark accounts as <strong>"Private"</strong> in the Account Manager to keep them local to your device. Private accounts and their transactions will <strong>never</strong> be synced to the shared Google Sheet.
                 </p>
               </div>
@@ -244,20 +244,20 @@ export default function Settings() {
         </div>
 
         {/* Database Connection Card */}
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm space-y-6">
+        <div className="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm space-y-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-black rounded-2xl">
-              <Database className="w-6 h-6 text-white" />
+            <div className="p-3 bg-black dark:bg-white rounded-2xl">
+              <Database className="w-6 h-6 text-white dark:text-black" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900">Cloud Sync Status</h3>
-              <p className="text-sm text-gray-500">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Cloud Sync Status</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {isAuthenticated ? (
-                  <span className="text-emerald-500 font-bold flex items-center gap-1">
+                  <span className="text-emerald-500 dark:text-emerald-400 font-bold flex items-center gap-1">
                     <Check className="w-4 h-4" /> Connected to Google
                   </span>
                 ) : (
-                  <span className="text-amber-500 font-bold flex items-center gap-1">
+                  <span className="text-amber-500 dark:text-amber-400 font-bold flex items-center gap-1">
                     <Shield className="w-4 h-4" /> Not Authenticated
                   </span>
                 )}
@@ -265,9 +265,9 @@ export default function Settings() {
             </div>
           </div>
 
-          <div className="space-y-4 pt-4 border-t border-gray-50">
+          <div className="space-y-4 pt-4 border-t border-gray-50 dark:border-gray-800">
             <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Spreadsheet ID</label>
+              <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Spreadsheet ID</label>
               <div className="flex flex-col sm:flex-row items-stretch gap-2">
                 <div className="flex-1 flex items-center gap-2">
                   <input 
@@ -275,27 +275,27 @@ export default function Settings() {
                     value={manualId}
                     onChange={(e) => setManualId(e.target.value)}
                     placeholder="Enter Google Spreadsheet ID..."
-                    className="flex-1 bg-gray-50 px-4 py-3 rounded-xl text-xs font-mono text-gray-600 outline-none focus:ring-2 focus:ring-black"
+                    className="flex-1 bg-gray-50 dark:bg-gray-800 px-4 py-3 rounded-xl text-xs font-mono text-gray-600 dark:text-gray-300 outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
                   />
                   {spreadsheetId && (
                     <button 
                       onClick={copyToClipboard}
-                      className="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
+                      className="p-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
                       title="Copy ID"
                     >
-                      {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
+                      {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-gray-400 dark:text-gray-500" />}
                     </button>
                   )}
                 </div>
                 <button 
                   onClick={handleLinkManualId}
                   disabled={isSyncing || !manualId.trim() || !isAuthenticated || manualId === spreadsheetId}
-                  className="px-6 py-3 bg-black text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50"
+                  className="px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl text-xs font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95 disabled:opacity-50"
                 >
                   {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : (manualId === spreadsheetId && spreadsheetId ? 'Linked' : 'Link ID')}
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400 italic">
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 italic">
                 Enter a Spreadsheet ID to link an existing database. Make sure you have "Editor" access to the sheet.
               </p>
             </div>
@@ -306,8 +306,8 @@ export default function Settings() {
                 animate={{ opacity: 1, y: 0 }}
                 className={`p-3 text-xs font-bold rounded-xl border ${
                   syncMessage.toLowerCase().includes('failed') || syncMessage.toLowerCase().includes('error')
-                    ? 'bg-red-50 text-red-700 border-red-100'
-                    : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                    ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-100 dark:border-red-900/30'
+                    : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30'
                 }`}
               >
                 {syncMessage}
@@ -321,7 +321,7 @@ export default function Settings() {
                     href={sheetUrl!} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-black text-white rounded-2xl font-bold hover:bg-gray-800 transition-all active:scale-95"
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95"
                   >
                     <ExternalLink className="w-4 h-4" />
                     Open Sheet
@@ -329,7 +329,7 @@ export default function Settings() {
                   <button 
                     onClick={handlePushToCloud}
                     disabled={isPushing || isSyncing || !isAuthenticated}
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500 text-white rounded-2xl font-bold hover:bg-emerald-600 transition-all active:scale-95 disabled:opacity-50"
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500 dark:bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-600 dark:hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
                   >
                     {isPushing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudUpload className="w-4 h-4" />}
                     Push to Cloud
@@ -337,7 +337,7 @@ export default function Settings() {
                   <button 
                     onClick={handleManualSync}
                     disabled={isSyncing || isPushing || !isAuthenticated}
-                    className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 text-gray-900 rounded-2xl font-bold hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50"
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-2xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all active:scale-95 disabled:opacity-50"
                   >
                     {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudDownload className="w-4 h-4" />}
                     Pull from Cloud
@@ -347,7 +347,7 @@ export default function Settings() {
                 <button 
                   onClick={isAuthenticated ? handleReconnect : handleLogin}
                   disabled={isSyncing}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-black text-white rounded-2xl font-bold hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95 disabled:opacity-50"
                 >
                   {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                   {isAuthenticated ? 'Link Google Sheet' : 'Login to Sync'}
@@ -358,40 +358,40 @@ export default function Settings() {
         </div>
 
         {/* System Diagnostics */}
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm space-y-6">
+        <div className="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm space-y-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-indigo-50 rounded-2xl text-indigo-600">
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl text-indigo-600 dark:text-indigo-400">
               <Activity className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900">System Diagnostics</h3>
-              <p className="text-sm text-gray-500">Verify application time and processing status.</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">System Diagnostics</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Verify application time and processing status.</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-4 bg-gray-50 rounded-2xl space-y-1">
-              <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl space-y-1">
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                 <Clock className="w-3 h-3" />
                 App Local Time
               </div>
-              <p className="text-lg font-mono font-bold text-gray-900">
+              <p className="text-lg font-mono font-bold text-gray-900 dark:text-white">
                 {currentTime.toLocaleTimeString()}
               </p>
-              <p className="text-[10px] text-gray-400">
+              <p className="text-[10px] text-gray-400 dark:text-gray-500">
                 {currentTime.toLocaleDateString()}
               </p>
             </div>
 
-            <div className="p-4 bg-gray-50 rounded-2xl space-y-1">
-              <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl space-y-1">
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                 <Clock className="w-3 h-3" />
                 App UTC Time
               </div>
-              <p className="text-lg font-mono font-bold text-gray-900">
+              <p className="text-lg font-mono font-bold text-gray-900 dark:text-white">
                 {currentTime.toISOString().split('T')[1].split('.')[0]}
               </p>
-              <p className="text-[10px] text-gray-400">
+              <p className="text-[10px] text-gray-400 dark:text-gray-500">
                 {currentTime.toISOString().split('T')[0]}
               </p>
             </div>
@@ -401,12 +401,12 @@ export default function Settings() {
             <button
               onClick={handleForceRecurring}
               disabled={isSyncing}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-all active:scale-95 disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
               Force Recurring Check
             </button>
-            <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium">
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-xl text-sm font-medium">
               <Shield className="w-4 h-4" />
               Auth: {isAuthenticated ? 'Connected' : 'Local Only'}
             </div>
@@ -414,16 +414,16 @@ export default function Settings() {
         </div>
 
         {/* Data Architecture Info */}
-        <div className="bg-gray-50 p-8 rounded-3xl border border-dashed border-gray-200 space-y-4">
+        <div className="bg-gray-50 dark:bg-gray-800/50 p-8 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700 space-y-4">
           <div>
-            <h4 className="text-sm font-bold text-gray-900 mb-2">Where is my data?</h4>
-            <p className="text-xs text-gray-500 leading-relaxed">
+            <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-2">Where is my data?</h4>
+            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
               Zenith uses a <strong>Local-First</strong> architecture. Your data is stored in a secure database inside your browser (IndexedDB). This is why you can see your accounts even when not connected to Google Sheets.
             </p>
           </div>
           <div>
-            <h4 className="text-sm font-bold text-gray-900 mb-2">Why sync to Google Sheets?</h4>
-            <p className="text-xs text-gray-500 leading-relaxed">
+            <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-2">Why sync to Google Sheets?</h4>
+            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
               Syncing to Google Sheets acts as your <strong>Cloud Backup</strong>. It allows you to access the same data on your desktop and mobile, and gives you full ownership of your data in a format you can use elsewhere.
             </p>
           </div>

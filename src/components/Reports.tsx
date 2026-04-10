@@ -118,11 +118,11 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
     <div className="space-y-8 pb-12">
       {/* Sub-Tab Switcher */}
       <div className="flex items-center justify-between">
-        <div className="flex p-1 bg-gray-100 rounded-2xl">
+        <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl transition-colors">
           <button
             onClick={() => setActiveSubTab('overview')}
             className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-              activeSubTab === 'overview' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'
+              activeSubTab === 'overview' ? 'bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
             }`}
           >
             <PieIcon className="w-4 h-4" />
@@ -131,7 +131,7 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
           <button
             onClick={() => setActiveSubTab('networth')}
             className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-              activeSubTab === 'networth' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'
+              activeSubTab === 'networth' ? 'bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
             }`}
           >
             <Scale className="w-4 h-4" />
@@ -140,7 +140,7 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
           <button
             onClick={() => setActiveSubTab('anomalies')}
             className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-              activeSubTab === 'anomalies' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'
+              activeSubTab === 'anomalies' ? 'bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
             }`}
           >
             <AlertTriangle className="w-4 h-4" />
@@ -160,31 +160,31 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
           >
             {/* Top Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Savings Rate</p>
+              <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Savings Rate</p>
                 <div className="flex items-end gap-2">
-                  <h4 className="text-3xl font-black text-gray-900">{savingsRate.toFixed(1)}%</h4>
+                  <h4 className="text-3xl font-black text-gray-900 dark:text-white">{savingsRate.toFixed(1)}%</h4>
                   <TrendingUp className="w-5 h-5 text-emerald-500 mb-1" />
                 </div>
-                <div className="w-full bg-gray-100 h-1.5 rounded-full mt-3 overflow-hidden">
+                <div className="w-full bg-gray-100 dark:bg-gray-800 h-1.5 rounded-full mt-3 overflow-hidden">
                   <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${savingsRate}%` }} />
                 </div>
               </div>
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Avg. Monthly Spend</p>
-                <h4 className="text-3xl font-black text-gray-900">
+              <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Avg. Monthly Spend</p>
+                <h4 className="text-3xl font-black text-gray-900 dark:text-white">
                   ${(monthlyData.reduce((sum, d) => sum + d.expense, 0) / (monthlyData.length || 1)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </h4>
               </div>
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Assets</p>
-                <h4 className="text-3xl font-black text-gray-900">
+              <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Assets</p>
+                <h4 className="text-3xl font-black text-gray-900 dark:text-white">
                   ${accounts.filter(a => !['Mortgage', 'Car Loan', 'Credit Card'].includes(a.type)).reduce((sum, a) => sum + a.initialBalance, 0).toLocaleString()}
                 </h4>
               </div>
-              <div className="bg-black p-6 rounded-3xl shadow-xl">
-                <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-1">Current Net Worth</p>
-                <h4 className="text-3xl font-black text-white">
+              <div className="bg-black dark:bg-white p-6 rounded-3xl shadow-xl transition-colors">
+                <p className="text-xs font-bold text-white/40 dark:text-black/40 uppercase tracking-wider mb-1">Current Net Worth</p>
+                <h4 className="text-3xl font-black text-white dark:text-black">
                   ${(netWorthData[netWorthData.length - 1]?.value || 0).toLocaleString()}
                 </h4>
               </div>
@@ -254,21 +254,28 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
               </div>
 
               {/* Income vs Expense */}
-              <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+              <div className="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
                 <div className="flex items-center justify-between mb-8">
-                  <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                    <BarChart3 className="w-6 h-6 text-indigo-600" />
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <BarChart3 className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                     Income vs Expenses
                   </h3>
                 </div>
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-chart-grid)" />
                       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
                       <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
                       <Tooltip 
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                        contentStyle={{ 
+                          borderRadius: '16px', 
+                          border: 'none', 
+                          boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                          backgroundColor: 'var(--color-chart-tooltip-bg)',
+                          color: 'var(--color-chart-tooltip-text)'
+                        }}
+                        itemStyle={{ color: 'var(--color-chart-tooltip-text)' }}
                       />
                       <Legend iconType="circle" verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: '20px' }} />
                       <Bar dataKey="income" name="Income" fill="#10b981" radius={[4, 4, 0, 0]} />
@@ -279,9 +286,9 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
               </div>
 
               {/* Category Distribution */}
-              <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-                <h3 className="text-xl font-bold text-gray-900 mb-8 flex items-center gap-2">
-                  <PieIcon className="w-6 h-6 text-amber-500" />
+              <div className="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-8 flex items-center gap-2">
+                  <PieIcon className="w-6 h-6 text-amber-500 dark:text-amber-400" />
                   Spending Distribution
                 </h3>
                 <div className="h-[300px] w-full">
@@ -301,7 +308,14 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
                         ))}
                       </Pie>
                       <Tooltip 
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                        contentStyle={{ 
+                          borderRadius: '16px', 
+                          border: 'none', 
+                          boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                          backgroundColor: 'var(--color-chart-tooltip-bg)',
+                          color: 'var(--color-chart-tooltip-text)'
+                        }}
+                        itemStyle={{ color: 'var(--color-chart-tooltip-text)' }}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -310,8 +324,8 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
                   {categoryBreakdown.slice(0, 6).map((item, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                      <span className="text-xs font-medium text-gray-600 truncate">{item.name}</span>
-                      <span className="text-xs font-bold text-gray-900 ml-auto">${item.value.toLocaleString()}</span>
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate">{item.name}</span>
+                      <span className="text-xs font-bold text-gray-900 dark:text-white ml-auto">${item.value.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>

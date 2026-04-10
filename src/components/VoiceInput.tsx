@@ -198,25 +198,25 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl rounded-2xl p-6 mb-4 w-80"
+            className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border border-white/20 dark:border-gray-800 shadow-2xl rounded-2xl p-6 mb-4 w-80"
           >
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Confirm Transaction</h3>
+            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Confirm Transaction</h3>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-gray-400">Amount</span>
+                <span className="text-gray-400 dark:text-gray-500">Amount</span>
                 <span className="font-mono font-bold text-emerald-600">${parsedData.amount}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Category</span>
-                <span className="font-medium">{parsedData.category}</span>
+                <span className="text-gray-400 dark:text-gray-500">Category</span>
+                <span className="font-medium text-gray-900 dark:text-white">{parsedData.category}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">{parsedData.type === 'Transfer' ? 'From' : 'Account'}</span>
+                <span className="text-gray-400 dark:text-gray-500">{parsedData.type === 'Transfer' ? 'From' : 'Account'}</span>
                 <div className="relative">
                   <select 
                     value={selectedAccountId || ''} 
                     onChange={(e) => setSelectedAccountId(parseInt(e.target.value))}
-                    className="appearance-none bg-gray-100 px-2 py-1 rounded-lg text-xs font-bold pr-6 outline-none"
+                    className="appearance-none bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-1 rounded-lg text-xs font-bold pr-6 outline-none"
                   >
                     {accounts.map(acc => (
                       <option key={acc.id} value={acc.id}>{acc.name}</option>
@@ -227,12 +227,12 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
               </div>
               {parsedData.type === 'Transfer' && (
                 <div className="flex justify-between">
-                  <span className="text-gray-400">To</span>
+                  <span className="text-gray-400 dark:text-gray-500">To</span>
                   <div className="relative">
                     <select 
                       value={toAccountId || ''} 
                       onChange={(e) => setToAccountId(parseInt(e.target.value))}
-                      className="appearance-none bg-indigo-50 px-2 py-1 rounded-lg text-xs font-bold pr-6 outline-none text-indigo-600"
+                      className="appearance-none bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-lg text-xs font-bold pr-6 outline-none text-indigo-600 dark:text-indigo-400"
                     >
                       <option value="">Select Account</option>
                       {accounts.map(acc => (
@@ -247,7 +247,7 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
             <div className="flex gap-2 mt-6">
               <button
                 onClick={() => { setParsedData(null); setToAccountId(null); }}
-                className="flex-1 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors flex justify-center items-center"
+                className="flex-1 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex justify-center items-center"
               >
                 <X className="w-4 h-4 text-gray-500" />
               </button>
@@ -278,44 +278,44 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl rounded-3xl p-6 mb-4 w-80"
+            className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border border-white/20 dark:border-gray-800 shadow-2xl rounded-3xl p-6 mb-4 w-80"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Manual Entry</h3>
-              <button onClick={() => setIsManualEntry(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+              <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">Manual Entry</h3>
+              <button onClick={() => setIsManualEntry(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
                 <X className="w-4 h-4 text-gray-400" />
               </button>
             </div>
             
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Description</label>
+                <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Description</label>
                 <input
                   type="text"
                   value={manualData.description}
                   onChange={(e) => setManualData({ ...manualData, description: e.target.value })}
                   placeholder="What did you buy?"
-                  className="w-full px-3 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-black outline-none"
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                 />
               </div>
               
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Amount</label>
+                  <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Amount</label>
                   <input
                     type="number"
                     value={manualData.amount}
                     onChange={(e) => setManualData({ ...manualData, amount: e.target.value })}
                     placeholder="0.00"
-                    className="w-full px-3 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-black outline-none"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Type</label>
+                  <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Type</label>
                   <select
                     value={manualData.type}
                     onChange={(e) => setManualData({ ...manualData, type: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-black outline-none"
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                   >
                     <option value="Expense">Expense</option>
                     <option value="Income">Income</option>
@@ -325,7 +325,7 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block flex items-center justify-between">
+                <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block flex items-center justify-between">
                   Category
                   {isPredicting && <Loader2 className="w-2 h-2 animate-spin text-indigo-500" />}
                 </label>
@@ -335,7 +335,7 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
                     value={manualData.category}
                     onChange={(e) => setManualData({ ...manualData, category: e.target.value })}
                     placeholder="e.g. Food"
-                    className={`w-full px-3 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-black outline-none transition-all ${isPredicting ? 'ring-1 ring-indigo-200' : ''}`}
+                    className={`w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all ${isPredicting ? 'ring-1 ring-indigo-200' : ''}`}
                   />
                   {manualData.category && categories.includes(manualData.category) && (
                     <div className="absolute right-2 top-1/2 -translate-y-1/2">
@@ -355,7 +355,7 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
                     });
                     setIsManualEntry(false);
                   }}
-                  className="w-full py-3 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-all active:scale-95"
+                  className="w-full py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl font-bold text-sm hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95"
                 >
                   Review & Save
                 </button>

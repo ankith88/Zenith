@@ -23,10 +23,11 @@ interface DashboardProps {
   milestones: Milestone[];
   accountBalances: Record<number, number>;
   householdView: boolean;
+  isDarkMode: boolean;
   onViewAllTransactions?: () => void;
 }
 
-export default function Dashboard({ transactions, accounts, budgets, recurring, goals, milestones, accountBalances, householdView, onViewAllTransactions }: DashboardProps) {
+export default function Dashboard({ transactions, accounts, budgets, recurring, goals, milestones, accountBalances, householdView, isDarkMode, onViewAllTransactions }: DashboardProps) {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deletingTransactionId, setDeletingTransactionId] = useState<number | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -352,9 +353,9 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Spending Trend */}
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+        <div className="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-bold text-gray-900">Cash Flow Trend</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Cash Flow Trend</h3>
           </div>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -369,12 +370,18 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                     <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-chart-grid)" />
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
                 <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                  contentStyle={{ 
+                    backgroundColor: 'var(--color-chart-tooltip-bg)', 
+                    borderRadius: '16px', 
+                    border: 'none', 
+                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                    color: 'var(--color-chart-tooltip-text)'
+                  }}
+                  itemStyle={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-chart-tooltip-text)' }}
                 />
                 <Area type="monotone" dataKey="income" stroke="#10b981" fillOpacity={1} fill="url(#colorIncome)" strokeWidth={3} />
                 <Area type="monotone" dataKey="expense" stroke="#ef4444" fillOpacity={1} fill="url(#colorExpense)" strokeWidth={3} />
@@ -384,8 +391,8 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
         </div>
 
         {/* Category Breakdown */}
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-          <h3 className="text-xl font-bold text-gray-900 mb-8">Spending by Category</h3>
+        <div className="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-8">Spending by Category</h3>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -399,11 +406,18 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                   dataKey="value"
                 >
                   {stats.pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={['#000', '#4b5563', '#9ca3af', '#d1d5db', '#f3f4f6'][index % 5]} />
+                    <Cell key={`cell-${index}`} fill={isDarkMode ? ['#fff', '#9ca3af', '#6b7280', '#4b5563', '#374151'][index % 5] : ['#000', '#4b5563', '#9ca3af', '#d1d5db', '#f3f4f6'][index % 5]} />
                   ))}
                 </Pie>
                 <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  contentStyle={{ 
+                    backgroundColor: 'var(--color-chart-tooltip-bg)', 
+                    borderRadius: '16px', 
+                    border: 'none', 
+                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                    color: 'var(--color-chart-tooltip-text)'
+                  }}
+                  itemStyle={{ color: 'var(--color-chart-tooltip-text)' }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -411,9 +425,9 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
           <div className="grid grid-cols-2 gap-4 mt-4">
             {stats.pieData.map((item, i) => (
               <div key={i} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: ['#000', '#4b5563', '#9ca3af', '#d1d5db', '#f3f4f6'][i % 5] }} />
-                <span className="text-sm font-medium text-gray-600">{item.name}</span>
-                <span className="text-sm font-bold text-gray-900 ml-auto">${item.value.toLocaleString()}</span>
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? ['#fff', '#9ca3af', '#6b7280', '#4b5563', '#374151'][i % 5] : ['#000', '#4b5563', '#9ca3af', '#d1d5db', '#f3f4f6'][i % 5] }} />
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{item.name}</span>
+                <span className="text-sm font-bold text-gray-900 dark:text-white ml-auto">${item.value.toLocaleString()}</span>
               </div>
             ))}
           </div>
@@ -423,10 +437,10 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       {/* Budget Tracking */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
         {stats.budgetProgress.length > 0 ? (
-          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+          <div className="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm">
             <div className="flex items-center justify-between mb-8">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Target className="w-6 h-6 text-indigo-600" />
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Target className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                 Budget Progress
               </h3>
             </div>
@@ -434,13 +448,13 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
               {stats.budgetProgress.map((budget) => (
                 <div key={budget.id} className="space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="font-bold text-gray-700">{budget.category}</span>
-                    <span className="text-gray-400">
-                      <span className="text-gray-900 font-bold">${budget.spent.toLocaleString()}</span>
+                    <span className="font-bold text-gray-700 dark:text-gray-300">{budget.category}</span>
+                    <span className="text-gray-400 dark:text-gray-500">
+                      <span className="text-gray-900 dark:text-white font-bold">${budget.spent.toLocaleString()}</span>
                       {' / '}${budget.amount.toLocaleString()}
                     </span>
                   </div>
-                  <div className="h-4 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                  <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden shadow-inner">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${budget.percent}%` }}
@@ -455,12 +469,12 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
             </div>
           </div>
         ) : (
-          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm text-center flex flex-col items-center justify-center min-h-[300px]">
-            <div className="p-4 bg-gray-50 rounded-full mb-4">
-              <Target className="w-10 h-10 text-gray-200" />
+          <div className="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm text-center flex flex-col items-center justify-center min-h-[300px]">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-full mb-4">
+              <Target className="w-10 h-10 text-gray-200 dark:text-gray-700" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">No Budgets Set</h3>
-            <p className="text-gray-400 max-w-[240px]">Track your spending by setting monthly category budgets.</p>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No Budgets Set</h3>
+            <p className="text-gray-400 dark:text-gray-500 max-w-[240px]">Track your spending by setting monthly category budgets.</p>
           </div>
         )}
         <BudgetManager budgets={budgets} />
@@ -472,12 +486,12 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       </div>
 
       {/* Recent Transactions Table */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-8 border-b border-gray-50 flex items-center justify-between">
-          <h3 className="text-xl font-bold text-gray-900">Recent Transactions</h3>
+      <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+        <div className="p-8 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Recent Transactions</h3>
           <button 
             onClick={onViewAllTransactions}
-            className="text-sm font-bold text-gray-400 hover:text-black transition-colors"
+            className="text-sm font-bold text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors"
           >
             View All
           </button>
@@ -485,40 +499,40 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-gray-50/50">
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Date</th>
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Description</th>
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Account</th>
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Amount</th>
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Actions</th>
+              <tr className="bg-gray-50/50 dark:bg-gray-800/50">
+                <th className="px-8 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-8 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Description</th>
+                <th className="px-8 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Account</th>
+                <th className="px-8 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider text-right">Amount</th>
+                <th className="px-8 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
               {transactions.slice(-10).reverse().map((t) => (
-                <tr key={t.id} className="hover:bg-gray-50/50 transition-colors group">
-                  <td className="px-8 py-4 text-sm text-gray-500">{t.date}</td>
+                <tr key={t.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors group">
+                  <td className="px-8 py-4 text-sm text-gray-500 dark:text-gray-400">{t.date}</td>
                   <td className="px-8 py-4">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-xl ${
-                        t.type === 'Income' ? 'bg-emerald-50' : 
-                        t.type === 'Expense' ? 'bg-red-50' : 'bg-indigo-50'
+                        t.type === 'Income' ? 'bg-emerald-50 dark:bg-emerald-900/20' : 
+                        t.type === 'Expense' ? 'bg-red-50 dark:bg-red-900/20' : 'bg-indigo-50 dark:bg-indigo-900/20'
                       }`}>
-                        {t.type === 'Income' ? <ArrowUpRight className="w-4 h-4 text-emerald-600" /> : 
-                         t.type === 'Expense' ? <ArrowDownLeft className="w-4 h-4 text-red-600" /> : 
-                         <RefreshCw className="w-4 h-4 text-indigo-600" />}
+                        {t.type === 'Income' ? <ArrowUpRight className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : 
+                         t.type === 'Expense' ? <ArrowDownLeft className="w-4 h-4 text-red-600 dark:text-red-400" /> : 
+                         <RefreshCw className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
                       </div>
-                      <span className="font-medium text-gray-900">{t.description}</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{t.description}</span>
                     </div>
                   </td>
                   <td className="px-8 py-4">
                     <div className="flex flex-col">
-                      <span className="px-3 py-1 bg-gray-100 rounded-full text-xs font-bold text-gray-500 w-fit">
+                      <span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-xs font-bold text-gray-500 dark:text-gray-400 w-fit">
                         {getAccountName(t.accountId)}
                       </span>
                       {t.type === 'Transfer' && t.toAccountId && (
                         <div className="flex items-center gap-1 mt-1">
                           <ArrowDownLeft className="w-3 h-3 text-indigo-400 rotate-180" />
-                          <span className="px-3 py-1 bg-indigo-50 rounded-full text-xs font-bold text-indigo-500 w-fit">
+                          <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/20 rounded-full text-xs font-bold text-indigo-500 dark:text-indigo-400 w-fit">
                             {getAccountName(t.toAccountId)}
                           </span>
                         </div>
@@ -526,8 +540,8 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                     </div>
                   </td>
                   <td className={`px-8 py-4 text-sm font-bold text-right ${
-                    t.type === 'Income' ? 'text-emerald-600' : 
-                    t.type === 'Expense' ? 'text-red-600' : 'text-indigo-600'
+                    t.type === 'Income' ? 'text-emerald-600 dark:text-emerald-400' : 
+                    t.type === 'Expense' ? 'text-red-600 dark:text-red-400' : 'text-indigo-600 dark:text-indigo-400'
                   }`}>
                     {t.type === 'Income' ? '+' : t.type === 'Expense' ? '-' : ''}${t.amount.toLocaleString()}
                   </td>
@@ -535,13 +549,13 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                     <div className="flex items-center justify-end gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={() => setEditingTransaction(t)}
-                        className="p-2 hover:bg-gray-100 text-gray-600 rounded-xl transition-colors"
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-xl transition-colors"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => t.id && setDeletingTransactionId(t.id)}
-                        className="p-2 hover:bg-rose-50 text-rose-600 rounded-xl transition-colors"
+                        className="p-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-xl transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -567,17 +581,17 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-8 text-center"
+              className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-8 text-center"
             >
-              <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Transaction?</h3>
-              <p className="text-gray-500 mb-8">This action cannot be undone and will be synced to your Google Sheet.</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Delete Transaction?</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-8">This action cannot be undone and will be synced to your Google Sheet.</p>
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => setDeletingTransactionId(null)}
-                  className="py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                  className="py-3 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
                 >
                   Cancel
                 </button>
@@ -605,60 +619,60 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
             >
-              <div className="p-6 border-b border-gray-50 flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-900">Edit Transaction</h3>
-                <button onClick={() => setEditingTransaction(null)} className="p-2 hover:bg-gray-50 rounded-xl">
+              <div className="p-6 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Edit Transaction</h3>
+                <button onClick={() => setEditingTransaction(null)} className="p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl">
                   <X className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
               <form onSubmit={handleUpdateTransaction} className="p-6 space-y-4">
                 <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Description</label>
+                  <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Description</label>
                   <input
                     required
                     type="text"
                     value={editingTransaction.description}
                     onChange={(e) => setEditingTransaction({ ...editingTransaction, description: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Amount</label>
+                    <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Amount</label>
                     <input
                       required
                       type="number"
                       step="0.01"
                       value={editingTransaction.amount}
                       onChange={(e) => setEditingTransaction({ ...editingTransaction, amount: parseFloat(e.target.value) })}
-                      className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Category</label>
+                    <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Category</label>
                     <input
                       required
                       type="text"
                       value={editingTransaction.category}
                       onChange={(e) => setEditingTransaction({ ...editingTransaction, category: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Date</label>
+                  <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Date</label>
                   <input
                     required
                     type="date"
                     value={editingTransaction.date}
                     onChange={(e) => setEditingTransaction({ ...editingTransaction, date: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                   />
                 </div>
                 <button
-                  className="w-full py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-all active:scale-95 mt-4"
+                  className="w-full py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95 mt-4"
                 >
                   Save Changes
                 </button>
@@ -678,30 +692,30 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white rounded-[40px] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col"
+              className="bg-white dark:bg-gray-900 rounded-[40px] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col"
             >
-              <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+              <div className="p-8 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/50">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center">
                     <Wallet className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-black text-gray-900">Liquid Assets</h3>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Account Breakdown</p>
+                    <h3 className="text-xl font-black text-gray-900 dark:text-white">Liquid Assets</h3>
+                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Account Breakdown</p>
                   </div>
                 </div>
-                <button onClick={() => setShowLiquidBreakdown(false)} className="p-3 hover:bg-white rounded-2xl transition-colors shadow-sm">
+                <button onClick={() => setShowLiquidBreakdown(false)} className="p-3 hover:bg-white dark:hover:bg-gray-800 rounded-2xl transition-colors shadow-sm">
                   <X className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
 
-              <div className="p-8 space-y-4 max-h-[60vh] overflow-y-auto">
+              <div className="p-8 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
                 {accounts
                   .filter(acc => acc.type !== 'Mortgage' && acc.type !== 'Credit Card' && acc.type !== 'Car Loan')
                   .map(acc => (
-                    <div key={acc.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                    <div key={acc.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-gray-900 shadow-sm border border-gray-100">
+                        <div className="w-10 h-10 bg-white dark:bg-gray-700 rounded-xl flex items-center justify-center text-gray-900 dark:text-white shadow-sm border border-gray-100 dark:border-gray-600">
                           {acc.type === 'Savings' ? <Landmark className="w-5 h-5" /> : 
                            acc.type === 'Checking' ? <Wallet className="w-5 h-5" /> : 
                            acc.type === 'Cash' ? <Banknote className="w-5 h-5" /> : 
@@ -709,26 +723,26 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                            <Wallet className="w-5 h-5" />}
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-gray-900">{acc.name}</p>
-                          <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{acc.type}</p>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white">{acc.name}</p>
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold tracking-wider">{acc.type}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-black text-gray-900">${(stats.accountBalances[acc.id!] || 0).toLocaleString()}</p>
+                        <p className="text-lg font-black text-gray-900 dark:text-white">${(stats.accountBalances[acc.id!] || 0).toLocaleString()}</p>
                       </div>
                     </div>
                   ))}
                 
-                <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
-                  <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Total Liquid Assets</p>
-                  <p className="text-2xl font-black text-indigo-600">${stats.liquidBalance.toLocaleString()}</p>
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                  <p className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Total Liquid Assets</p>
+                  <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">${stats.liquidBalance.toLocaleString()}</p>
                 </div>
               </div>
 
-              <div className="p-8 bg-gray-50/50">
+              <div className="p-8 bg-gray-50/50 dark:bg-gray-800/50">
                 <button
                   onClick={() => setShowLiquidBreakdown(false)}
-                  className="w-full py-4 bg-black text-white rounded-2xl font-bold hover:bg-gray-800 transition-all active:scale-95"
+                  className="w-full py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95"
                 >
                   Close Breakdown
                 </button>

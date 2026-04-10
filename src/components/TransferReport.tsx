@@ -105,27 +105,27 @@ export default function TransferReport({ transactions, accounts }: TransferRepor
     <div className="space-y-8 pb-12">
       {/* Header Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-          <div className="w-12 h-12 bg-black text-white rounded-2xl flex items-center justify-center mb-4">
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm">
+          <div className="w-12 h-12 bg-black dark:bg-white text-white dark:text-black rounded-2xl flex items-center justify-center mb-4">
             <ArrowRightLeft className="w-6 h-6" />
           </div>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Transferred</p>
-          <h4 className="text-2xl font-black text-gray-900">${totalTransferred.toLocaleString()}</h4>
-          <p className="text-xs text-gray-400 mt-1">{transfers.length} total transfers recorded</p>
+          <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Transferred</p>
+          <h4 className="text-2xl font-black text-gray-900 dark:text-white">${totalTransferred.toLocaleString()}</h4>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{transfers.length} total transfers recorded</p>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm md:col-span-2">
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm md:col-span-2">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Transfer Volume (Last 6 Months)</p>
-              <h4 className="text-xl font-black text-gray-900">Monthly Flow</h4>
+              <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Transfer Volume (Last 6 Months)</p>
+              <h4 className="text-xl font-black text-gray-900 dark:text-white">Monthly Flow</h4>
             </div>
             <TrendingUp className="w-5 h-5 text-emerald-500" />
           </div>
           <div className="h-48 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={document.documentElement.classList.contains('dark') ? '#1f2937' : '#f3f4f6'} />
                 <XAxis 
                   dataKey="name" 
                   axisLine={false} 
@@ -134,12 +134,19 @@ export default function TransferReport({ transactions, accounts }: TransferRepor
                 />
                 <YAxis hide />
                 <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  cursor={{ fill: '#f9fafb' }}
+                  contentStyle={{ 
+                    borderRadius: '16px', 
+                    border: 'none', 
+                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                    backgroundColor: document.documentElement.classList.contains('dark') ? '#111827' : '#fff',
+                    color: document.documentElement.classList.contains('dark') ? '#fff' : '#000'
+                  }}
+                  itemStyle={{ color: document.documentElement.classList.contains('dark') ? '#fff' : '#000' }}
+                  cursor={{ fill: document.documentElement.classList.contains('dark') ? '#1f2937' : '#f9fafb' }}
                 />
                 <Bar dataKey="total" radius={[6, 6, 0, 0]}>
                   {chartData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={index === chartData.length - 1 ? '#000' : '#e5e7eb'} />
+                    <Cell key={`cell-${index}`} fill={index === chartData.length - 1 ? (document.documentElement.classList.contains('dark') ? '#fff' : '#000') : (document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb')} />
                   ))}
                 </Bar>
               </BarChart>
@@ -152,29 +159,29 @@ export default function TransferReport({ transactions, accounts }: TransferRepor
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="space-y-6">
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-gray-900" />
-            <h3 className="text-lg font-bold text-gray-900">Split Payment Analysis</h3>
+            <TrendingUp className="w-5 h-5 text-gray-900 dark:text-white" />
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Split Payment Analysis</h3>
           </div>
           
           <div className="space-y-4">
             {destinationStats.map((dest, i) => (
-              <div key={i} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+              <div key={i} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-sm font-black text-gray-900 uppercase tracking-wider">{dest.name}</h4>
-                  <span className="text-lg font-bold text-emerald-600">${dest.total.toLocaleString()}</span>
+                  <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">{dest.name}</h4>
+                  <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">${dest.total.toLocaleString()}</span>
                 </div>
                 <div className="space-y-3">
                   {Object.values(dest.sources).map((source, si) => (
                     <div key={si} className="space-y-1">
                       <div className="flex justify-between text-xs font-bold">
-                        <span className="text-gray-500">{source.name}</span>
-                        <span className="text-gray-900">${source.amount.toLocaleString()}</span>
+                        <span className="text-gray-500 dark:text-gray-400">{source.name}</span>
+                        <span className="text-gray-900 dark:text-white">${source.amount.toLocaleString()}</span>
                       </div>
-                      <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden">
+                      <div className="h-1.5 bg-gray-50 dark:bg-gray-800 rounded-full overflow-hidden">
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ width: `${(source.amount / dest.total) * 100}%` }}
-                          className="h-full bg-indigo-500 rounded-full"
+                          className="h-full bg-indigo-500 dark:bg-indigo-400 rounded-full"
                         />
                       </div>
                     </div>
@@ -188,33 +195,33 @@ export default function TransferReport({ transactions, accounts }: TransferRepor
         {/* Recent Transfers */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 mb-2">
-            <History className="w-5 h-5 text-gray-900" />
-            <h3 className="text-lg font-bold text-gray-900">Recent Transfers</h3>
+            <History className="w-5 h-5 text-gray-900 dark:text-white" />
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Recent Transfers</h3>
           </div>
           <div className="space-y-3">
             {transfers.length > 0 ? (
               transfers.slice(0, 5).map((t) => (
-                <div key={t.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-                  <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
+                <div key={t.id} className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4">
+                  <div className="w-10 h-10 bg-gray-50 dark:bg-gray-800 rounded-xl flex items-center justify-center text-gray-400 dark:text-gray-500">
                     <ArrowRightLeft className="w-5 h-5" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-bold text-gray-900">{t.description}</p>
-                    <div className="flex items-center gap-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">{t.description}</p>
+                    <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider">
                       {accountMap.get(t.accountId)?.name}
                       <ArrowRightLeft className="w-2 h-2" />
                       {accountMap.get(t.toAccountId!)?.name}
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-black text-gray-900">${t.amount.toLocaleString()}</p>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase">{new Date(t.date).toLocaleDateString()}</p>
+                    <p className="text-sm font-black text-gray-900 dark:text-white">${t.amount.toLocaleString()}</p>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase">{new Date(t.date).toLocaleDateString()}</p>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="bg-gray-50 border-2 border-dashed border-gray-100 rounded-3xl p-8 text-center">
-                <p className="text-sm text-gray-400 font-medium">No recent transfers recorded.</p>
+              <div className="bg-gray-50 dark:bg-gray-800/50 border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-3xl p-8 text-center">
+                <p className="text-sm text-gray-400 dark:text-gray-500 font-medium">No recent transfers recorded.</p>
               </div>
             )}
           </div>

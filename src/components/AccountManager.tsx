@@ -168,11 +168,11 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-bold text-gray-900">Your Accounts</h3>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Your Accounts</h3>
         <button
           id="account-manager-add-btn"
           onClick={() => setIsAdding(true)}
-          className="p-2 bg-black text-white rounded-xl hover:bg-gray-800 transition-all active:scale-95"
+          className="p-2 bg-black dark:bg-white text-white dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95"
         >
           <Plus className="w-5 h-5" />
         </button>
@@ -180,35 +180,35 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {accounts.map((acc) => (
-          <div key={acc.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 group">
-            <div className="p-3 bg-gray-50 rounded-xl text-gray-900">
+          <div key={acc.id} className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4 group">
+            <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl text-gray-900 dark:text-white">
               {getIcon(acc.type)}
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-bold text-gray-900">{acc.name}</p>
+                <p className="text-sm font-bold text-gray-900 dark:text-white">{acc.name}</p>
                 {acc.isPrivate && (
-                  <span className="px-1.5 py-0.5 bg-rose-50 text-rose-500 text-[8px] font-black uppercase rounded-md border border-rose-100">Private</span>
+                  <span className="px-1.5 py-0.5 bg-rose-50 dark:bg-rose-900/20 text-rose-500 dark:text-rose-400 text-[8px] font-black uppercase rounded-md border border-rose-100 dark:border-rose-900/30">Private</span>
                 )}
                 {acc.owner && acc.owner !== 'Me' && (
-                  <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-500 text-[8px] font-black uppercase rounded-md border border-indigo-100">{acc.owner}</span>
+                  <span className="px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md border border-indigo-100 dark:border-indigo-900/30">{acc.owner}</span>
                 )}
                 {acc.type === 'Credit Card' && acc.creditLimit && (
                   <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
                     (accountBalances[acc.id!] || 0) < -(acc.creditLimit * 0.9) 
-                      ? 'bg-red-100 text-red-600 animate-pulse' 
-                      : 'bg-gray-100 text-gray-400'
+                      ? 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 animate-pulse' 
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
                   }`}>
                     Limit: ${acc.creditLimit.toLocaleString()}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-gray-400">{acc.type}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">{acc.type}</p>
               {acc.type === 'Credit Card' && acc.creditLimit && (
-                <div className="mt-2 w-full bg-gray-100 h-1 rounded-full overflow-hidden">
+                <div className="mt-2 w-full bg-gray-100 dark:bg-gray-800 h-1 rounded-full overflow-hidden">
                   <div 
                     className={`h-full transition-all ${
-                      (accountBalances[acc.id!] || 0) < -(acc.creditLimit * 0.9) ? 'bg-red-500' : 'bg-black'
+                      (accountBalances[acc.id!] || 0) < -(acc.creditLimit * 0.9) ? 'bg-red-500' : 'bg-black dark:bg-white'
                     }`}
                     style={{ width: `${Math.min(100, (Math.abs(accountBalances[acc.id!] || 0) / acc.creditLimit) * 100)}%` }}
                   />
@@ -216,29 +216,29 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
               )}
             </div>
               <div className="text-right">
-                <p className="text-sm font-black text-gray-900">${(accountBalances[acc.id!] || 0).toLocaleString()}</p>
+                <p className="text-sm font-black text-gray-900 dark:text-white">${(accountBalances[acc.id!] || 0).toLocaleString()}</p>
                 {acc.assetValue && (
-                  <p className="text-[10px] text-emerald-600 font-bold">Equity: ${(acc.assetValue - Math.abs(accountBalances[acc.id!] || 0)).toLocaleString()}</p>
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Equity: ${(acc.assetValue - Math.abs(accountBalances[acc.id!] || 0)).toLocaleString()}</p>
                 )}
-                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Current</p>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold tracking-wider">Current</p>
               </div>
             <div className="flex flex-col gap-1 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
               <button 
                 onClick={() => setAdjustingAccount(acc)}
-                className="p-1.5 hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg transition-colors"
                 title="Adjust Balance"
               >
                 <Scale className="w-3.5 h-3.5" />
               </button>
               <button 
                 onClick={() => setEditingAccount(acc)}
-                className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-black rounded-lg transition-colors"
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-black dark:hover:text-white rounded-lg transition-colors"
               >
                 <Edit2 className="w-3.5 h-3.5" />
               </button>
               <button 
                 onClick={() => acc.id && setDeletingAccountId(acc.id)}
-                className="p-1.5 hover:bg-rose-50 text-gray-400 hover:text-rose-600 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-gray-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -260,17 +260,17 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-8 text-center"
+              className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-8 text-center"
             >
-              <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Account?</h3>
-              <p className="text-gray-500 mb-8 text-sm">All associated transactions will remain but the account balance will be lost from totals.</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Delete Account?</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-8 text-sm">All associated transactions will remain but the account balance will be lost from totals.</p>
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => setDeletingAccountId(null)}
-                  className="py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                  className="py-3 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
                 >
                   Cancel
                 </button>
@@ -298,20 +298,20 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
             >
-              <div className="p-6 border-b border-gray-50 flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-900">Adjust Balance</h3>
-                <button onClick={() => setAdjustingAccount(null)} className="p-2 hover:bg-gray-50 rounded-xl">
+              <div className="p-6 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Adjust Balance</h3>
+                <button onClick={() => setAdjustingAccount(null)} className="p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl">
                   <X className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
               <form onSubmit={handleAdjustBalance} className="p-6 space-y-4">
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Enter the current actual balance for <strong>{adjustingAccount.name}</strong>. Zenith will create an adjustment transaction to match this.
                 </p>
                 <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Actual Current Balance</label>
+                  <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Actual Current Balance</label>
                   <input
                     required
                     type="number"
@@ -319,12 +319,12 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                     value={newBalance}
                     onChange={(e) => setNewBalance(e.target.value)}
                     placeholder="0.00"
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                   />
                 </div>
                 <button
                   disabled={isLoading}
-                  className="w-full py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50 mt-4"
+                  className="w-full py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95 disabled:opacity-50 mt-4"
                 >
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Scale className="w-5 h-5" />}
                   Adjust Balance
@@ -346,26 +346,26 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
             >
-              <div className="p-6 border-b border-gray-50 flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-900">
+              <div className="p-6 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                   {editingAccount ? 'Edit Account' : 'Add New Account'}
                 </h3>
-                <button onClick={() => { setIsAdding(false); setEditingAccount(null); }} className="p-2 hover:bg-gray-50 rounded-xl">
+                <button onClick={() => { setIsAdding(false); setEditingAccount(null); }} className="p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl">
                   <X className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
               <form onSubmit={editingAccount ? handleUpdate : handleAdd} className="p-6 space-y-4">
                 <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Account Name</label>
+                  <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Account Name</label>
                   <input
                     required
                     type="text"
                     value={editingAccount ? editingAccount.name : formData.name}
                     onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, name: e.target.value }) : setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g. Main Savings"
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                   />
                   {!editingAccount && (
                     <div className="flex flex-wrap gap-2 mt-2">
@@ -374,7 +374,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                           key={name}
                           type="button"
                           onClick={() => setFormData({ ...formData, name })}
-                          className="text-[10px] font-bold px-2 py-1 bg-gray-50 text-gray-400 rounded-lg hover:bg-black hover:text-white transition-all"
+                          className="text-[10px] font-bold px-2 py-1 bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 rounded-lg hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-all"
                         >
                           {name}
                         </button>
@@ -383,7 +383,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                   )}
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Initial Balance</label>
+                  <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Initial Balance</label>
                   <input
                     required
                     type="number"
@@ -391,15 +391,15 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                     value={editingAccount ? editingAccount.initialBalance : formData.initialBalance}
                     onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, initialBalance: parseFloat(e.target.value) }) : setFormData({ ...formData, initialBalance: e.target.value })}
                     placeholder="0.00"
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Account Type</label>
+                  <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Account Type</label>
                   <select
                     value={editingAccount ? editingAccount.type : formData.type}
                     onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, type: e.target.value }) : setFormData({ ...formData, type: e.target.value as any })}
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                   >
                     <option value="Checking">Checking</option>
                     <option value="Savings">Savings</option>
@@ -422,7 +422,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                       value={formData.customType}
                       onChange={(e) => setFormData({ ...formData, customType: e.target.value })}
                       placeholder="Enter custom type..."
-                      className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                     />
                   )}
                 </div>
@@ -430,25 +430,25 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                 {( (editingAccount && (editingAccount.type === 'Credit Card' || editingAccount.type === 'Mortgage')) || (!editingAccount && (formData.type === 'Credit Card' || formData.type === 'Mortgage')) ) && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Interest Rate (%)</label>
+                      <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Interest Rate (%)</label>
                       <input
                         type="number"
                         step="0.01"
                         value={editingAccount ? editingAccount.interestRate || '' : formData.interestRate}
                         onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, interestRate: parseFloat(e.target.value) }) : setFormData({ ...formData, interestRate: e.target.value })}
                         placeholder="0.00"
-                        className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Min. Payment</label>
+                      <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Min. Payment</label>
                       <input
                         type="number"
                         step="0.01"
                         value={editingAccount ? editingAccount.minPayment || '' : formData.minPayment}
                         onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, minPayment: parseFloat(e.target.value) }) : setFormData({ ...formData, minPayment: e.target.value })}
                         placeholder="0.00"
-                        className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                       />
                     </div>
                   </div>
@@ -458,18 +458,18 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Payment Frequency</label>
+                        <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Payment Frequency</label>
                         <select
                           value={editingAccount ? editingAccount.paymentFrequency || 'Monthly' : formData.paymentFrequency}
                           onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, paymentFrequency: e.target.value as any }) : setFormData({ ...formData, paymentFrequency: e.target.value })}
-                          className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                         >
                           <option value="Monthly">Monthly</option>
                           <option value="Weekly">Weekly</option>
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">
+                        <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">
                           {(editingAccount ? editingAccount.paymentFrequency : formData.paymentFrequency) === 'Weekly' ? 'Day of Week' : 'Day of Month'}
                         </label>
                         { (editingAccount ? editingAccount.paymentFrequency : formData.paymentFrequency) === 'Weekly' ? (
@@ -481,7 +481,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                                 ? setEditingAccount({ ...editingAccount, paymentDueDay: val }) 
                                 : setFormData({ ...formData, paymentDueDay: e.target.value });
                             }}
-                            className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                            className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                           >
                             <option value="">Select Day</option>
                             <option value="0">Sunday</option>
@@ -505,58 +505,58 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                                 : setFormData({ ...formData, paymentDueDay: e.target.value });
                             }}
                             placeholder="e.g. 15"
-                            className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                            className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                           />
                         )}
                       </div>
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1 italic">Interest will be charged on this day each {(editingAccount ? editingAccount.paymentFrequency : formData.paymentFrequency) === 'Weekly' ? 'week' : 'month'}.</p>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 italic">Interest will be charged on this day each {(editingAccount ? editingAccount.paymentFrequency : formData.paymentFrequency) === 'Weekly' ? 'week' : 'month'}.</p>
                   </div>
                 )}
 
                 {( (editingAccount && (editingAccount.type === 'Credit Card' || editingAccount.type === 'Mortgage' || editingAccount.type === 'Car Loan')) || (!editingAccount && (formData.type === 'Credit Card' || formData.type === 'Mortgage' || formData.type === 'Car Loan')) ) && (
-                  <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 space-y-3">
-                    <div className="flex items-center gap-2 text-emerald-700">
+                  <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-900/30 space-y-3">
+                    <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
                       <TrendingUp className="w-4 h-4" />
                       <span className="text-xs font-bold uppercase tracking-wider">Asset & Limit Settings</span>
                     </div>
                     <div className="grid grid-cols-1 gap-3">
                       <div>
-                        <label className="text-[10px] font-bold text-emerald-600 uppercase mb-1 block">Current Market Value (Asset)</label>
+                        <label className="text-[10px] font-bold text-emerald-600 dark:text-emerald-500 uppercase mb-1 block">Current Market Value (Asset)</label>
                         <input
                           type="number"
                           step="0.01"
                           value={editingAccount ? editingAccount.assetValue || '' : formData.assetValue}
                           onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, assetValue: parseFloat(e.target.value) }) : setFormData({ ...formData, assetValue: e.target.value })}
                           placeholder="e.g. 1600000"
-                          className="w-full px-4 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-emerald-900"
+                          className="w-full px-4 py-3 bg-white dark:bg-gray-800 border-none rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-emerald-900 dark:text-emerald-400"
                         />
                       </div>
                       {( (editingAccount && editingAccount.type === 'Credit Card') || (!editingAccount && formData.type === 'Credit Card') ) && (
                         <div>
-                          <label className="text-[10px] font-bold text-emerald-600 uppercase mb-1 block">Credit Limit (Max Spend)</label>
+                          <label className="text-[10px] font-bold text-emerald-600 dark:text-emerald-500 uppercase mb-1 block">Credit Limit (Max Spend)</label>
                           <input
                             type="number"
                             step="0.01"
                             value={editingAccount ? editingAccount.creditLimit || '' : formData.creditLimit}
                             onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, creditLimit: parseFloat(e.target.value) }) : setFormData({ ...formData, creditLimit: e.target.value })}
                             placeholder="e.g. 15000"
-                            className="w-full px-4 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-emerald-900"
+                            className="w-full px-4 py-3 bg-white dark:bg-gray-800 border-none rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-emerald-900 dark:text-emerald-400"
                           />
                         </div>
                       )}
                     </div>
-                    <p className="text-[10px] text-emerald-500 mt-1 italic">Linked asset value helps calculate Net Worth. Credit limit tracks your max spend.</p>
+                    <p className="text-[10px] text-emerald-500 dark:text-emerald-600 mt-1 italic">Linked asset value helps calculate Net Worth. Credit limit tracks your max spend.</p>
                   </div>
                 )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Owner</label>
+                    <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Owner</label>
                     <select
                       value={editingAccount ? editingAccount.owner || 'Me' : formData.owner}
                       onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, owner: e.target.value }) : setFormData({ ...formData, owner: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                     >
                       <option value="Me">Me</option>
                       <option value="Partner">Partner</option>
@@ -569,15 +569,15 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                       id="isPrivate"
                       checked={editingAccount ? editingAccount.isPrivate : formData.isPrivate}
                       onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, isPrivate: e.target.checked }) : setFormData({ ...formData, isPrivate: e.target.checked })}
-                      className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black"
+                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-700 text-black dark:text-white focus:ring-black dark:focus:ring-white"
                     />
-                    <label htmlFor="isPrivate" className="text-xs font-bold text-gray-400 uppercase cursor-pointer">Private</label>
+                    <label htmlFor="isPrivate" className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase cursor-pointer">Private</label>
                   </div>
                 </div>
 
                 <button
                   disabled={isLoading}
-                  className="w-full py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50 mt-4"
+                  className="w-full py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95 disabled:opacity-50 mt-4"
                 >
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : editingAccount ? <Edit2 className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
                   {editingAccount ? 'Save Changes' : 'Create Account'}

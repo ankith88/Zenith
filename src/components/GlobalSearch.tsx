@@ -125,7 +125,7 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
   return (
     <div className="relative w-full max-w-md" ref={searchRef}>
       <div className="relative group">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-black transition-colors" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-black dark:group-focus-within:text-white transition-colors" />
         <input
           type="text"
           value={query}
@@ -135,12 +135,12 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
           }}
           onFocus={() => setIsOpen(true)}
           placeholder="Search transactions, accounts..."
-          className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-black outline-none transition-all"
+          className="w-full pl-11 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all text-gray-900 dark:text-white"
         />
         {query && (
           <button 
             onClick={() => setQuery('')}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 rounded-full transition-colors"
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
           >
             <X className="w-3 h-3 text-gray-400" />
           </button>
@@ -153,13 +153,13 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute top-full left-0 right-0 mt-2 bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden z-[120]"
+            className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden z-[120]"
           >
             <div className="p-2 max-h-[400px] overflow-y-auto">
               {isSearching ? (
                 <div className="p-8 flex flex-col items-center justify-center gap-3">
-                  <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Searching...</p>
+                  <Loader2 className="w-6 h-6 text-gray-300 dark:text-gray-600 animate-spin" />
+                  <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Searching...</p>
                 </div>
               ) : results.length > 0 ? (
                 <div className="space-y-1">
@@ -167,45 +167,45 @@ export default function GlobalSearch({ onNavigate }: GlobalSearchProps) {
                     <button
                       key={result.id}
                       onClick={() => handleResultClick(result)}
-                      className="w-full flex items-center gap-4 p-3 hover:bg-gray-50 rounded-2xl transition-colors group text-left"
+                      className="w-full flex items-center gap-4 p-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-2xl transition-colors group text-left"
                     >
                       <div className={`p-2.5 rounded-xl ${
-                        result.type === 'transaction' ? 'bg-indigo-50 text-indigo-600' :
-                        result.type === 'account' ? 'bg-emerald-50 text-emerald-600' :
-                        'bg-amber-50 text-amber-600'
+                        result.type === 'transaction' ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400' :
+                        result.type === 'account' ? 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400' :
+                        'bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'
                       }`}>
                         {result.type === 'transaction' ? <FileText className="w-4 h-4" /> :
                          result.type === 'account' ? <Wallet className="w-4 h-4" /> :
                          <Tag className="w-4 h-4" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-gray-900 truncate">{result.title}</p>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">{result.subtitle}</p>
+                        <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{result.title}</p>
+                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider truncate">{result.subtitle}</p>
                       </div>
                       {result.amount !== undefined && (
                         <div className="text-right">
-                          <p className="text-sm font-black text-gray-900">${result.amount.toLocaleString()}</p>
+                          <p className="text-sm font-black text-gray-900 dark:text-white">${result.amount.toLocaleString()}</p>
                         </div>
                       )}
-                      <ArrowRight className="w-4 h-4 text-gray-200 group-hover:text-black transition-colors" />
+                      <ArrowRight className="w-4 h-4 text-gray-200 dark:text-gray-700 group-hover:text-black dark:group-hover:text-white transition-colors" />
                     </button>
                   ))}
                 </div>
               ) : query ? (
                 <div className="p-8 text-center">
-                  <p className="text-sm font-bold text-gray-900">No results found</p>
-                  <p className="text-xs text-gray-400 mt-1">Try searching for something else</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">No results found</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Try searching for something else</p>
                 </div>
               ) : null}
             </div>
             
             {results.length > 0 && (
-              <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+              <div className="p-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                   {results.length} results found
                 </p>
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] font-bold text-gray-400">ESC to close</span>
+                  <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">ESC to close</span>
                 </div>
               </div>
             )}

@@ -116,12 +116,12 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
 
   if (debts.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-[3rem] border border-gray-100 shadow-sm">
-        <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mb-6">
-          <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+      <div className="flex flex-col items-center justify-center py-20 text-center bg-white dark:bg-gray-900 rounded-[3rem] border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
+        <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-900/20 rounded-full flex items-center justify-center mb-6">
+          <CheckCircle2 className="w-10 h-10 text-emerald-500 dark:text-emerald-400" />
         </div>
-        <h3 className="text-2xl font-black text-gray-900 mb-2">Debt Free!</h3>
-        <p className="text-gray-400 max-w-sm font-medium">
+        <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Debt Free!</h3>
+        <p className="text-gray-400 dark:text-gray-500 max-w-sm font-medium">
           No active debts detected in your accounts. You're in great financial shape!
         </p>
       </div>
@@ -165,15 +165,15 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
-            <h3 className="text-lg font-black text-gray-900 mb-6">Strategy & Boost</h3>
+          <div className="bg-white dark:bg-gray-900 p-8 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
+            <h3 className="text-lg font-black text-gray-900 dark:text-white mb-6">Strategy & Boost</h3>
             
             <div className="space-y-4">
-              <div className="flex p-1 bg-gray-50 rounded-2xl">
+              <div className="flex p-1 bg-gray-50 dark:bg-gray-800 rounded-2xl">
                 <button
                   onClick={() => setStrategy('avalanche')}
                   className={`flex-1 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                    strategy === 'avalanche' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                    strategy === 'avalanche' ? 'bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
                   }`}
                 >
                   <Zap className="w-4 h-4" />
@@ -182,7 +182,7 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
                 <button
                   onClick={() => setStrategy('snowball')}
                   className={`flex-1 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                    strategy === 'snowball' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                    strategy === 'snowball' ? 'bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
                   }`}
                 >
                   <Snowflake className="w-4 h-4" />
@@ -191,18 +191,18 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
               </div>
 
               <div>
-                <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Extra Monthly Payment</label>
+                <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2 block">Extra Monthly Payment</label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">$</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 dark:text-gray-500">$</span>
                   <input
                     type="number"
                     value={extraPayment}
                     onChange={(e) => setExtraPayment(parseFloat(e.target.value) || 0)}
-                    className="w-full pl-8 pr-4 py-4 bg-gray-50 border-none rounded-2xl font-bold focus:ring-2 focus:ring-black outline-none"
+                    className="w-full pl-8 pr-4 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                     placeholder="0.00"
                   />
                 </div>
-                <p className="text-[10px] text-gray-400 mt-2 font-medium">
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 font-medium">
                   {strategy === 'avalanche' 
                     ? 'Avalanche prioritizes high interest rates to save the most money.' 
                     : 'Snowball prioritizes small balances for quick wins.'}
@@ -211,18 +211,18 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
-            <h3 className="text-lg font-black text-gray-900 mb-6">Debt Breakdown</h3>
+          <div className="bg-white dark:bg-gray-900 p-8 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
+            <h3 className="text-lg font-black text-gray-900 dark:text-white mb-6">Debt Breakdown</h3>
             <div className="space-y-4">
               {debts.map(debt => (
-                <div key={debt.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                <div key={debt.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl">
                   <div>
-                    <p className="font-bold text-gray-900">{debt.name}</p>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    <p className="font-bold text-gray-900 dark:text-white">{debt.name}</p>
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                       {debt.interestRate}% APR • ${debt.minPayment}/mo
                     </p>
                   </div>
-                  <p className="font-black text-gray-900">${debt.balance.toLocaleString()}</p>
+                  <p className="font-black text-gray-900 dark:text-white">${debt.balance.toLocaleString()}</p>
                 </div>
               ))}
             </div>
@@ -230,10 +230,10 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
         </div>
 
         <div className="lg:col-span-2">
-          <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm h-full">
+          <div className="bg-white dark:bg-gray-900 p-8 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm h-full transition-colors">
             <div className="flex items-center justify-between mb-8">
-              <h3 className="text-xl font-black text-gray-900">Payoff Projection</h3>
-              <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full">
+              <h3 className="text-xl font-black text-gray-900 dark:text-white">Payoff Projection</h3>
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-full">
                 <Sparkles className="w-3.5 h-3.5" />
                 AI Optimized
               </div>
@@ -248,7 +248,7 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
                       <stop offset="95%" stopColor="#e11d48" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-chart-grid)" />
                   <XAxis 
                     dataKey="month" 
                     axisLine={false} 
@@ -263,7 +263,14 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
                     tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`}
                   />
                   <Tooltip 
-                    contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '16px' }}
+                    contentStyle={{ 
+                      borderRadius: '24px', 
+                      border: 'none', 
+                      boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', 
+                      padding: '16px',
+                      backgroundColor: 'var(--color-chart-tooltip-bg)',
+                      color: 'var(--color-chart-tooltip-text)'
+                    }}
                     itemStyle={{ fontSize: '14px', fontWeight: 'black', color: '#e11d48' }}
                     labelStyle={{ fontSize: '10px', fontWeight: 'bold', color: '#9ca3af', marginBottom: '4px', textTransform: 'uppercase' }}
                     formatter={(value: number) => [`$${value.toLocaleString()}`, 'Remaining Debt']}
@@ -283,9 +290,9 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
             </div>
 
             {simulation?.isCapped && (
-              <div className="mt-6 p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-700 font-medium leading-relaxed">
+              <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 rounded-2xl flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700 dark:text-amber-300 font-medium leading-relaxed">
                   The simulation is capped at 30 years. With your current minimum payments and interest rates, some debts may not be fully paid off within this timeframe. Consider increasing your extra monthly payment.
                 </p>
               </div>

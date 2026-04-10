@@ -76,10 +76,10 @@ export default function BudgetManager({ budgets }: BudgetManagerProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-bold text-gray-900">Monthly Budgets</h3>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Budgets</h3>
         <button
           onClick={() => setIsAdding(true)}
-          className="p-2 bg-black text-white rounded-xl hover:bg-gray-800 transition-all active:scale-95"
+          className="p-2 bg-black dark:bg-white text-white dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95"
         >
           <Plus className="w-5 h-5" />
         </button>
@@ -87,20 +87,20 @@ export default function BudgetManager({ budgets }: BudgetManagerProps) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {budgets.map((budget) => (
-          <div key={budget.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 group">
-            <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600">
+          <div key={budget.id} className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4 group">
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl text-indigo-600 dark:text-indigo-400">
               <Target className="w-5 h-5" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-bold text-gray-900">{budget.category}</p>
-              <p className="text-xs text-gray-400">{budget.period}</p>
+              <p className="text-sm font-bold text-gray-900 dark:text-white">{budget.category}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">{budget.period}</p>
             </div>
             <div className="text-right flex flex-col items-end gap-1">
-              <p className="text-sm font-black text-gray-900">${budget.amount.toLocaleString()}</p>
+              <p className="text-sm font-black text-gray-900 dark:text-white">${budget.amount.toLocaleString()}</p>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button 
                   onClick={() => handleEdit(budget)}
-                  className="p-1 text-gray-400 hover:text-black"
+                  className="p-1 text-gray-400 hover:text-black dark:hover:text-white"
                 >
                   <Edit2 className="w-3 h-3" />
                 </button>
@@ -129,17 +129,17 @@ export default function BudgetManager({ budgets }: BudgetManagerProps) {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-8 text-center"
+              className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-8 text-center"
             >
-              <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Budget?</h3>
-              <p className="text-gray-500 mb-8 text-sm">This will remove the spending target for this category.</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Delete Budget?</h3>
+              <p className="text-gray-500 dark:text-gray-400 mb-8 text-sm">This will remove the spending target for this category.</p>
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => setDeletingId(null)}
-                  className="py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                  className="py-3 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
                 >
                   Cancel
                 </button>
@@ -167,28 +167,28 @@ export default function BudgetManager({ budgets }: BudgetManagerProps) {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
             >
-              <div className="p-6 border-b border-gray-50 flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-900">{editingId ? 'Edit Budget' : 'Set New Budget'}</h3>
-                <button onClick={() => { setIsAdding(false); setEditingId(null); }} className="p-2 hover:bg-gray-50 rounded-xl">
+              <div className="p-6 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">{editingId ? 'Edit Budget' : 'Set New Budget'}</h3>
+                <button onClick={() => { setIsAdding(false); setEditingId(null); }} className="p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl">
                   <X className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
               <form onSubmit={handleAdd} className="p-6 space-y-4">
                 <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Category</label>
+                  <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Category</label>
                   <input
                     required
                     type="text"
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     placeholder="e.g. Dining Out"
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Monthly Limit</label>
+                  <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Monthly Limit</label>
                   <input
                     required
                     type="number"
@@ -196,12 +196,12 @@ export default function BudgetManager({ budgets }: BudgetManagerProps) {
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                     placeholder="0.00"
-                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none"
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                   />
                 </div>
                 <button
                   disabled={isLoading}
-                  className="w-full py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50 mt-4"
+                  className="w-full py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95 disabled:opacity-50 mt-4"
                 >
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
                   Set Budget

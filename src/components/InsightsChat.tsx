@@ -55,13 +55,13 @@ export default function InsightsChat({ transactions, accounts, budgets, goals, i
   };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="p-4 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+      <div className="p-4 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/50">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-white" />
+          <div className="w-8 h-8 rounded-full bg-black dark:bg-white flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-white dark:text-black" />
           </div>
-          <span className="font-semibold text-gray-900">Ask Zenith</span>
+          <span className="font-semibold text-gray-900 dark:text-white">Ask Zenith</span>
         </div>
       </div>
 
@@ -76,10 +76,10 @@ export default function InsightsChat({ transactions, accounts, budgets, goals, i
             >
               <div className={`max-w-[85%] p-4 rounded-2xl ${
                 msg.role === 'user' 
-                  ? 'bg-black text-white rounded-tr-none' 
-                  : 'bg-gray-100 text-gray-800 rounded-tl-none'
+                  ? 'bg-black dark:bg-white text-white dark:text-black rounded-tr-none' 
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-tl-none'
               }`}>
-                <div className="prose prose-sm prose-invert max-w-none">
+                <div className={`prose prose-sm max-w-none ${msg.role === 'user' ? (document.documentElement.classList.contains('dark') ? 'prose-slate' : 'prose-invert') : 'dark:prose-invert'}`}>
                   <Markdown>{msg.content}</Markdown>
                 </div>
               </div>
@@ -88,15 +88,15 @@ export default function InsightsChat({ transactions, accounts, budgets, goals, i
         </AnimatePresence>
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-gray-100 p-4 rounded-2xl rounded-tl-none flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
-              <span className="text-sm text-gray-500">Analyzing your data...</span>
+            <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-2xl rounded-tl-none flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-gray-500 dark:text-gray-400" />
+              <span className="text-sm text-gray-500 dark:text-gray-400">Analyzing your data...</span>
             </div>
           </div>
         )}
       </div>
 
-      <div className="p-4 bg-white border-t border-gray-50">
+      <div className="p-4 bg-white dark:bg-gray-900 border-t border-gray-50 dark:border-gray-800">
         <div className="relative">
           <input
             type="text"
@@ -104,12 +104,12 @@ export default function InsightsChat({ transactions, accounts, budgets, goals, i
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Why was my spending high last Tuesday?"
-            className="w-full pl-4 pr-12 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black transition-all outline-none"
+            className="w-full pl-4 pr-12 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl focus:ring-2 focus:ring-black dark:focus:ring-white transition-all outline-none text-gray-900 dark:text-white"
           />
           <button
             onClick={() => handleSend()}
             disabled={!input.trim() || isLoading}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-all"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black dark:bg-white text-white dark:text-black rounded-lg hover:bg-gray-800 dark:hover:bg-gray-100 disabled:opacity-50 transition-all"
           >
             <Send className="w-4 h-4" />
           </button>

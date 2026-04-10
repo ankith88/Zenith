@@ -662,6 +662,7 @@ export default function App() {
                   milestones={milestones}
                   accountBalances={accountBalances}
                   householdView={householdView}
+                  isDarkMode={isDarkMode}
                   onViewAllTransactions={() => setActiveTab('transactions')}
                 />
               </motion.div>
@@ -714,11 +715,11 @@ export default function App() {
                 className="h-full p-6 lg:p-8"
               >
                 <div className="flex items-center justify-between mb-8">
-                  <div className="flex p-1 bg-gray-100 rounded-2xl">
+                  <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-2xl transition-colors">
                     <button
                       onClick={() => setDebtView('general')}
                       className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                        debtView === 'general' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                        debtView === 'general' ? 'bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                       }`}
                     >
                       General Simulator
@@ -726,7 +727,7 @@ export default function App() {
                     <button
                       onClick={() => setDebtView('offset')}
                       className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                        debtView === 'offset' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                        debtView === 'offset' ? 'bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                       }`}
                     >
                       Loan & Offset

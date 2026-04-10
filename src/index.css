@@ -3,6 +3,15 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-chart-grid: #f3f4f6;
+  --color-chart-tooltip-bg: #ffffff;
+  --color-chart-tooltip-text: #000000;
+}
+
+.dark {
+  --color-chart-grid: #374151;
+  --color-chart-tooltip-bg: #111827;
+  --color-chart-tooltip-text: #ffffff;
 }
 
 @layer base {

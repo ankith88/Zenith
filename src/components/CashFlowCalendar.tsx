@@ -97,21 +97,21 @@ export default function CashFlowCalendar({ transactions, accounts, recurring }: 
 
   return (
     <div className="space-y-8">
-      <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+      <div className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-white" />
+            <div className="w-12 h-12 bg-black dark:bg-white rounded-2xl flex items-center justify-center">
+              <Calendar className="w-6 h-6 text-white dark:text-black" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight">Cash Flow Projection</h2>
-              <p className="text-gray-400 text-sm font-medium">Predicted balance for the next 30 days based on your habits.</p>
+              <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Cash Flow Projection</h2>
+              <p className="text-gray-400 dark:text-gray-500 text-sm font-medium">Predicted balance for the next 30 days based on your habits.</p>
             </div>
           </div>
           
           <div className="hidden md:flex items-center gap-4">
             <div className={`px-4 py-2 rounded-xl flex items-center gap-2 font-bold text-sm ${
-              trend === 'up' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+              trend === 'up' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'
             }`}>
               {trend === 'up' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
               {trend === 'up' ? 'Positive Trend' : 'Negative Trend'}
@@ -124,11 +124,11 @@ export default function CashFlowCalendar({ transactions, accounts, recurring }: 
             <AreaChart data={projection}>
               <defs>
                 <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#000" stopOpacity={0.1}/>
-                  <stop offset="95%" stopColor="#000" stopOpacity={0}/>
+                  <stop offset="5%" stopColor={document.documentElement.classList.contains('dark') ? '#fff' : '#000'} stopOpacity={0.1}/>
+                  <stop offset="95%" stopColor={document.documentElement.classList.contains('dark') ? '#fff' : '#000'} stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={document.documentElement.classList.contains('dark') ? '#374151' : '#f3f4f6'} />
               <XAxis 
                 dataKey="date" 
                 axisLine={false} 
@@ -143,15 +143,22 @@ export default function CashFlowCalendar({ transactions, accounts, recurring }: 
                 tickFormatter={(val) => `$${val.toLocaleString()}`}
               />
               <Tooltip 
-                contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '16px' }}
-                itemStyle={{ fontSize: '14px', fontWeight: 'black', color: '#000' }}
+                contentStyle={{ 
+                  borderRadius: '24px', 
+                  border: 'none', 
+                  boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', 
+                  padding: '16px',
+                  backgroundColor: document.documentElement.classList.contains('dark') ? '#111827' : '#ffffff',
+                  color: document.documentElement.classList.contains('dark') ? '#ffffff' : '#000000'
+                }}
+                itemStyle={{ fontSize: '14px', fontWeight: 'black', color: document.documentElement.classList.contains('dark') ? '#ffffff' : '#000000' }}
                 labelStyle={{ fontSize: '10px', fontWeight: 'bold', color: '#9ca3af', marginBottom: '4px', textTransform: 'uppercase' }}
                 formatter={(value: number) => [`$${value.toLocaleString()}`, 'Projected Balance']}
               />
               <Area 
                 type="monotone" 
                 dataKey="balance" 
-                stroke="#000" 
+                stroke={document.documentElement.classList.contains('dark') ? '#fff' : '#000'} 
                 fillOpacity={1} 
                 fill="url(#colorBalance)" 
                 strokeWidth={4}
@@ -163,34 +170,34 @@ export default function CashFlowCalendar({ transactions, accounts, recurring }: 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">End of Month Projection</p>
-          <h3 className="text-2xl font-black text-gray-900">${finalBalance.toLocaleString()}</h3>
-          <div className="mt-2 flex items-center gap-1 text-xs font-bold text-emerald-600">
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
+          <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">End of Month Projection</p>
+          <h3 className="text-2xl font-black text-gray-900 dark:text-white">${finalBalance.toLocaleString()}</h3>
+          <div className="mt-2 flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
             <Sparkles className="w-3 h-3" />
             AI Predicted
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Daily Burn Rate</p>
-          <h3 className="text-2xl font-black text-gray-900">${(finalBalance < startBalance ? (startBalance - finalBalance) / 30 : 0).toLocaleString()}/day</h3>
-          <p className="mt-2 text-xs font-bold text-gray-400">Based on last 30 days</p>
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
+          <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Daily Burn Rate</p>
+          <h3 className="text-2xl font-black text-gray-900 dark:text-white">${(finalBalance < startBalance ? (startBalance - finalBalance) / 30 : 0).toLocaleString()}/day</h3>
+          <p className="mt-2 text-xs font-bold text-gray-400 dark:text-gray-500">Based on last 30 days</p>
         </div>
 
-        <div className={`p-6 rounded-3xl border shadow-sm ${
-          lowBalancePoints.length > 0 ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'
+        <div className={`p-6 rounded-3xl border shadow-sm transition-colors ${
+          lowBalancePoints.length > 0 ? 'bg-rose-50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-900/30' : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30'
         }`}>
           <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${
-            lowBalancePoints.length > 0 ? 'text-rose-400' : 'text-emerald-400'
+            lowBalancePoints.length > 0 ? 'text-rose-400 dark:text-rose-500' : 'text-emerald-400 dark:text-emerald-500'
           }`}>Critical Balance Alerts</p>
           <h3 className={`text-2xl font-black ${
-            lowBalancePoints.length > 0 ? 'text-rose-600' : 'text-emerald-600'
+            lowBalancePoints.length > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
           }`}>
             {lowBalancePoints.length > 0 ? `${lowBalancePoints.length} Low Points` : 'All Clear'}
           </h3>
           <p className={`mt-2 text-xs font-bold ${
-            lowBalancePoints.length > 0 ? 'text-rose-400' : 'text-emerald-400'
+            lowBalancePoints.length > 0 ? 'text-rose-400 dark:text-rose-500' : 'text-emerald-400 dark:text-emerald-500'
           }`}>
             {lowBalancePoints.length > 0 ? 'Balance predicted below $1,000' : 'Healthy runway detected'}
           </p>

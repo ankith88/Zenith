@@ -105,12 +105,12 @@ export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffs
 
   if (mortgages.length === 0) {
     return (
-      <div className="bg-white p-12 rounded-[3rem] border border-gray-100 shadow-sm text-center">
-        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Home className="w-10 h-10 text-gray-300" />
+      <div className="bg-white dark:bg-gray-900 p-12 rounded-[3rem] border border-gray-100 dark:border-gray-800 shadow-sm text-center transition-colors">
+        <div className="w-20 h-20 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Home className="w-10 h-10 text-gray-300 dark:text-gray-600" />
         </div>
-        <h3 className="text-2xl font-black text-gray-900 mb-2">No Mortgage Found</h3>
-        <p className="text-gray-400 font-medium max-w-sm mx-auto">
+        <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-2">No Mortgage Found</h3>
+        <p className="text-gray-400 dark:text-gray-500 font-medium max-w-sm mx-auto">
           Add a Mortgage account in the Accounts tab to use the Loan Payoff Simulator.
         </p>
       </div>
@@ -161,19 +161,19 @@ export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffs
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Controls */}
         <div className="space-y-6">
-          <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
-            <h3 className="text-lg font-black text-gray-900 mb-6 flex items-center gap-2">
-              <Settings className="w-5 h-5 text-indigo-600" />
+          <div className="bg-white dark:bg-gray-900 p-8 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
+            <h3 className="text-lg font-black text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+              <Settings className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               Simulation Settings
             </h3>
             
             <div className="space-y-5">
               <div>
-                <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Select Mortgage</label>
+                <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2 block">Select Mortgage</label>
                 <select 
                   value={selectedMortgageId || ''} 
                   onChange={(e) => setSelectedMortgageId(Number(e.target.value))}
-                  className="w-full px-4 py-4 bg-gray-50 border-none rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
                   {mortgages.map(m => (
                     <option key={m.id} value={m.id}>{m.name} (${Math.abs(accountBalances[m.id!] || 0).toLocaleString()})</option>
@@ -182,11 +182,11 @@ export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffs
               </div>
 
               <div>
-                <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Select Offset Account</label>
+                <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2 block">Select Offset Account</label>
                 <select 
                   value={selectedOffsetId || ''} 
                   onChange={(e) => setSelectedOffsetId(Number(e.target.value))}
-                  className="w-full px-4 py-4 bg-gray-50 border-none rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
                   {liquidAccounts.map(a => (
                     <option key={a.id} value={a.id}>{a.name} (${Math.abs(accountBalances[a.id!] || 0).toLocaleString()})</option>
@@ -195,34 +195,34 @@ export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffs
               </div>
 
               <div>
-                <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Extra Monthly Payment</label>
+                <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2 block">Extra Monthly Payment</label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">$</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 dark:text-gray-500">$</span>
                   <input
                     type="number"
                     value={extraMonthly}
                     onChange={(e) => setExtraMonthly(parseFloat(e.target.value) || 0)}
-                    className="w-full pl-8 pr-4 py-4 bg-gray-50 border-none rounded-2xl font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full pl-8 pr-4 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                     placeholder="0.00"
                   />
                 </div>
-                <p className="text-[10px] text-gray-400 mt-2 font-medium leading-relaxed">
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 font-medium leading-relaxed">
                   Adding extra payments on top of your offset balance accelerates payoff even further. 
                   <br />
-                  <span className="text-indigo-500 italic">Note: Only accounts set as 'Savings', 'Checking', or 'Offset Account' appear here.</span>
+                  <span className="text-indigo-500 dark:text-indigo-400 italic">Note: Only accounts set as 'Savings', 'Checking', or 'Offset Account' appear here.</span>
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-indigo-50 p-6 rounded-[2rem] border border-indigo-100">
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-[2rem] border border-indigo-100 dark:border-indigo-900/30">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-white rounded-xl shadow-sm">
-                <ShieldCheck className="w-5 h-5 text-indigo-600" />
+              <div className="p-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+                <ShieldCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               </div>
-              <h4 className="font-bold text-indigo-900">How it works</h4>
+              <h4 className="font-bold text-indigo-900 dark:text-indigo-100">How it works</h4>
             </div>
-            <p className="text-xs text-indigo-700 leading-relaxed">
+            <p className="text-xs text-indigo-700 dark:text-indigo-300 leading-relaxed">
               Interest is calculated on your <strong>Mortgage Balance</strong> minus your <strong>Offset Balance</strong>. 
               By keeping money in your offset account, you reduce the interest charged, meaning more of your monthly payment goes toward the principal.
             </p>
@@ -231,17 +231,17 @@ export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffs
 
         {/* Chart */}
         <div className="lg:col-span-2">
-          <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm h-full">
+          <div className="bg-white dark:bg-gray-900 p-8 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm h-full transition-colors">
             <div className="flex items-center justify-between mb-8">
-              <h3 className="text-xl font-black text-gray-900">Balance Projection</h3>
+              <h3 className="text-xl font-black text-gray-900 dark:text-white">Balance Projection</h3>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-gray-200" />
-                  <span className="text-[10px] font-bold text-gray-400 uppercase">Baseline</span>
+                  <div className="w-3 h-3 rounded-full bg-gray-200 dark:bg-gray-700" />
+                  <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">Baseline</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-indigo-600" />
-                  <span className="text-[10px] font-bold text-gray-400 uppercase">With Offset</span>
+                  <div className="w-3 h-3 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                  <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">With Offset</span>
                 </div>
               </div>
             </div>
@@ -255,7 +255,7 @@ export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffs
                       <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-chart-grid)" />
                   <XAxis 
                     dataKey="year" 
                     type="number"
@@ -272,7 +272,14 @@ export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffs
                     tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`}
                   />
                   <Tooltip 
-                    contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '16px' }}
+                    contentStyle={{ 
+                      borderRadius: '24px', 
+                      border: 'none', 
+                      boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', 
+                      padding: '16px',
+                      backgroundColor: 'var(--color-chart-tooltip-bg)',
+                      color: 'var(--color-chart-tooltip-text)'
+                    }}
                     itemStyle={{ fontSize: '14px', fontWeight: 'black' }}
                     labelStyle={{ fontSize: '10px', fontWeight: 'bold', color: '#9ca3af', marginBottom: '4px', textTransform: 'uppercase' }}
                     labelFormatter={(label) => `Year ${label}`}
@@ -281,7 +288,7 @@ export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffs
                     data={simulation?.baseline.data || []}
                     type="monotone" 
                     dataKey="balance" 
-                    stroke="#e5e7eb" 
+                    stroke={document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'} 
                     fill="transparent"
                     strokeWidth={2}
                     strokeDasharray="5 5"
@@ -303,21 +310,21 @@ export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffs
             </div>
 
             <div className="mt-8 grid grid-cols-2 gap-4">
-              <div className="p-4 bg-gray-50 rounded-2xl">
+              <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl">
                 <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-4 h-4 text-gray-400" />
-                  <span className="text-xs font-bold text-gray-500 uppercase">Standard Payoff</span>
+                  <Clock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Standard Payoff</span>
                 </div>
-                <p className="text-lg font-black text-gray-900">
+                <p className="text-lg font-black text-gray-900 dark:text-white">
                   {Math.floor((simulation?.baseline.months || 0) / 12)}y {(simulation?.baseline.months || 0) % 12}m
                 </p>
               </div>
-              <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+              <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
                 <div className="flex items-center gap-2 mb-2">
-                  <Zap className="w-4 h-4 text-indigo-600" />
-                  <span className="text-xs font-bold text-indigo-600 uppercase">Offset Payoff</span>
+                  <Zap className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase">Offset Payoff</span>
                 </div>
-                <p className="text-lg font-black text-indigo-900">
+                <p className="text-lg font-black text-indigo-900 dark:text-indigo-100">
                   {Math.floor((simulation?.withOffset.months || 0) / 12)}y {(simulation?.withOffset.months || 0) % 12}m
                 </p>
               </div>
