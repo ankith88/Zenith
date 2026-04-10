@@ -30,15 +30,21 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
   }, [transactions, budgets, recurring]);
 
   const categoryStats = useMemo(() => {
-    const stats: Record<string, { total: number; color?: string }> = {};
+    const stats: Record<string, { incomeTotal: number; expenseTotal: number; isIncome: boolean; color?: string }> = {};
     
     categories.forEach(cat => {
-      const total = transactions
-        .filter(t => t.category === cat && t.type === 'Expense')
+      const catTransactions = transactions.filter(t => t.category === cat);
+      const incomeTotal = catTransactions
+        .filter(t => t.type === 'Income')
+        .reduce((sum, t) => sum + t.amount, 0);
+      const expenseTotal = catTransactions
+        .filter(t => t.type === 'Expense')
         .reduce((sum, t) => sum + t.amount, 0);
       
+      const isIncome = incomeTotal > expenseTotal || (incomeTotal > 0 && expenseTotal === 0);
+      
       const budget = budgets.find(b => b.category === cat);
-      stats[cat] = { total, color: budget?.color };
+      stats[cat] = { incomeTotal, expenseTotal, isIncome, color: budget?.color };
     });
     
     return stats;
@@ -139,7 +145,11 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
                   <>
                     <span className="text-sm font-bold text-gray-900 dark:text-white">{cat}</span>
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                      Total Spend: <span className="text-rose-500">${categoryStats[cat].total.toLocaleString()}</span>
+                      {categoryStats[cat].isIncome ? (
+                        <>Total Income: <span className="text-emerald-500">${categoryStats[cat].incomeTotal.toLocaleString()}</span></>
+                      ) : (
+                        <>Total Spend: <span className="text-rose-500">${categoryStats[cat].expenseTotal.toLocaleString()}</span></>
+                      )}
                     </span>
                   </>
                 )}

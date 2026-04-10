@@ -12,9 +12,17 @@ interface TransactionsProps {
 export default function Transactions({ transactions, accounts }: TransactionsProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'All' | 'Income' | 'Expense' | 'Transfer'>('All');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deletingTransactionId, setDeletingTransactionId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const categories = useMemo(() => {
+    const unique = new Set(transactions.map(t => t.category));
+    return Array.from(unique).sort();
+  }, [transactions]);
 
   const filteredTransactions = useMemo(() => {
     return transactions
@@ -22,10 +30,14 @@ export default function Transactions({ transactions, accounts }: TransactionsPro
         const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             t.category.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesType = typeFilter === 'All' || t.type === typeFilter;
-        return matchesSearch && matchesType;
+        const matchesCategory = categoryFilter === 'All' || t.category === categoryFilter;
+        const matchesStartDate = !startDate || t.date >= startDate;
+        const matchesEndDate = !endDate || t.date <= endDate;
+        
+        return matchesSearch && matchesType && matchesCategory && matchesStartDate && matchesEndDate;
       })
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [transactions, searchTerm, typeFilter]);
+  }, [transactions, searchTerm, typeFilter, categoryFilter, startDate, endDate]);
 
   const getAccountName = (id: number) => accounts.find(a => a.id === id)?.name || 'Unknown';
 
@@ -97,8 +109,8 @@ export default function Transactions({ transactions, accounts }: TransactionsPro
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="relative md:col-span-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="relative lg:col-span-2">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
@@ -120,6 +132,42 @@ export default function Transactions({ transactions, accounts }: TransactionsPro
             <option value="Expense">Expense</option>
             <option value="Transfer">Transfer</option>
           </select>
+        </div>
+        <div className="relative">
+          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-black dark:focus:ring-white text-gray-900 dark:text-white outline-none transition-all appearance-none"
+          >
+            <option value="All">All Categories</option>
+            {categories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="relative">
+          <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-black dark:focus:ring-white text-gray-900 dark:text-white outline-none transition-all"
+          />
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 uppercase">Start Date</span>
+        </div>
+        <div className="relative">
+          <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-black dark:focus:ring-white text-gray-900 dark:text-white outline-none transition-all"
+          />
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 uppercase">End Date</span>
         </div>
       </div>
 
