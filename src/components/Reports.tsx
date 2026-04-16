@@ -3,7 +3,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, AreaChart, Area, Legend, Cell, PieChart, Pie
 } from 'recharts';
-import { Transaction, Account, Budget, Goal } from '../lib/db';
+import { Transaction, Account, Budget, Goal, db } from '../lib/db';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { TrendingUp, TrendingDown, Wallet, PieChart as PieIcon, BarChart3, Activity, Sparkles, Loader2, ChevronRight, AlertTriangle, Scale, Brain, Layout } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { analystService } from '../lib/gemini';
@@ -26,6 +27,15 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
   const [activeSubTab, setActiveSubTab] = useState<ReportTab>('overview');
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  const categoryMetadata = useLiveQuery(() => db.categoryMetadata.toArray()) || [];
+  const colorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    categoryMetadata.forEach(m => {
+      map[m.name] = m.color;
+    });
+    return map;
+  }, [categoryMetadata]);
 
   const generateAiReport = async () => {
     setIsGenerating(true);
@@ -103,9 +113,9 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
       categories[t.category] = (categories[t.category] || 0) + t.amount;
     });
     return Object.entries(categories)
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, value]) => ({ name, value, color: colorMap[name] }))
       .sort((a, b) => b.value - a.value);
-  }, [transactions]);
+  }, [transactions, colorMap]);
 
   const savingsRate = useMemo(() => {
     const totalIncome = transactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
@@ -114,7 +124,7 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
     return Math.max(0, ((totalIncome - totalExpense) / totalIncome) * 100);
   }, [transactions]);
 
-  const COLORS = ['#000000', '#374151', '#6B7280', '#9CA3AF', '#D1D5DB', '#E5E7EB'];
+  const PRESET_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#f43f5e', '#06b6d4', '#84cc16', '#71717a'];
 
   return (
     <div className="space-y-8 pb-12">
@@ -324,7 +334,7 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
                         dataKey="value"
                       >
                         {categoryBreakdown.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          <Cell key={`cell-${index}`} fill={entry.color || PRESET_COLORS[index % PRESET_COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip 
@@ -341,9 +351,9 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
                   </ResponsiveContainer>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-4">
-                  {categoryBreakdown.slice(0, 6).map((item, i) => (
+                  {categoryBreakdown.slice(0, 6).map((item: any, i: number) => (
                     <div key={i} className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color || PRESET_COLORS[i % PRESET_COLORS.length] }} />
                       <span className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate">{item.name}</span>
                       <span className="text-xs font-bold text-gray-900 dark:text-white ml-auto">${item.value.toLocaleString()}</span>
                     </div>

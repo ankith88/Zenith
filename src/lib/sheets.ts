@@ -76,6 +76,12 @@ export class SheetsService {
       }
 
       if (!res.ok) {
+        if (res.status === 401) {
+          console.error("SheetsService: Authentication failed (401). Clearing tokens.");
+          await this.setTokens(null);
+          // Optional: redirect to login or notify user
+        }
+
         if (contentType && contentType.includes("application/json")) {
           const errorData = await res.json();
           throw new Error(errorData.error || `Request failed with status ${res.status}`);

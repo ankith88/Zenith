@@ -13,6 +13,7 @@ export default function Transactions({ transactions, accounts }: TransactionsPro
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'All' | 'Income' | 'Expense' | 'Transfer'>('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
+  const [accountFilter, setAccountFilter] = useState('All');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -31,10 +32,11 @@ export default function Transactions({ transactions, accounts }: TransactionsPro
                             t.category.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesType = typeFilter === 'All' || t.type === typeFilter;
         const matchesCategory = categoryFilter === 'All' || t.category === categoryFilter;
+        const matchesAccount = accountFilter === 'All' || t.accountId.toString() === accountFilter;
         const matchesStartDate = !startDate || t.date >= startDate;
         const matchesEndDate = !endDate || t.date <= endDate;
         
-        return matchesSearch && matchesType && matchesCategory && matchesStartDate && matchesEndDate;
+        return matchesSearch && matchesType && matchesCategory && matchesAccount && matchesStartDate && matchesEndDate;
       })
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [transactions, searchTerm, typeFilter, categoryFilter, startDate, endDate]);
@@ -143,6 +145,19 @@ export default function Transactions({ transactions, accounts }: TransactionsPro
             <option value="All">All Categories</option>
             {categories.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </div>
+        <div className="relative">
+          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <select
+            value={accountFilter}
+            onChange={(e) => setAccountFilter(e.target.value)}
+            className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-black dark:focus:ring-white text-gray-900 dark:text-white outline-none transition-all appearance-none"
+          >
+            <option value="All">All Accounts</option>
+            {accounts.map(acc => (
+              <option key={acc.id} value={acc.id}>{acc.name}</option>
             ))}
           </select>
         </div>

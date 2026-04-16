@@ -586,6 +586,25 @@ async function ensureSheetExists(sheets: any, spreadsheetId: string, range: stri
   }
 }
 
+// Helper to handle Sheets API errors consistently
+const handleSheetsError = (res: express.Response, error: any) => {
+  console.error("Sheets API error:", error);
+  let status = typeof error.code === 'number' ? error.code : 500;
+  
+  // Specific check for OAuth errors that require re-authentication
+  const errorMsg = error.message || "";
+  const errorData = error.response?.data?.error || "";
+  if (errorMsg.includes("invalid_grant") || errorData === "invalid_grant") {
+    status = 401;
+  }
+  
+  res.status(status).json({ 
+    error: error.message,
+    code: error.code,
+    details: error.errors || error.response?.data
+  });
+};
+
 app.get("/api/sheets/data", async (req, res) => {
   const tokens = getAuthTokens(req);
   if (!tokens) return res.status(401).json({ error: "Unauthorized" });
@@ -605,13 +624,7 @@ app.get("/api/sheets/data", async (req, res) => {
     });
     res.json(response.data);
   } catch (error: any) {
-    console.error("Sheets API error:", error);
-    const status = typeof error.code === 'number' ? error.code : 500;
-    res.status(status).json({ 
-      error: error.message,
-      code: error.code,
-      details: error.errors
-    });
+    handleSheetsError(res, error);
   }
 });
 
@@ -636,12 +649,7 @@ app.post("/api/sheets/append", async (req, res) => {
     });
     res.json(response.data);
   } catch (error: any) {
-    console.error("Sheets API append error:", error);
-    const status = typeof error.code === 'number' ? error.code : 500;
-    res.status(status).json({ 
-      error: error.message,
-      code: error.code
-    });
+    handleSheetsError(res, error);
   }
 });
 
@@ -666,12 +674,7 @@ app.post("/api/sheets/update", async (req, res) => {
     });
     res.json(response.data);
   } catch (error: any) {
-    console.error("Sheets API update error:", error);
-    const status = typeof error.code === 'number' ? error.code : 500;
-    res.status(status).json({ 
-      error: error.message,
-      code: error.code
-    });
+    handleSheetsError(res, error);
   }
 });
 
@@ -704,12 +707,7 @@ app.post("/api/sheets/delete-row", async (req, res) => {
     });
     res.json(response.data);
   } catch (error: any) {
-    console.error("Sheets API delete error:", error);
-    const status = typeof error.code === 'number' ? error.code : 500;
-    res.status(status).json({ 
-      error: error.message,
-      code: error.code
-    });
+    handleSheetsError(res, error);
   }
 });
 
@@ -728,12 +726,7 @@ app.get("/api/sheets/metadata", async (req, res) => {
     });
     res.json(response.data);
   } catch (error: any) {
-    console.error("Sheets API metadata error:", error);
-    const status = typeof error.code === 'number' ? error.code : 500;
-    res.status(status).json({ 
-      error: error.message,
-      code: error.code
-    });
+    handleSheetsError(res, error);
   }
 });
 
@@ -753,12 +746,7 @@ app.post("/api/sheets/clear", async (req, res) => {
     });
     res.json(response.data);
   } catch (error: any) {
-    console.error("Sheets API clear error:", error);
-    const status = typeof error.code === 'number' ? error.code : 500;
-    res.status(status).json({ 
-      error: error.message,
-      code: error.code
-    });
+    handleSheetsError(res, error);
   }
 });
 
@@ -930,14 +918,9 @@ app.post("/api/sheets/create", async (req, res) => {
         ],
       },
     });
-    res.json(response.data);
+    res.json({ spreadsheetId: response.data.spreadsheetId });
   } catch (error: any) {
-    console.error("Sheets API error:", error);
-    const status = typeof error.code === 'number' ? error.code : 500;
-    res.status(status).json({ 
-      error: error.message,
-      code: error.code
-    });
+    handleSheetsError(res, error);
   }
 });
 

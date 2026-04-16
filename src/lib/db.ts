@@ -35,8 +35,12 @@ export interface Budget {
   category: string;
   amount: number;
   period: 'Monthly' | 'Weekly';
-  color?: string;
   synced: boolean;
+}
+
+export interface CategoryMetadata {
+  name: string;
+  color: string;
 }
 
 export interface RecurringTransaction {
@@ -89,17 +93,19 @@ export class ZenithDB extends Dexie {
   goals!: Table<Goal>;
   milestones!: Table<Milestone>;
   settings!: Table<AppSetting>;
+  categoryMetadata!: Table<CategoryMetadata>;
 
   constructor() {
     super('ZenithDB');
-    this.version(12).stores({
+    this.version(13).stores({
       transactions: '++id, date, category, type, accountId, toAccountId, synced',
       accounts: '++id, name, type, isPrivate, synced',
       budgets: '++id, category, synced',
       recurringTransactions: '++id, frequency, accountId, toAccountId, synced',
       goals: '++id, name, category, synced',
       milestones: '++id, type, name, synced',
-      settings: 'key'
+      settings: 'key',
+      categoryMetadata: 'name'
     });
   }
 }

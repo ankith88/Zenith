@@ -120,13 +120,17 @@ export default function App() {
       processInterest();
       processRecurring();
     }
+    
+    // Expose process functions for manual triggering
+    (window as any).processInterest = processInterest;
+    (window as any).processRecurring = processRecurring;
   }, [isAuthenticated, isInitialSyncComplete]);
 
   const processInterest = async () => {
     try {
       const loanAccounts = await db.accounts
         .where('type')
-        .anyOf(['Mortgage', 'Car Loan'])
+        .anyOf(['Mortgage', 'Car Loan', 'Credit Card'])
         .toArray();
       const today = new Date();
       const todayStr = formatLocalDate(today);
@@ -147,8 +151,15 @@ export default function App() {
           if (t.type === 'Transfer') currentBalance += t.amount;
         });
 
-        // Only apply interest if balance is negative (debt)
-        if (currentBalance >= 0) continue;
+        // Only apply interest if balance is negative (debt) or it's a known debt account type
+        const isDebtAccount = acc.type === 'Mortgage' || acc.type === 'Credit Card' || acc.type === 'Car Loan';
+        if (currentBalance >= 0 && !isDebtAccount) {
+          continue; 
+        }
+        
+        // Ensure balance is treated for calculation
+        const debtBalance = Math.abs(currentBalance);
+        if (debtBalance < 1) continue;
         
         // Ensure paymentDueDay is set if missing
         if (acc.paymentDueDay === undefined) {
@@ -220,15 +231,15 @@ export default function App() {
           if (!existing) {
             const rate = acc.interestRate / 100;
             const interestAmount = acc.paymentFrequency === 'Weekly' 
-              ? Math.abs(currentBalance) * (rate / 52)
-              : Math.abs(currentBalance) * (rate / 12);
+              ? debtBalance * (rate / 52)
+              : debtBalance * (rate / 12);
 
             if (interestAmount > 0.01) {
               const interestTx: Transaction = {
                 date: dateStr,
                 amount: interestAmount,
                 category: 'Interest',
-                description: `[Interest] Monthly Interest Charge`,
+                description: `[Interest] ${acc.paymentFrequency || 'Monthly'} Interest Charge`,
                 type: 'Expense',
                 accountId: acc.id!,
                 synced: false

@@ -4,7 +4,7 @@ import {
   BarChart, Bar, Cell, PieChart, Pie
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
-import { TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Landmark, Banknote, Trash2, Edit2, Target, X, Home, Briefcase, Car } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Landmark, Banknote, Trash2, Edit2, Target, X, Home, Briefcase, Car, Sparkles } from 'lucide-react';
 import { Transaction, Account, Budget, RecurringTransaction, Goal, Milestone, db } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
 import { formatLocalDate } from '../lib/utils';
@@ -13,6 +13,8 @@ import BudgetManager from './BudgetManager';
 import RecurringManager from './RecurringManager';
 import SavingsGoals from './SavingsGoals';
 import { Milestones } from './Milestones';
+
+import { useLiveQuery } from 'dexie-react-hooks';
 
 interface DashboardProps {
   transactions: Transaction[];
@@ -31,12 +33,42 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deletingTransactionId, setDeletingTransactionId] = useState<number | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [showLiquidBreakdown, setShowLiquidBreakdown] = useState(false);
+
+  const categoryMetadata = useLiveQuery(() => db.categoryMetadata.toArray()) || [];
+  const colorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    categoryMetadata.forEach(m => {
+      map[m.name] = m.color;
+    });
+    return map;
+  }, [categoryMetadata]);
+  const PRESET_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#f43f5e', '#06b6d4', '#84cc16', '#71717a'];
 
   const handleSync = async () => {
     setIsSyncing(true);
     await sheetsService.syncToLocal();
     setIsSyncing(false);
+  };
+
+  const handleProcessInterest = async () => {
+    setIsProcessing(true);
+    try {
+      if ((window as any).processInterest) {
+        await (window as any).processInterest();
+      }
+      if ((window as any).processRecurring) {
+        await (window as any).processRecurring();
+      }
+      // Add a small delay to show feedback
+      await new Promise(resolve => setTimeout(resolve, 800));
+      await handleSync();
+    } catch (error) {
+      console.error("Manual refresh error:", error);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleUpdateTransaction = async (e: React.FormEvent) => {
@@ -107,7 +139,11 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       return acc;
     }, {} as Record<string, number>);
 
-    const pieData = Object.entries(categories).map(([name, value]) => ({ name, value }));
+    const pieData = Object.entries(categories).map(([name, value]) => ({ 
+      name, 
+      value,
+      color: colorMap[name]
+    }));
 
     const dailyData = filteredTransactions.reduce((acc, t) => {
       const date = t.date;
@@ -263,6 +299,14 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
             </div>
           )}
           <button
+            onClick={handleProcessInterest}
+            disabled={isProcessing}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all active:scale-95 disabled:opacity-50"
+          >
+            {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            Refresh Interest
+          </button>
+          <button
             onClick={handleSync}
             disabled={isSyncing}
             className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50"
@@ -405,8 +449,8 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                   paddingAngle={8}
                   dataKey="value"
                 >
-                  {stats.pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={isDarkMode ? ['#fff', '#9ca3af', '#6b7280', '#4b5563', '#374151'][index % 5] : ['#000', '#4b5563', '#9ca3af', '#d1d5db', '#f3f4f6'][index % 5]} />
+                  {stats.pieData.map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={entry.color || PRESET_COLORS[index % PRESET_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip 
@@ -423,9 +467,9 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
             </ResponsiveContainer>
           </div>
           <div className="grid grid-cols-2 gap-4 mt-4">
-            {stats.pieData.map((item, i) => (
+            {stats.pieData.map((item: any, i: number) => (
               <div key={i} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? ['#fff', '#9ca3af', '#6b7280', '#4b5563', '#374151'][i % 5] : ['#000', '#4b5563', '#9ca3af', '#d1d5db', '#f3f4f6'][i % 5] }} />
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color || PRESET_COLORS[i % PRESET_COLORS.length] }} />
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{item.name}</span>
                 <span className="text-sm font-bold text-gray-900 dark:text-white ml-auto">${item.value.toLocaleString()}</span>
               </div>

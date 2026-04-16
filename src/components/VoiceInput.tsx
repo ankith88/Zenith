@@ -325,7 +325,29 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
                 />
               </div>
               
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Account</label>
+                <select 
+                  value={selectedAccountId || ''} 
+                  onChange={(e) => setSelectedAccountId(parseInt(e.target.value))}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
+                >
+                  {accounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>{acc.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Date</label>
+                  <input
+                    type="date"
+                    value={manualData.date}
+                    onChange={(e) => setManualData({ ...manualData, date: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-xs text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
+                  />
+                </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Amount</label>
                   <input
@@ -336,18 +358,19 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
                     className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                   />
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Type</label>
-                  <select
-                    value={manualData.type}
-                    onChange={(e) => setManualData({ ...manualData, type: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
-                  >
-                    <option value="Expense">Expense</option>
-                    <option value="Income">Income</option>
-                    <option value="Transfer">Transfer</option>
-                  </select>
-                </div>
+              </div>
+              
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Type</label>
+                <select
+                  value={manualData.type}
+                  onChange={(e) => setManualData({ ...manualData, type: e.target.value as any })}
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
+                >
+                  <option value="Expense">Expense</option>
+                  <option value="Income">Income</option>
+                  <option value="Transfer">Transfer</option>
+                </select>
               </div>
 
               <div>

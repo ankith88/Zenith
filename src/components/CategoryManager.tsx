@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Tag, Edit2, Check, X, Loader2, AlertCircle, Palette } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, Transaction, Budget, RecurringTransaction } from '../lib/db';
+import { db, Transaction, Budget, RecurringTransaction, CategoryMetadata } from '../lib/db';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { sheetsService } from '../lib/sheets';
 
 interface CategoryManagerProps {
@@ -20,6 +21,15 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
   const [newName, setNewName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState<string | null>(null);
+
+  const categoryMetadata = useLiveQuery(() => db.categoryMetadata.toArray()) || [];
+  const colorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    categoryMetadata.forEach(m => {
+      map[m.name] = m.color;
+    });
+    return map;
+  }, [categoryMetadata]);
 
   const categories = useMemo(() => {
     const allCats = new Set<string>();
@@ -43,27 +53,18 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
       
       const isIncome = incomeTotal > expenseTotal || (incomeTotal > 0 && expenseTotal === 0);
       
-      const budget = budgets.find(b => b.category === cat);
-      stats[cat] = { incomeTotal, expenseTotal, isIncome, color: budget?.color };
+      stats[cat] = { incomeTotal, expenseTotal, isIncome, color: colorMap[cat] };
     });
     
     return stats;
-  }, [categories, transactions, budgets]);
+  }, [categories, transactions, colorMap]);
 
   const handleUpdateColor = async (category: string, color: string) => {
     try {
-      const budget = budgets.find(b => b.category === category);
-      if (budget) {
-        await db.budgets.update(budget.id!, { color, synced: false });
-        await db.budgets.update(budget.id!, { synced: true });
+      if (color) {
+        await db.categoryMetadata.put({ name: category, color });
       } else {
-        await db.budgets.add({
-          category,
-          amount: 0,
-          period: 'Monthly',
-          color,
-          synced: true
-        });
+        await db.categoryMetadata.delete(category);
       }
       setShowColorPicker(null);
     } catch (error) {
@@ -102,6 +103,13 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
         await db.recurringTransactions.update(r.id!, { category: newName, synced: false });
         await sheetsService.updateRecurring({ ...r, category: newName });
         await db.recurringTransactions.update(r.id!, { synced: true });
+      }
+
+      // 4. Update Metadata
+      const metadata = await db.categoryMetadata.get(oldName);
+      if (metadata) {
+        await db.categoryMetadata.delete(oldName);
+        await db.categoryMetadata.put({ name: newName, color: metadata.color });
       }
 
       setEditingCategory(null);
