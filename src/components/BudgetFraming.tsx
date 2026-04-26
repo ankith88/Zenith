@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Transaction, Account, db } from '../lib/db';
 import { analystService } from '../lib/gemini';
-import { Layout, Loader2, Sparkles, Check, X, Shield, Heart, PiggyBank, ArrowRight } from 'lucide-react';
+import { Layout, Loader2, Sparkles, Check, X, Shield, Heart, PiggyBank, ArrowRight, AlertTriangle, Activity, Scale } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface BudgetFramingProps {
@@ -29,14 +29,17 @@ export default function BudgetFraming({ transactions, accounts, onComplete }: Bu
   const [framing, setFraming] = useState<FramingData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const generateFraming = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const data = await analystService.getBudgetFraming(transactions, accounts);
       setFraming(data);
-    } catch (error) {
-      console.error("Budget framing error:", error);
+    } catch (err: any) {
+      console.error("Budget framing error:", err);
+      setError(err.message || "Failed to architect budget structure.");
     } finally {
       setIsLoading(false);
     }
@@ -46,8 +49,6 @@ export default function BudgetFraming({ transactions, accounts, onComplete }: Bu
     if (!framing) return;
     setIsApplying(true);
     try {
-      // Clear existing budgets first? Or just add/update?
-      // For "Framing", it's usually a fresh start.
       await db.budgets.clear();
       for (const b of framing.suggestedBudgets) {
         await db.budgets.add({
@@ -58,18 +59,12 @@ export default function BudgetFraming({ transactions, accounts, onComplete }: Bu
         });
       }
       onComplete?.();
-    } catch (error) {
-      console.error("Apply budgets error:", error);
+    } catch (err) {
+      console.error("Apply budgets error:", err);
     } finally {
       setIsApplying(false);
     }
   };
-
-  useEffect(() => {
-    if (transactions.length > 0 && !framing) {
-      generateFraming();
-    }
-  }, [transactions]);
 
   if (isLoading) {
     return (
@@ -86,7 +81,75 @@ export default function BudgetFraming({ transactions, accounts, onComplete }: Bu
     );
   }
 
-  if (!framing) return null;
+  if (error) {
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-12 border border-gray-100 dark:border-gray-800 flex flex-col items-center justify-center min-h-[400px]">
+        <AlertTriangle className="w-16 h-16 text-rose-500 mb-6" />
+        <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-4">Framing Failed</h3>
+        <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-md text-center">{error}</p>
+        <button
+          onClick={generateFraming}
+          className="px-8 py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-black hover:scale-105 transition-transform"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  if (!framing) {
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-12 border border-gray-100 dark:border-gray-800 flex flex-col items-center justify-center min-h-[500px]">
+        <div className="w-20 h-20 bg-indigo-50 dark:bg-indigo-900/20 rounded-3xl flex items-center justify-center mb-8">
+          <Layout className="w-10 h-10 text-indigo-500" />
+        </div>
+        <h3 className="text-3xl font-black text-gray-900 dark:text-white mb-4 text-center">AI Budget Architect</h3>
+        <p className="text-gray-500 dark:text-gray-400 text-lg text-center max-w-xl mb-10 leading-relaxed">
+          Struggling to set budgets? Zenith can analyze your past 90 days of income and spending to instantly map your finances into structured methodologies like 50/30/20 or Zero-Based budgeting.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4 mb-12">
+          <button
+            onClick={generateFraming}
+            className="px-10 py-5 bg-indigo-600 text-white rounded-[2rem] font-black flex items-center gap-3 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/20 active:scale-95"
+          >
+            <Sparkles className="w-6 h-6" />
+            Start AI Framing
+          </button>
+          <button
+            onClick={() => onComplete?.()}
+            className="px-10 py-5 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-[2rem] font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
+          >
+            I'll Handle it Manually
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-4xl">
+          <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-3xl">
+            <h4 className="font-black text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-indigo-500" />
+              1. Analysis
+            </h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Zenith scans your last 90 days of transactions to find your true average monthly income and mandatory expenses.</p>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-3xl">
+            <h4 className="font-black text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+              <Scale className="w-4 h-4 text-indigo-500" />
+              2. Selection
+            </h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400">It picks the best method (like 50/30/20 or Zero-Based) that fits your current lifestyle and financial goals.</p>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-3xl">
+            <h4 className="font-black text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+              <Check className="w-4 h-4 text-indigo-500" />
+              3. Blueprint
+            </h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Finally, it generates a full budget blueprint that you can apply with one click to automate your tracking.</p>
+          </div>
+        </div>
+        <p className="mt-8 text-gray-400 dark:text-gray-500 text-xs font-medium uppercase tracking-widest">Powered by Zenith Intelligence</p>
+      </div>
+    );
+  }
 
   const typeColors = {
     'Needs': 'bg-blue-500',

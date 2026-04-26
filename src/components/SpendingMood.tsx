@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Transaction } from '../lib/db';
 import { analystService } from '../lib/gemini';
-import { Brain, Loader2, Sparkles, TrendingUp, TrendingDown, Heart, Zap, Target } from 'lucide-react';
+import { Brain, Loader2, Sparkles, TrendingUp, TrendingDown, Heart, Zap, Target, AlertTriangle } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface SpendingMoodProps {
@@ -19,46 +19,64 @@ interface MoodAnalysis {
 export default function SpendingMood({ transactions }: SpendingMoodProps) {
   const [analysis, setAnalysis] = useState<MoodAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const analyzeMood = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const data = await analystService.getSpendingMoodAnalysis(transactions);
       setAnalysis(data);
-    } catch (error) {
-      console.error("Mood analysis error:", error);
+    } catch (err: any) {
+      console.error("Mood analysis error:", err);
+      setError(err.message || "Something went wrong while analyzing your spending mood.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (transactions.length > 0 && !analysis) {
-      analyzeMood();
-    }
-  }, [transactions]);
-
   if (isLoading) {
     return (
       <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-12 border border-gray-100 dark:border-gray-800 flex flex-col items-center justify-center min-h-[400px]">
-        <Loader2 className="w-12 h-12 text-indigo-500 animate-spin mb-4" />
-        <h3 className="text-xl font-black text-gray-900 dark:text-white">Analyzing Your Spending Mood...</h3>
-        <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">Zenith is looking for emotional patterns in your data.</p>
+        <div className="relative mb-6">
+          <div className="absolute inset-0 bg-indigo-500/20 blur-3xl rounded-full animate-pulse" />
+          <Brain className="w-16 h-16 text-indigo-500 relative z-10 animate-bounce" />
+        </div>
+        <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-2 text-center">Reading Your Financial Aura...</h3>
+        <p className="text-gray-500 dark:text-gray-400 text-sm mt-2 text-center">Zenith is looking for emotional patterns in your data.</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-12 border border-gray-100 dark:border-gray-800 flex flex-col items-center justify-center min-h-[400px]">
+        <AlertTriangle className="w-16 h-16 text-rose-500 mb-6" />
+        <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-4">Analysis Interrupted</h3>
+        <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-md text-center">{error}</p>
+        <button
+          onClick={analyzeMood}
+          className="px-8 py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-black hover:scale-105 transition-transform"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
 
   if (!analysis) {
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-12 border border-gray-100 dark:border-gray-800 text-center">
-        <Brain className="w-16 h-16 text-gray-200 dark:text-gray-700 mx-auto mb-6" />
-        <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-4">Discover Your Spending Mood</h3>
-        <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-md mx-auto">
-          Are you stress spending or value-aligned? Let AI analyze your transaction history to find out.
+      <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-12 border border-gray-100 dark:border-gray-800 text-center min-h-[400px] flex flex-col items-center justify-center">
+        <div className="w-20 h-20 bg-purple-50 dark:bg-purple-900/20 rounded-3xl flex items-center justify-center mb-8">
+          <Brain className="w-10 h-10 text-purple-500" />
+        </div>
+        <h3 className="text-3xl font-black text-gray-900 dark:text-white mb-4">Discover Your Spending Mood</h3>
+        <p className="text-gray-500 dark:text-gray-400 mb-10 max-w-sm mx-auto text-lg leading-relaxed">
+          Are you stress spending or value-aligned? Let Zenith analyze your transaction history to find your emotional financial patterns.
         </p>
         <button
           onClick={analyzeMood}
-          className="px-8 py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl font-black hover:scale-105 transition-transform"
+          className="px-10 py-5 bg-black dark:bg-white text-white dark:text-black rounded-[2rem] font-black hover:scale-105 transition-transform shadow-2xl active:scale-95"
         >
           Start Analysis
         </button>

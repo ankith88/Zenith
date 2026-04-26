@@ -157,33 +157,10 @@ export class FinancialAnalystService {
     recommendation: string;
     score: number;
   }> {
-    const recentTransactions = transactions.slice(-100).map(t => 
-      `${t.date}, ${t.amount}, ${t.category}, ${t.description}, ${t.type}`
-    ).join('\n');
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Analyze these transactions to determine the user's "Spending Mood" (e.g., Stress Spending, Value Spending, Impulsive, Disciplined).
-      Transactions:
-      ${recentTransactions}`,
-      config: {
-        systemInstruction: "You are a financial psychologist. Analyze spending patterns to find emotional triggers or value-based alignment.",
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            mood: { type: Type.STRING },
-            description: { type: Type.STRING },
-            insight: { type: Type.STRING },
-            recommendation: { type: Type.STRING },
-            score: { type: Type.NUMBER, description: "A mood score from 0-100 where 100 is perfectly disciplined/value-aligned." }
-          },
-          required: ["mood", "description", "insight", "recommendation", "score"]
-        }
-      }
+    return this.safeFetch('/api/ai/spending-mood', {
+      method: 'POST',
+      body: JSON.stringify({ transactions, userDate: formatLocalDate() }),
     });
-
-    return JSON.parse(response.text);
   }
 
   async getBudgetFraming(transactions: Transaction[], accounts: Account[]): Promise<{
@@ -200,88 +177,25 @@ export class FinancialAnalystService {
       avgMonthlyExpense: number;
     };
   }> {
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    const recentTransactions = transactions.filter(t => new Date(t.date) >= ninetyDaysAgo).map(t => 
-      `${t.date}, ${t.amount}, ${t.category}, ${t.description}, ${t.type}`
-    ).join('\n');
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
-      contents: `Analyze the past 90 days of transactions to suggest a structured budget methodology (50/30/20 or Zero-Based).
-      Transactions:
-      ${recentTransactions}`,
-      config: {
-        systemInstruction: "You are a financial architect. Analyze income and spending to frame a perfect budget structure. Group categories into Needs, Wants, and Savings/Debt for 50/30/20, or allocate every dollar for Zero-Based.",
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            methodology: { type: Type.STRING, enum: ["50/30/20", "Zero-Based", "Custom"] },
-            analysis: { type: Type.STRING },
-            suggestedBudgets: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  category: { type: Type.STRING },
-                  amount: { type: Type.NUMBER },
-                  period: { type: Type.STRING, enum: ["Monthly", "Weekly"] },
-                  type: { type: Type.STRING, enum: ["Needs", "Wants", "Savings/Debt"] }
-                },
-                required: ["category", "amount", "period", "type"]
-              }
-            },
-            currentStats: {
-              type: Type.OBJECT,
-              properties: {
-                avgMonthlyIncome: { type: Type.NUMBER },
-                avgMonthlyExpense: { type: Type.NUMBER }
-              },
-              required: ["avgMonthlyIncome", "avgMonthlyExpense"]
-            }
-          },
-          required: ["methodology", "analysis", "suggestedBudgets", "currentStats"]
-        }
-      }
+    return this.safeFetch('/api/ai/budget-framing', {
+      method: 'POST',
+      body: JSON.stringify({ transactions, accounts, userDate: formatLocalDate() }),
     });
-
-    return JSON.parse(response.text);
   }
 
   async chatWithAgent(message: string, context: { transactions: Transaction[], accounts: Account[], budgets: Budget[] }): Promise<{
     text: string;
     actionPerformed?: string;
   }> {
-    const today = formatLocalDate();
-    const accountContext = context.accounts.map(a => `ID: ${a.id}, Name: ${a.name}, Type: ${a.type}`).join('\n');
-    
-    const systemInstruction = `You are Zenith, a high-end personal financial agent. 
-    You can help users manage their money by creating transactions, transferring funds, and updating budgets.
-    
-    Today's Date: ${today}
-    
-    Available Accounts:
-    ${accountContext}
-    
-    When a user asks to move money, create a transaction, or update a budget, use the provided tools.
-    Always confirm the action you are taking. If you need more information (like which account to use), ask the user.
-    
-    If the user just wants to talk or ask a question, provide insightful financial advice.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
-      contents: message,
-      config: {
-        systemInstruction,
-        tools: [{ functionDeclarations: [createTransactionTool, transferMoneyTool, updateBudgetTool] }]
-      }
+    // Send to backend to get response (and potential tool calls)
+    const data = await this.safeFetch('/api/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, context, userDate: formatLocalDate() }),
     });
 
-    const functionCalls = response.functionCalls;
-    if (functionCalls) {
+    if (data.functionCalls) {
       let actionPerformed = "";
-      for (const call of functionCalls) {
+      for (const call of data.functionCalls) {
         if (call.name === "create_transaction") {
           const args = call.args as any;
           await db.transactions.add({
@@ -319,20 +233,22 @@ export class FinancialAnalystService {
         }
       }
       
-      // After performing action, get a final response from the model
-      const finalResponse = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
-        contents: [
-          { role: "user", parts: [{ text: message }] },
-          { role: "model", parts: [{ text: `I have performed the following action: ${actionPerformed}` }] }
-        ],
-        config: { systemInstruction }
+      // Get the follow-up response from backend
+      const followUp = await this.safeFetch('/api/ai/chat', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          message, 
+          context, 
+          actionPerformed,
+          isFollowUp: true,
+          userDate: formatLocalDate() 
+        }),
       });
       
-      return { text: finalResponse.text, actionPerformed };
+      return { text: followUp.text, actionPerformed };
     }
 
-    return { text: response.text };
+    return { text: data.text };
   }
 }
 

@@ -465,6 +465,203 @@ app.post("/api/ai/detect-anomalies", async (req, res) => {
   }
 });
 
+app.post("/api/ai/spending-mood", async (req, res) => {
+  const { transactions } = req.body;
+  try {
+    const recentTransactions = transactions.slice(-100).map((t: any) => 
+      `${t.date}, ${t.amount}, ${t.category}, ${t.description}, ${t.type}`
+    ).join('\n');
+
+    const response = await genAI.models.generateContent({ 
+      model: "gemini-3-flash-preview",
+      contents: `Analyze these transactions to determine the user's "Spending Mood" (e.g., Stress Spending, Value Spending, Impulsive, Disciplined).
+      Transactions:
+      ${recentTransactions}`,
+      config: {
+        systemInstruction: "You are a financial psychologist. Analyze spending patterns to find emotional triggers or value-based alignment.",
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            mood: { type: Type.STRING },
+            description: { type: Type.STRING },
+            insight: { type: Type.STRING },
+            recommendation: { type: Type.STRING },
+            score: { type: Type.NUMBER },
+          },
+          required: ["mood", "description", "insight", "recommendation", "score"],
+        },
+      }
+    });
+
+    res.json(JSON.parse(response.text));
+  } catch (error: any) {
+    console.error("Gemini Spending Mood error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/budget-framing", async (req, res) => {
+  const { transactions, accounts } = req.body;
+  try {
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    
+    let filteredTransactions = transactions.filter((t: any) => new Date(t.date) >= ninetyDaysAgo);
+    
+    if (filteredTransactions.length === 0) {
+      filteredTransactions = transactions.slice(-100);
+    }
+
+    const recentTransactions = filteredTransactions.map((t: any) => 
+      `${t.date}, ${t.amount}, ${t.category}, ${t.description}, ${t.type}`
+    ).join('\n');
+
+    const response = await genAI.models.generateContent({ 
+      model: "gemini-3.1-pro-preview",
+      contents: `Analyze the past transaction history to suggest a structured budget methodology (50/30/20 or Zero-Based).
+      Transactions:
+      ${recentTransactions}`,
+      config: {
+        systemInstruction: "You are a financial architect. Analyze income and spending to frame a perfect budget structure. Group categories into Needs, Wants, and Savings/Debt for 50/30/20, or allocate every dollar for Zero-Based.",
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            methodology: { type: Type.STRING, enum: ["50/30/20", "Zero-Based", "Custom"] },
+            analysis: { type: Type.STRING },
+            suggestedBudgets: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  category: { type: Type.STRING },
+                  amount: { type: Type.NUMBER },
+                  period: { type: Type.STRING, enum: ["Monthly", "Weekly"] },
+                  type: { type: Type.STRING, enum: ["Needs", "Wants", "Savings/Debt"] }
+                },
+                required: ["category", "amount", "period", "type"]
+              }
+            },
+            currentStats: {
+              type: Type.OBJECT,
+              properties: {
+                avgMonthlyIncome: { type: Type.NUMBER },
+                avgMonthlyExpense: { type: Type.NUMBER }
+              },
+              required: ["avgMonthlyIncome", "avgMonthlyExpense"]
+            }
+          },
+          required: ["methodology", "analysis", "suggestedBudgets", "currentStats"]
+        }
+      }
+    });
+
+    res.json(JSON.parse(response.text));
+  } catch (error: any) {
+    console.error("Gemini Budget Framing error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/chat", async (req, res) => {
+  const { message, context, actionPerformed, isFollowUp, userDate } = req.body;
+  const today = userDate || new Date().toISOString().split('T')[0];
+  
+  try {
+    const accountContext = context.accounts.map((a: any) => `ID: ${a.id}, Name: ${a.name}, Type: ${a.type}`).join('\n');
+    
+    const systemInstruction = `You are Zenith, a high-end personal financial agent. 
+    You can help users manage their money by creating transactions, transferring funds, and updating budgets.
+    
+    Today's Date: ${today}
+    
+    Available Accounts:
+    ${accountContext}
+    
+    When a user asks to move money, create a transaction, or update a budget, use the provided tools.
+    Always confirm the action you are taking. If you need more information (like which account to use), ask the user.
+    
+    If the user just wants to talk or ask a question, provide insightful financial advice.`;
+
+    const createTransactionTool = {
+      name: "create_transaction",
+      description: "Create a new financial transaction (Income or Expense).",
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          date: { type: Type.STRING, description: "Date in YYYY-MM-DD format." },
+          amount: { type: Type.NUMBER, description: "The transaction amount." },
+          category: { type: Type.STRING, description: "The category of the transaction." },
+          description: { type: Type.STRING, description: "A brief description." },
+          type: { type: Type.STRING, enum: ["Income", "Expense"], description: "The type of transaction." },
+          accountId: { type: Type.NUMBER, description: "The ID of the account." }
+        },
+        required: ["date", "amount", "category", "description", "type", "accountId"]
+      }
+    };
+
+    const transferMoneyTool = {
+      name: "transfer_money",
+      description: "Transfer money between two accounts.",
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          date: { type: Type.STRING, description: "Date in YYYY-MM-DD format." },
+          amount: { type: Type.NUMBER, description: "The amount to transfer." },
+          description: { type: Type.STRING, description: "A brief description." },
+          fromAccountId: { type: Type.NUMBER, description: "The source account ID." },
+          toAccountId: { type: Type.NUMBER, description: "The destination account ID." }
+        },
+        required: ["date", "amount", "description", "fromAccountId", "toAccountId"]
+      }
+    };
+
+    const updateBudgetTool = {
+      name: "update_budget",
+      description: "Update or create a budget for a category.",
+      parameters: {
+        type: Type.OBJECT,
+        properties: {
+          category: { type: Type.STRING, description: "The category name." },
+          amount: { type: Type.NUMBER, description: "The monthly budget amount." },
+          period: { type: Type.STRING, enum: ["Monthly", "Weekly"], description: "The budget period." }
+        },
+        required: ["category", "amount", "period"]
+      }
+    };
+
+    if (isFollowUp) {
+      const response = await genAI.models.generateContent({
+        model: "gemini-3.1-pro-preview",
+        contents: [
+          { role: "user", parts: [{ text: message }] },
+          { role: "model", parts: [{ text: `I have performed the following action: ${actionPerformed}` }] }
+        ],
+        config: { systemInstruction }
+      });
+      return res.json({ text: response.text });
+    }
+
+    const response = await genAI.models.generateContent({
+      model: "gemini-3.1-pro-preview",
+      contents: message,
+      config: {
+        systemInstruction,
+        tools: [{ functionDeclarations: [createTransactionTool, transferMoneyTool, updateBudgetTool] }]
+      }
+    });
+
+    res.json({ 
+      text: response.text, 
+      functionCalls: response.functionCalls 
+    });
+  } catch (error: any) {
+    console.error("Gemini Chat error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post("/api/ai/parse-receipt", async (req, res) => {
   const { base64Image, mimeType, userDate } = req.body;
   const today = userDate || new Date().toISOString().split('T')[0];
