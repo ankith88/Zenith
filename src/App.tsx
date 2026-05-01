@@ -695,7 +695,7 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="h-full p-6 lg:p-8"
               >
-                <Reports transactions={transactions} accounts={accounts} budgets={budgets} goals={goals} />
+                <Reports transactions={transactions} accounts={accounts} budgets={budgets} goals={goals} householdView={householdView} />
               </motion.div>
             ) : activeTab === 'calendar' ? (
               <motion.div

@@ -3,7 +3,7 @@ import { Plus, Wallet, Landmark, CreditCard, Banknote, Loader2, X, Edit2, Trash2
 import { motion, AnimatePresence } from 'motion/react';
 import { db, Account, Transaction } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
-import { formatLocalDate } from '../lib/utils';
+import { formatLocalDate, SUPPORTED_CURRENCIES, getCurrencySymbol } from '../lib/utils';
 
 interface AccountManagerProps {
   accounts: Account[];
@@ -29,7 +29,9 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
     assetValue: '',
     creditLimit: '',
     paymentFrequency: 'Monthly',
-    paymentDueDay: ''
+    paymentDueDay: '',
+    ownershipPercentage: '100',
+    currency: 'USD'
   });
 
   const commonNames = ['Main Checking', 'Emergency Fund', 'Mortgage Offset', 'Travel Savings', 'Side Hustle', 'Daily Cash', 'Salary Hub', 'Business Account', 'Home Mortgage'];
@@ -50,6 +52,8 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
         creditLimit: formData.creditLimit ? parseFloat(formData.creditLimit) : undefined,
         paymentFrequency: formData.paymentFrequency as 'Monthly' | 'Weekly',
         paymentDueDay: formData.paymentDueDay ? parseInt(formData.paymentDueDay) : undefined,
+        ownershipPercentage: formData.ownershipPercentage ? parseFloat(formData.ownershipPercentage) : undefined,
+        currency: formData.currency,
         owner: formData.owner,
         isPrivate: formData.isPrivate,
         synced: false
@@ -60,7 +64,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
       await db.accounts.update(newAccount.id!, { synced: true });
       
       setIsAdding(false);
-      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '', paymentFrequency: 'Monthly', paymentDueDay: '' });
+      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '', paymentFrequency: 'Monthly', paymentDueDay: '', ownershipPercentage: '100', currency: 'USD' });
     } catch (error) {
       console.error("Add account error:", error);
     } finally {
@@ -81,7 +85,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
       await sheetsService.updateAccount(updatedAccount);
       await db.accounts.update(editingAccount.id!, { synced: true });
       setEditingAccount(null);
-      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '', paymentFrequency: 'Monthly', paymentDueDay: '' });
+      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '', paymentFrequency: 'Monthly', paymentDueDay: '', ownershipPercentage: '100', currency: 'USD' });
     } catch (error) {
       console.error("Update account error:", error);
     } finally {
@@ -199,7 +203,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                       ? 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 animate-pulse' 
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
                   }`}>
-                    Limit: ${acc.creditLimit.toLocaleString()}
+                    Limit: {getCurrencySymbol(acc.currency)}{acc.creditLimit.toLocaleString()}
                   </span>
                 )}
               </div>
@@ -216,9 +220,12 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
               )}
             </div>
               <div className="text-right">
-                <p className="text-sm font-black text-gray-900 dark:text-white">${(accountBalances[acc.id!] || 0).toLocaleString()}</p>
+                <p className="text-sm font-black text-gray-900 dark:text-white">{getCurrencySymbol(acc.currency)}{(accountBalances[acc.id!] || 0).toLocaleString()}</p>
                 {acc.assetValue && (
-                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Equity: ${(acc.assetValue - Math.abs(accountBalances[acc.id!] || 0)).toLocaleString()}</p>
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Equity: {getCurrencySymbol(acc.currency)}{(acc.assetValue - Math.abs(accountBalances[acc.id!] || 0)).toLocaleString()}</p>
+                )}
+                {acc.currency && acc.currency !== 'USD' && (
+                  <p className="text-[8px] text-gray-400 dark:text-gray-500 uppercase font-black tracking-widest">{acc.currency}</p>
                 )}
                 <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold tracking-wider">Current</p>
               </div>
@@ -382,17 +389,31 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                     </div>
                   )}
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Initial Balance</label>
-                  <input
-                    required
-                    type="number"
-                    step="0.01"
-                    value={editingAccount ? editingAccount.initialBalance : formData.initialBalance}
-                    onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, initialBalance: parseFloat(e.target.value) }) : setFormData({ ...formData, initialBalance: e.target.value })}
-                    placeholder="0.00"
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Initial Balance</label>
+                    <input
+                      required
+                      type="number"
+                      step="0.01"
+                      value={editingAccount ? editingAccount.initialBalance : formData.initialBalance}
+                      onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, initialBalance: parseFloat(e.target.value) }) : setFormData({ ...formData, initialBalance: e.target.value })}
+                      placeholder="0.00"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Currency</label>
+                    <select
+                      value={editingAccount ? editingAccount.currency || 'USD' : formData.currency}
+                      onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, currency: e.target.value }) : setFormData({ ...formData, currency: e.target.value })}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
+                    >
+                      {SUPPORTED_CURRENCIES.map(c => (
+                        <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Account Type</label>
@@ -563,16 +584,28 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                       <option value="Joint">Joint</option>
                     </select>
                   </div>
-                  <div className="flex items-center gap-2 pt-6">
+                  <div>
+                    <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Ownership (%)</label>
                     <input
-                      type="checkbox"
-                      id="isPrivate"
-                      checked={editingAccount ? editingAccount.isPrivate : formData.isPrivate}
-                      onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, isPrivate: e.target.checked }) : setFormData({ ...formData, isPrivate: e.target.checked })}
-                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-700 text-black dark:text-white focus:ring-black dark:focus:ring-white"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={editingAccount ? editingAccount.ownershipPercentage || '' : formData.ownershipPercentage}
+                      onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, ownershipPercentage: parseFloat(e.target.value) }) : setFormData({ ...formData, ownershipPercentage: e.target.value })}
+                      placeholder="100"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                     />
-                    <label htmlFor="isPrivate" className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase cursor-pointer">Private</label>
                   </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isPrivate"
+                    checked={editingAccount ? editingAccount.isPrivate : formData.isPrivate}
+                    onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, isPrivate: e.target.checked }) : setFormData({ ...formData, isPrivate: e.target.checked })}
+                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-700 text-black dark:text-white focus:ring-black dark:focus:ring-white"
+                  />
+                  <label htmlFor="isPrivate" className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase cursor-pointer">Private</label>
                 </div>
 
                 <button

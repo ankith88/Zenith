@@ -3,7 +3,7 @@ import { Plus, Repeat, Loader2, X, Trash2, Calendar, Check } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react';
 import { db, RecurringTransaction, Account } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
-import { formatLocalDate } from '../lib/utils';
+import { formatLocalDate, getCurrencySymbol } from '../lib/utils';
 
 interface RecurringManagerProps {
   recurring: RecurringTransaction[];
@@ -139,7 +139,10 @@ export default function RecurringManager({ recurring, accounts }: RecurringManag
               <p className="text-xs text-gray-400 dark:text-gray-500">{item.frequency} • {item.category}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm font-black text-gray-900 dark:text-white">${item.amount.toLocaleString()}</p>
+              <p className="text-sm font-black text-gray-900 dark:text-white">
+                {getCurrencySymbol(accounts.find(a => a.id === item.accountId)?.currency)}
+                {item.amount.toLocaleString()}
+              </p>
               <button 
                 onClick={() => item.id && setDeletingId(item.id)}
                 className="lg:opacity-0 lg:group-hover:opacity-100 transition-opacity p-1 text-red-400 hover:text-red-600"

@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { Transaction, Account, Budget, Goal, db } from '../lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { formatLocalDate, convertCurrency, getCurrencySymbol } from '../lib/utils';
 import { TrendingUp, TrendingDown, Wallet, PieChart as PieIcon, BarChart3, Activity, Sparkles, Loader2, ChevronRight, AlertTriangle, Scale, Brain, Layout } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { analystService } from '../lib/gemini';
@@ -23,10 +24,40 @@ interface ReportsProps {
 
 type ReportTab = 'overview' | 'networth' | 'anomalies' | 'mood' | 'framing';
 
-export default function Reports({ transactions, accounts, budgets, goals }: ReportsProps) {
+export default function Reports({ transactions, accounts, budgets, goals, householdView }: ReportsProps & { householdView?: boolean }) {
   const [activeSubTab, setActiveSubTab] = useState<ReportTab>('overview');
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Scaled data helpers
+  const workingAccounts = useMemo(() => {
+    if (householdView) return accounts;
+    return accounts.filter(a => !a.owner || a.owner === 'Me' || (a.ownershipPercentage && a.ownershipPercentage > 0));
+  }, [accounts, householdView]);
+
+  const workingTransactions = useMemo(() => {
+    const filtered = householdView 
+      ? transactions 
+      : transactions.filter(t => {
+          const acc = accounts.find(a => a.id === t.accountId);
+          return !acc?.owner || acc.owner === 'Me' || (acc?.ownershipPercentage && acc.ownershipPercentage > 0);
+        });
+
+    const baseFiltered = filtered.map(t => {
+      const acc = accounts.find(a => a.id === t.accountId);
+      let amount = t.amount;
+      if (!householdView && acc?.ownershipPercentage) {
+        amount = amount * (acc.ownershipPercentage / 100);
+      }
+      return { ...t, amount };
+    });
+
+    // Normalize to USD for global reporting
+    return baseFiltered.map(t => {
+      const acc = accounts.find(a => a.id === t.accountId);
+      return { ...t, amountInUsd: convertCurrency(t.amount, acc?.currency || 'USD', 'USD') };
+    });
+  }, [transactions, accounts, householdView]);
 
   const categoryMetadata = useLiveQuery(() => db.categoryMetadata.toArray()) || [];
   const colorMap = useMemo(() => {
@@ -40,9 +71,9 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
   const generateAiReport = async () => {
     setIsGenerating(true);
     try {
-      const publicAccounts = accounts.filter(a => !a.isPrivate);
+      const publicAccounts = workingAccounts.filter(a => !a.isPrivate);
       const publicAccountIds = new Set(publicAccounts.map(a => a.id));
-      const publicTransactions = transactions.filter(t => publicAccountIds.has(t.accountId));
+      const publicTransactions = workingTransactions.filter(t => publicAccountIds.has(t.accountId));
       
       const report = await analystService.getFinancialHealthCheckup(publicTransactions, publicAccounts, budgets, goals);
       setAiReport(report);
@@ -64,65 +95,67 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
       data[m] = { name: m, income: 0, expense: 0, net: 0 };
     });
 
-    transactions.forEach(t => {
+    workingTransactions.forEach(t => {
       const date = new Date(t.date);
       const month = date.toLocaleString('default', { month: 'short', year: '2-digit' });
+      const amountInUsd = (t as any).amountInUsd;
       if (data[month]) {
-        if (t.type === 'Income') data[month].income += t.amount;
-        else if (t.type === 'Expense') data[month].expense += t.amount;
+        if (t.type === 'Income') data[month].income += amountInUsd;
+        else if (t.type === 'Expense') data[month].expense += amountInUsd;
         data[month].net = data[month].income - data[month].expense;
       }
     });
 
     return Object.values(data);
-  }, [transactions]);
+  }, [workingTransactions]);
 
   const netWorthData = useMemo(() => {
     // Reconstruct net worth history
-    const sortedTransactions = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
+    const sortedTransactions = [...workingTransactions].sort((a, b) => a.date.localeCompare(b.date));
     const dailyNetWorth: Record<string, number> = {};
     
-    let currentBalance = accounts.reduce((sum, a) => sum + a.initialBalance, 0);
-    
-    // This is a simplified approach: we start with initial balances and add transactions over time
-    // Note: This assumes initialBalance is the balance AT THE START of the tracking period.
-    // If initialBalance is "current balance", we'd need to work backwards.
-    // Let's assume initialBalance is the starting point for the DB.
+    let currentBalanceInUsd = workingAccounts.reduce((sum, a) => {
+      let balance = a.initialBalance;
+      if (!householdView && a.ownershipPercentage) {
+        balance = balance * (a.ownershipPercentage / 100);
+      }
+      return sum + convertCurrency(balance, a.currency || 'USD', 'USD');
+    }, 0);
     
     const dates = Array.from(new Set(sortedTransactions.map(t => t.date))).sort();
     
     dates.forEach(date => {
       const dayTransactions = sortedTransactions.filter(t => t.date === date);
       dayTransactions.forEach(t => {
-        if (t.type === 'Income') currentBalance += t.amount;
-        else if (t.type === 'Expense') currentBalance -= t.amount;
-        // Transfers don't change total net worth
+        const amountInUsd = (t as any).amountInUsd;
+        if (t.type === 'Income') currentBalanceInUsd += amountInUsd;
+        else if (t.type === 'Expense') currentBalanceInUsd -= amountInUsd;
       });
-      dailyNetWorth[date] = currentBalance;
+      dailyNetWorth[date] = currentBalanceInUsd;
     });
 
     return Object.entries(dailyNetWorth).map(([date, value]) => ({
       date,
       value
-    })).slice(-30); // Last 30 days of activity
-  }, [transactions, accounts]);
+    })).slice(-30);
+  }, [workingTransactions, workingAccounts, householdView]);
 
   const categoryBreakdown = useMemo(() => {
     const categories: Record<string, number> = {};
-    transactions.filter(t => t.type === 'Expense').forEach(t => {
-      categories[t.category] = (categories[t.category] || 0) + t.amount;
+    workingTransactions.filter(t => t.type === 'Expense').forEach(t => {
+      categories[t.category] = (categories[t.category] || 0) + (t as any).amountInUsd;
     });
     return Object.entries(categories)
       .map(([name, value]) => ({ name, value, color: colorMap[name] }))
       .sort((a, b) => b.value - a.value);
-  }, [transactions, colorMap]);
+  }, [workingTransactions, colorMap]);
 
   const savingsRate = useMemo(() => {
-    const totalIncome = transactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
-    const totalExpense = transactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
-    if (totalIncome === 0) return 0;
-    return Math.max(0, ((totalIncome - totalExpense) / totalIncome) * 100);
-  }, [transactions]);
+    const totalIncomeInUsd = workingTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + (t as any).amountInUsd, 0);
+    const totalExpenseInUsd = workingTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + (t as any).amountInUsd, 0);
+    if (totalIncomeInUsd === 0) return 0;
+    return Math.max(0, ((totalIncomeInUsd - totalExpenseInUsd) / totalIncomeInUsd) * 100);
+  }, [workingTransactions]);
 
   const PRESET_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#f43f5e', '#06b6d4', '#84cc16', '#71717a'];
 
@@ -209,7 +242,11 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
               <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
                 <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Assets</p>
                 <h4 className="text-3xl font-black text-gray-900 dark:text-white">
-                  ${accounts.filter(a => !['Mortgage', 'Car Loan', 'Credit Card'].includes(a.type)).reduce((sum, a) => sum + a.initialBalance, 0).toLocaleString()}
+                  ${workingAccounts.filter(a => !['Mortgage', 'Car Loan', 'Credit Card'].includes(a.type)).reduce((sum, a) => {
+                    let bal = a.initialBalance;
+                    if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
+                    return sum + convertCurrency(bal, a.currency || 'USD', 'USD');
+                  }, 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </h4>
               </div>
               <div className="bg-black dark:bg-white p-6 rounded-3xl shadow-xl transition-colors">
@@ -369,7 +406,7 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
           >
-            <NetWorthAnalysis transactions={transactions} accounts={accounts} />
+            <NetWorthAnalysis transactions={transactions} accounts={accounts} householdView={householdView} />
           </motion.div>
         ) : activeSubTab === 'anomalies' ? (
           <motion.div
@@ -378,7 +415,7 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
           >
-            <AnomalyDetection transactions={transactions} accounts={accounts} />
+            <AnomalyDetection transactions={transactions} accounts={accounts} householdView={householdView} />
           </motion.div>
         ) : activeSubTab === 'mood' ? (
           <motion.div
@@ -387,7 +424,7 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
           >
-            <SpendingMood transactions={transactions} />
+            <SpendingMood transactions={transactions} accounts={accounts} householdView={householdView} />
           </motion.div>
         ) : (
           <motion.div
@@ -396,7 +433,7 @@ export default function Reports({ transactions, accounts, budgets, goals }: Repo
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
           >
-            <BudgetFraming transactions={transactions} accounts={accounts} />
+            <BudgetFraming transactions={transactions} accounts={accounts} householdView={householdView} />
           </motion.div>
         )}
       </AnimatePresence>

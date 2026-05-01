@@ -9,27 +9,43 @@ interface NetWorthAnalysisProps {
   accounts: Account[];
 }
 
-export default function NetWorthAnalysis({ transactions, accounts }: NetWorthAnalysisProps) {
+export default function NetWorthAnalysis({ transactions, accounts, householdView }: NetWorthAnalysisProps & { householdView?: boolean }) {
   const trendData = useMemo(() => {
     const sortedTransactions = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
-    const history: any[] = [];
     
+    // Scaling transactions if individual view
+    const workingTransactions = householdView ? sortedTransactions : sortedTransactions.map(t => {
+      const acc = accounts.find(a => a.id === t.accountId);
+      if (acc?.ownershipPercentage) {
+        return { ...t, amount: t.amount * (acc.ownershipPercentage / 100) };
+      }
+      return t;
+    });
+
     // Initial state
     let currentAssets = accounts
       .filter(a => !['Mortgage', 'Car Loan', 'Credit Card'].includes(a.type))
-      .reduce((sum, a) => sum + a.initialBalance, 0);
+      .reduce((sum, a) => {
+        let bal = a.initialBalance;
+        if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
+        return sum + bal;
+      }, 0);
       
     let currentDebt = accounts
       .filter(a => ['Mortgage', 'Car Loan', 'Credit Card'].includes(a.type))
-      .reduce((sum, a) => sum + Math.abs(a.initialBalance), 0);
+      .reduce((sum, a) => {
+        let bal = Math.abs(a.initialBalance);
+        if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
+        return sum + bal;
+      }, 0);
 
-    const dates = Array.from(new Set(sortedTransactions.map(t => t.date))).sort();
+    const dates = Array.from(new Set(workingTransactions.map(t => t.date))).sort();
     
     // We'll group by month for a cleaner trend
     const monthlyHistory: Record<string, { date: string, assets: number, debt: number, netWorth: number }> = {};
 
     dates.forEach(date => {
-      const dayTransactions = sortedTransactions.filter(t => t.date === date);
+      const dayTransactions = workingTransactions.filter(t => t.date === date);
       dayTransactions.forEach(t => {
         // Find the account to see if it's asset or debt
         const account = accounts.find(a => a.id === t.accountId);
@@ -54,15 +70,23 @@ export default function NetWorthAnalysis({ transactions, accounts }: NetWorthAna
     });
 
     return Object.values(monthlyHistory).slice(-12); // Last 12 months
-  }, [transactions, accounts]);
+  }, [transactions, accounts, householdView]);
 
-  const currentAssets = accounts
+  const currentAssets = useMemo(() => accounts
     .filter(a => !['Mortgage', 'Car Loan', 'Credit Card'].includes(a.type))
-    .reduce((sum, a) => sum + a.initialBalance, 0);
+    .reduce((sum, a) => {
+      let bal = a.initialBalance;
+      if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
+      return sum + bal;
+    }, 0), [accounts, householdView]);
     
-  const currentDebt = accounts
+  const currentDebt = useMemo(() => accounts
     .filter(a => ['Mortgage', 'Car Loan', 'Credit Card'].includes(a.type))
-    .reduce((sum, a) => sum + Math.abs(a.initialBalance), 0);
+    .reduce((sum, a) => {
+      let bal = Math.abs(a.initialBalance);
+      if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
+      return sum + bal;
+    }, 0), [accounts, householdView]);
 
   const netWorth = currentAssets - currentDebt;
   

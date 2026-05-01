@@ -3,6 +3,7 @@ import { Target, Plus, X, Loader2, Trash2, TrendingUp, Calendar, Sparkles, Edit2
 import { motion, AnimatePresence } from 'motion/react';
 import { db, Goal, Account } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
+import { getCurrencySymbol, convertCurrency } from '../lib/utils';
 
 interface SavingsGoalsProps {
   goals: Goal[];
@@ -119,12 +120,19 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
   };
 
   const calculateETA = (goal: Goal) => {
+    const linkedAccount = goal.accountId ? accounts.find(a => a.id === goal.accountId) : null;
     const currentAmount = goal.accountId ? (accountBalances[goal.accountId] || 0) : goal.currentAmount;
+    const goalCurrency = linkedAccount?.currency || 'USD';
+    
     const remaining = goal.targetAmount - currentAmount;
     if (remaining <= 0) return "Goal Reached!";
     if (monthlySavings <= 0) return "Infinite (No savings)";
     
-    const months = Math.ceil(remaining / monthlySavings);
+    // Convert monthly savings (which is in USD) to the goal/account currency
+    const monthlySavingsInGoalCurrency = convertCurrency(monthlySavings, 'USD', goalCurrency);
+    if (monthlySavingsInGoalCurrency <= 0) return "Infinite (No savings)";
+    
+    const months = Math.ceil(remaining / monthlySavingsInGoalCurrency);
     if (months > 12) {
       const years = (months / 12).toFixed(1);
       return `${years} years`;
@@ -215,8 +223,12 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
               <div className="space-y-4">
                 <div className="flex items-end justify-between">
                   <div>
-                    <p className="text-2xl font-black text-gray-900 dark:text-white">${currentAmount.toLocaleString()}</p>
-                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500">of ${goal.targetAmount.toLocaleString()}</p>
+                    <p className="text-2xl font-black text-gray-900 dark:text-white">
+                      {getCurrencySymbol(linkedAccount?.currency)}{currentAmount.toLocaleString()}
+                    </p>
+                    <p className="text-xs font-bold text-gray-400 dark:text-gray-500">
+                      of {getCurrencySymbol(linkedAccount?.currency)}{goal.targetAmount.toLocaleString()}
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-black text-gray-900 dark:text-white">{progress.toFixed(0)}%</p>

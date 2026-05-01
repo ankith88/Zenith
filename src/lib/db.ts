@@ -14,6 +14,8 @@ export interface Account {
   creditLimit?: number;
   paymentFrequency?: 'Monthly' | 'Weekly';
   paymentDueDay?: number; // Day of month (1-31) or day of week (0-6)
+  ownershipPercentage?: number; // 0-100, defaults to 100
+  currency?: string; // e.g., 'USD', 'EUR', 'AUD', 'INR'
   synced: boolean;
 }
 

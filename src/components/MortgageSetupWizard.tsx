@@ -27,6 +27,7 @@ export default function MortgageSetupWizard({ accounts, onClose, onComplete }: M
     businessAccountId: accounts.find(a => a.name.toLowerCase().includes('business'))?.id || 0,
     selfAccountId: accounts.find(a => a.name.toLowerCase().includes('salary') || a.name.toLowerCase().includes('checking'))?.id || 0,
     wifeAccountId: 0, // Usually needs to be created or selected
+    ownershipPercentage: '100',
   });
 
   const handleNext = () => setStep(prev => prev + 1);
@@ -46,6 +47,7 @@ export default function MortgageSetupWizard({ accounts, onClose, onComplete }: M
         minPayment: parseFloat(formData.minPayment),
         paymentFrequency: formData.paymentFrequency,
         paymentDueDay: parseInt(formData.paymentDueDay),
+        ownershipPercentage: parseFloat(formData.ownershipPercentage) || 100,
         synced: false
       };
 
@@ -193,20 +195,34 @@ export default function MortgageSetupWizard({ accounts, onClose, onComplete }: M
                       />
                     </div>
                   </div>
-                  <div>
-                    <label className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase mb-2 block transition-colors">Total Monthly Payment (P+I)</label>
-                    <div className="relative">
-                      <span className="absolute left-5 top-1/2 -translate-y-1/2 font-bold text-gray-400 dark:text-gray-500 transition-colors">$</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase mb-2 block transition-colors">Total Monthly Payment (P+I)</label>
+                      <div className="relative">
+                        <span className="absolute left-5 top-1/2 -translate-y-1/2 font-bold text-gray-400 dark:text-gray-500 transition-colors">$</span>
+                        <input
+                          type="number"
+                          value={formData.minPayment}
+                          onChange={(e) => setFormData({ ...formData, minPayment: e.target.value })}
+                          placeholder="2,500"
+                          className="w-full pl-10 pr-5 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-black dark:focus:ring-white outline-none font-bold text-gray-900 dark:text-white transition-colors placeholder:text-gray-300 dark:placeholder:text-gray-600"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-black text-gray-400 dark:text-gray-500 uppercase mb-2 block transition-colors">Your Ownership (%)</label>
                       <input
                         type="number"
-                        value={formData.minPayment}
-                        onChange={(e) => setFormData({ ...formData, minPayment: e.target.value })}
-                        placeholder="2,500"
-                        className="w-full pl-10 pr-5 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-black dark:focus:ring-white outline-none font-bold text-gray-900 dark:text-white transition-colors placeholder:text-gray-300 dark:placeholder:text-gray-600"
+                        min="0"
+                        max="100"
+                        value={formData.ownershipPercentage}
+                        onChange={(e) => setFormData({ ...formData, ownershipPercentage: e.target.value })}
+                        placeholder="100"
+                        className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-black dark:focus:ring-white outline-none font-bold text-gray-900 dark:text-white transition-colors placeholder:text-gray-300 dark:placeholder:text-gray-600"
                       />
                     </div>
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 font-bold uppercase tracking-wider transition-colors">Includes both Principal and Interest</p>
                   </div>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 font-bold uppercase tracking-wider transition-colors">Includes both Principal and Interest</p>
                 </div>
               </motion.div>
             )}

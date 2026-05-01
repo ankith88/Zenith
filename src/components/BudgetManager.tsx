@@ -3,6 +3,7 @@ import { Plus, Target, Loader2, X, Trash2, Edit2, Layout } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, Budget, Transaction, Account } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
+import { getCurrencySymbol } from '../lib/utils';
 import BudgetFraming from './BudgetFraming';
 
 interface BudgetManagerProps {
@@ -109,7 +110,7 @@ export default function BudgetManager({ budgets, transactions, accounts }: Budge
               <p className="text-xs text-gray-400 dark:text-gray-500">{budget.period}</p>
             </div>
             <div className="text-right flex flex-col items-end gap-1">
-              <p className="text-sm font-black text-gray-900 dark:text-white">${budget.amount.toLocaleString()}</p>
+              <p className="text-sm font-black text-gray-900 dark:text-white">{getCurrencySymbol('USD')}{budget.amount.toLocaleString()}</p>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button 
                   onClick={() => handleEdit(budget)}

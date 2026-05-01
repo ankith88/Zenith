@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Transaction } from '../lib/db';
+import { Transaction, Account } from '../lib/db';
 import { analystService } from '../lib/gemini';
 import { Brain, Loader2, Sparkles, TrendingUp, TrendingDown, Heart, Zap, Target, AlertTriangle } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -16,7 +16,7 @@ interface MoodAnalysis {
   score: number;
 }
 
-export default function SpendingMood({ transactions }: SpendingMoodProps) {
+export default function SpendingMood({ transactions, accounts, householdView }: SpendingMoodProps & { accounts: Account[], householdView?: boolean }) {
   const [analysis, setAnalysis] = useState<MoodAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +25,22 @@ export default function SpendingMood({ transactions }: SpendingMoodProps) {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await analystService.getSpendingMoodAnalysis(transactions);
+      const filtered = householdView 
+        ? transactions 
+        : transactions.filter(t => {
+            const acc = accounts.find(a => a.id === t.accountId);
+            return !acc?.owner || acc.owner === 'Me' || (acc?.ownershipPercentage && acc.ownershipPercentage > 0);
+          });
+
+      const workingTransactions = householdView ? filtered : filtered.map(t => {
+        const acc = accounts.find(a => a.id === t.accountId);
+        if (acc?.ownershipPercentage) {
+          return { ...t, amount: t.amount * (acc.ownershipPercentage / 100) };
+        }
+        return t;
+      });
+
+      const data = await analystService.getSpendingMoodAnalysis(workingTransactions);
       setAnalysis(data);
     } catch (err: any) {
       console.error("Mood analysis error:", err);

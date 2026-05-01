@@ -9,7 +9,7 @@ interface AnomalyDetectionProps {
   accounts: Account[];
 }
 
-export default function AnomalyDetection({ transactions, accounts }: AnomalyDetectionProps) {
+export default function AnomalyDetection({ transactions, accounts, householdView }: AnomalyDetectionProps & { householdView?: boolean }) {
   const [anomalies, setAnomalies] = useState<any[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [hasScanned, setHasScanned] = useState(false);
@@ -17,9 +17,24 @@ export default function AnomalyDetection({ transactions, accounts }: AnomalyDete
   const scanForAnomalies = async () => {
     setIsScanning(true);
     try {
+      const filtered = householdView 
+        ? transactions 
+        : transactions.filter(t => {
+            const acc = accounts.find(a => a.id === t.accountId);
+            return !acc?.owner || acc.owner === 'Me' || (acc?.ownershipPercentage && acc.ownershipPercentage > 0);
+          });
+
+      const workingTransactions = householdView ? filtered : filtered.map(t => {
+        const acc = accounts.find(a => a.id === t.accountId);
+        if (acc?.ownershipPercentage) {
+          return { ...t, amount: t.amount * (acc.ownershipPercentage / 100) };
+        }
+        return t;
+      });
+
       const publicAccounts = accounts.filter(a => !a.isPrivate);
       const publicAccountIds = new Set(publicAccounts.map(a => a.id));
-      const publicTransactions = transactions.filter(t => publicAccountIds.has(t.accountId));
+      const publicTransactions = workingTransactions.filter(t => publicAccountIds.has(t.accountId));
       
       const result = await analystService.detectSpendingAnomalies(publicTransactions);
       setAnomalies(result.anomalies);

@@ -25,17 +25,35 @@ interface FramingData {
   };
 }
 
-export default function BudgetFraming({ transactions, accounts, onComplete }: BudgetFramingProps) {
+export default function BudgetFraming({ transactions, accounts, householdView, onComplete }: BudgetFramingProps & { householdView?: boolean }) {
   const [framing, setFraming] = useState<FramingData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const workingTransactions = React.useMemo(() => {
+    const filtered = householdView 
+      ? transactions 
+      : transactions.filter(t => {
+          const acc = accounts.find(a => a.id === t.accountId);
+          return !acc?.owner || acc.owner === 'Me' || (acc?.ownershipPercentage && acc.ownershipPercentage > 0);
+        });
+
+    if (householdView) return filtered;
+    return filtered.map(t => {
+      const acc = accounts.find(a => a.id === t.accountId);
+      if (acc?.ownershipPercentage) {
+        return { ...t, amount: t.amount * (acc.ownershipPercentage / 100) };
+      }
+      return t;
+    });
+  }, [transactions, accounts, householdView]);
+
   const generateFraming = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await analystService.getBudgetFraming(transactions, accounts);
+      const data = await analystService.getBudgetFraming(workingTransactions, accounts);
       setFraming(data);
     } catch (err: any) {
       console.error("Budget framing error:", err);

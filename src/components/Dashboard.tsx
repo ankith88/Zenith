@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Landmark, Banknote, Trash2, Edit2, Target, X, Home, Briefcase, Car, Sparkles } from 'lucide-react';
 import { Transaction, Account, Budget, RecurringTransaction, Goal, Milestone, db } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
-import { formatLocalDate } from '../lib/utils';
+import { formatLocalDate, convertCurrency, getCurrencySymbol } from '../lib/utils';
 import AccountManager from './AccountManager';
 import BudgetManager from './BudgetManager';
 import RecurringManager from './RecurringManager';
@@ -102,40 +102,71 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
     // Filter data based on householdView for stats
     const filteredAccounts = householdView 
       ? accounts 
-      : accounts.filter(a => !a.owner || a.owner === 'Me');
+      : accounts.filter(a => !a.owner || a.owner === 'Me' || (a.ownershipPercentage && a.ownershipPercentage > 0));
     
     const filteredTransactions = householdView
       ? transactions
       : transactions.filter(t => {
           const acc = accounts.find(a => a.id === t.accountId);
-          return !acc?.owner || acc.owner === 'Me';
+          return !acc?.owner || acc.owner === 'Me' || (acc?.ownershipPercentage && acc.ownershipPercentage > 0);
         });
 
     const filteredRecurring = householdView
       ? recurring
       : recurring.filter(r => {
           const acc = accounts.find(a => a.id === r.accountId);
-          return !acc?.owner || acc.owner === 'Me';
+          return !acc?.owner || acc.owner === 'Me' || (acc?.ownershipPercentage && acc.ownershipPercentage > 0);
         });
 
-    const filteredAccountBalances = householdView 
-      ? accountBalances 
-      : Object.fromEntries(
-          Object.entries(accountBalances).filter(([id]) => {
-            const acc = accounts.find(a => a.id === parseInt(id));
-            return !acc?.owner || acc.owner === 'Me';
-          })
-        );
+    const filteredAccountBalances = Object.fromEntries(
+      Object.entries(accountBalances).map(([id, balance]) => {
+        const accId = parseInt(String(id));
+        const acc = accounts.find(a => a.id === accId);
+        
+        let adjustedBalance = balance;
+        if (!householdView && acc?.ownershipPercentage) {
+          adjustedBalance = balance * (acc.ownershipPercentage / 100);
+        }
+        
+        return [id, adjustedBalance];
+      }).filter(([id]) => {
+        const accId = parseInt(String(id));
+        const acc = accounts.find(a => a.id === accId);
+        return householdView || (!acc?.owner || acc.owner === 'Me' || (acc?.ownershipPercentage && acc.ownershipPercentage > 0));
+      })
+    ) as Record<string, number>;
 
-    const totalBalance = Object.values(filteredAccountBalances).reduce((sum, b) => sum + b, 0);
-    const totalAssetValue = filteredAccounts.reduce((sum, acc) => sum + (acc.assetValue || 0), 0);
+    // Total balance in USD
+    const totalBalance = Object.entries(filteredAccountBalances).reduce((sum, [id, balance]) => {
+      const acc = accounts.find(a => a.id === parseInt(id));
+      return sum + convertCurrency(balance, acc?.currency || 'USD', 'USD');
+    }, 0);
+
+    const totalAssetValue = filteredAccounts.reduce((sum, acc) => {
+      let val = acc.assetValue || 0;
+      if (!householdView && acc.ownershipPercentage) {
+        val = val * (acc.ownershipPercentage / 100);
+      }
+      return sum + convertCurrency(val, acc.currency || 'USD', 'USD');
+    }, 0);
     const netWorth = totalBalance + totalAssetValue;
 
-    const income = filteredTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
-    const expenses = filteredTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
+    const workingTransactions = (householdView ? filteredTransactions : filteredTransactions.map(t => {
+      const acc = accounts.find(a => a.id === t.accountId);
+      if (acc?.ownershipPercentage) {
+        return { ...t, amount: t.amount * (acc.ownershipPercentage / 100) };
+      }
+      return t;
+    })).map(t => {
+      const acc = accounts.find(a => a.id === t.accountId);
+      return { ...t, amountInUsd: convertCurrency(t.amount, acc?.currency || 'USD', 'USD') };
+    });
+
+    const income = workingTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + (t as any).amountInUsd, 0);
+    const expenses = workingTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + (t as any).amountInUsd, 0);
     
-    const categories = filteredTransactions.filter(t => t.type === 'Expense').reduce((acc, t) => {
-      acc[t.category] = (acc[t.category] || 0) + t.amount;
+    const categories = workingTransactions.filter(t => t.type === 'Expense').reduce((acc, t) => {
+      acc[t.category] = (acc[t.category] || 0) + (t as any).amountInUsd;
       return acc;
     }, {} as Record<string, number>);
 
@@ -145,11 +176,11 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       color: colorMap[name]
     }));
 
-    const dailyData = filteredTransactions.reduce((acc, t) => {
+    const dailyData = workingTransactions.reduce((acc, t) => {
       const date = t.date;
       if (!acc[date]) acc[date] = { date, income: 0, expense: 0 };
-      if (t.type === 'Income') acc[date].income += t.amount;
-      else if (t.type === 'Expense') acc[date].expense += t.amount;
+      if (t.type === 'Income') acc[date].income += (t as any).amountInUsd;
+      else if (t.type === 'Expense') acc[date].expense += (t as any).amountInUsd;
       return acc;
     }, {} as Record<string, any>);
 
@@ -168,25 +199,26 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       .reduce((sum, t) => sum + t.amount, 0);
     const monthlySavings = Math.max(0, recentIncome - recentExpenses);
 
-    // Calculate Liquid vs Debt
-    let liquidBalance = 0;
-    let totalDebt = 0;
+    // Calculate Liquid vs Debt in USD
+    let liquidBalanceInUsd = 0;
+    let totalDebtInUsd = 0;
 
     filteredAccounts.forEach(acc => {
       const balance = filteredAccountBalances[acc.id!] || 0;
-      if (acc.type === 'Mortgage' || acc.type === 'Credit Card') {
-        totalDebt += Math.abs(balance);
+      const balanceInUsd = convertCurrency(balance, acc.currency || 'USD', 'USD');
+      if (acc.type === 'Mortgage' || acc.type === 'Credit Card' || acc.type === 'Car Loan') {
+        totalDebtInUsd += Math.abs(balanceInUsd);
       } else {
-        liquidBalance += balance;
+        liquidBalanceInUsd += balanceInUsd;
       }
     });
 
-    // Calculate budget progress
+    // Calculate budget progress (Budget amounts are assumed to be in USD base)
     const budgetProgress = budgets.map(b => {
-      const spent = filteredTransactions
+      const spentInUsd = workingTransactions
         .filter(t => t.category === b.category && t.type === 'Expense')
-        .reduce((sum, t) => sum + t.amount, 0);
-      return { ...b, spent, percent: Math.min((spent / b.amount) * 100, 100) };
+        .reduce((sum, t) => sum + (t as any).amountInUsd, 0);
+      return { ...b, spent: spentInUsd, percent: Math.min((spentInUsd / b.amount) * 100, 100) };
     });
 
     const unsyncedCount = transactions.filter(t => !t.synced).length + 
@@ -200,8 +232,8 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       totalBalance, 
       netWorth, 
       totalAssetValue, 
-      liquidBalance, 
-      totalDebt, 
+      liquidBalance: liquidBalanceInUsd, 
+      totalDebt: totalDebtInUsd, 
       pieData, 
       areaData, 
       accountBalances: filteredAccountBalances, 
@@ -325,7 +357,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
             </div>
           </div>
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Income</p>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">${stats.income.toLocaleString()}</h3>
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{getCurrencySymbol('USD')}{stats.income.toLocaleString()}</h3>
         </div>
 
         <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-all group">
@@ -335,7 +367,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
             </div>
           </div>
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Expenses</p>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">${stats.expenses.toLocaleString()}</h3>
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{getCurrencySymbol('USD')}{stats.expenses.toLocaleString()}</h3>
         </div>
 
         <div 
@@ -351,7 +383,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
             </div>
           </div>
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400 relative z-10">Liquid Assets</p>
-          <h3 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1 relative z-10">${stats.liquidBalance.toLocaleString()}</h3>
+          <h3 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1 relative z-10">{getCurrencySymbol('USD')}{stats.liquidBalance.toLocaleString()}</h3>
         </div>
 
         <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-rose-100 dark:border-rose-900/30 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
@@ -364,7 +396,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
             </div>
           </div>
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400 relative z-10">Total Debt</p>
-          <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1 relative z-10">${stats.totalDebt.toLocaleString()}</h3>
+          <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1 relative z-10">{getCurrencySymbol('USD')}{stats.totalDebt.toLocaleString()}</h3>
         </div>
 
         <div className="bg-black dark:bg-white p-6 rounded-3xl shadow-xl dark:shadow-white/5 group relative overflow-hidden">
@@ -377,10 +409,10 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
             </div>
           </div>
           <p className="text-sm font-medium text-gray-400 dark:text-gray-600 relative z-10">Net Worth</p>
-          <h3 className="text-2xl font-bold text-white dark:text-black mt-1 relative z-10">${stats.netWorth.toLocaleString()}</h3>
+          <h3 className="text-2xl font-bold text-white dark:text-black mt-1 relative z-10">{getCurrencySymbol('USD')}{stats.netWorth.toLocaleString()}</h3>
           <div className="mt-2 flex items-center gap-1 text-[9px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative z-10">
             <span>Assets:</span>
-            <span className="text-emerald-400">${stats.totalAssetValue.toLocaleString()}</span>
+            <span className="text-emerald-400">{getCurrencySymbol('USD')}{stats.totalAssetValue.toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -587,7 +619,9 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                     t.type === 'Income' ? 'text-emerald-600 dark:text-emerald-400' : 
                     t.type === 'Expense' ? 'text-red-600 dark:text-red-400' : 'text-indigo-600 dark:text-indigo-400'
                   }`}>
-                    {t.type === 'Income' ? '+' : t.type === 'Expense' ? '-' : ''}${t.amount.toLocaleString()}
+                    {t.type === 'Income' ? '+' : t.type === 'Expense' ? '-' : ''}
+                    {getCurrencySymbol(accounts.find(a => a.id === t.accountId)?.currency)}
+                    {t.amount.toLocaleString()}
                   </td>
                   <td className="px-8 py-4 text-right">
                     <div className="flex items-center justify-end gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
@@ -772,7 +806,14 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-black text-gray-900 dark:text-white">${(stats.accountBalances[acc.id!] || 0).toLocaleString()}</p>
+                        <p className="text-lg font-black text-gray-900 dark:text-white">
+                          {getCurrencySymbol(acc.currency)}{(stats.accountBalances[acc.id!] || 0).toLocaleString()}
+                        </p>
+                        {acc.currency && acc.currency !== 'USD' && (
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold">
+                            (${convertCurrency(stats.accountBalances[acc.id!] || 0, acc.currency, 'USD').toLocaleString()} USD)
+                          </p>
+                        )}
                       </div>
                     </div>
                   ))}
