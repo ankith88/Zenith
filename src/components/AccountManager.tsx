@@ -8,9 +8,10 @@ import { formatLocalDate, SUPPORTED_CURRENCIES, getCurrencySymbol } from '../lib
 interface AccountManagerProps {
   accounts: Account[];
   accountBalances: Record<number, number>;
+  displayCurrency: string;
 }
 
-export default function AccountManager({ accounts, accountBalances }: AccountManagerProps) {
+export default function AccountManager({ accounts, accountBalances, displayCurrency }: AccountManagerProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [adjustingAccount, setAdjustingAccount] = useState<Account | null>(null);
@@ -237,7 +238,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                 {acc.assetValue && (
                   <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Equity: {getCurrencySymbol(acc.currency)}{(acc.assetValue - Math.abs(accountBalances[acc.id!] || 0)).toLocaleString()}</p>
                 )}
-                {acc.currency && acc.currency !== 'USD' && (
+                {acc.currency && acc.currency !== displayCurrency && (
                   <p className="text-[8px] text-gray-400 dark:text-gray-500 uppercase font-black tracking-widest">{acc.currency}</p>
                 )}
                 <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase font-bold tracking-wider">Current</p>
@@ -418,7 +419,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                   <div>
                     <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Currency</label>
                     <select
-                      value={editingAccount ? editingAccount.currency || 'USD' : formData.currency}
+                      value={editingAccount ? editingAccount.currency || displayCurrency : formData.currency}
                       onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, currency: e.target.value }) : setFormData({ ...formData, currency: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                     >

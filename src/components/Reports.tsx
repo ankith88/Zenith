@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, AreaChart, Area, Legend, Cell, PieChart, Pie
 } from 'recharts';
-import { Transaction, Account, Budget, Goal, db } from '../lib/db';
+import { Transaction, Account, Budget, Goal, db, Investment, Asset } from '../lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { formatLocalDate, convertCurrency, getCurrencySymbol } from '../lib/utils';
 import { TrendingUp, TrendingDown, Wallet, PieChart as PieIcon, BarChart3, Activity, Sparkles, Loader2, ChevronRight, AlertTriangle, Scale, Brain, Layout } from 'lucide-react';
@@ -150,6 +150,17 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
       .sort((a, b) => b.value - a.value);
   }, [workingTransactions, colorMap]);
 
+  const investments = useLiveQuery(() => db.investments.toArray()) || [];
+  const assets = useLiveQuery(() => db.assets.toArray()) || [];
+
+  const totalInvestmentValue = useMemo(() => 
+    investments.reduce((sum, i) => sum + convertCurrency(i.quantity * i.currentPrice, 'USD', displayCurrency), 0)
+  , [investments, displayCurrency]);
+
+  const totalAssetValue = useMemo(() => 
+    assets.reduce((sum, a) => sum + convertCurrency(a.currentValuation, 'USD', displayCurrency), 0)
+  , [assets, displayCurrency]);
+
   const savingsRate = useMemo(() => {
     const totalIncomeInDisplay = workingTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + (t as any).amountInDisplayCurrency, 0);
     const totalExpenseInDisplay = workingTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + (t as any).amountInDisplayCurrency, 0);
@@ -243,18 +254,18 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
                 <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Assets</p>
                 <h4 className="text-3xl font-black text-gray-900 dark:text-white">
                   {getCurrencySymbol(displayCurrency)}
-                  {workingAccounts.filter(a => !['Mortgage', 'Car Loan', 'Credit Card'].includes(a.type)).reduce((sum, a) => {
+                  {(workingAccounts.filter(a => !['Mortgage', 'Car Loan', 'Credit Card'].includes(a.type)).reduce((sum, a) => {
                     let bal = a.initialBalance;
                     if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
                     return sum + convertCurrency(bal, a.currency || 'USD', displayCurrency);
-                  }, 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  }, 0) + totalInvestmentValue + totalAssetValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </h4>
               </div>
               <div className="bg-black dark:bg-white p-6 rounded-3xl shadow-xl transition-colors">
                 <p className="text-xs font-bold text-white/40 dark:text-black/40 uppercase tracking-wider mb-1">Current Net Worth</p>
                 <h4 className="text-3xl font-black text-white dark:text-black">
                   {getCurrencySymbol(displayCurrency)}
-                  {(netWorthData[netWorthData.length - 1]?.value || 0).toLocaleString()}
+                  {( (netWorthData[netWorthData.length - 1]?.value || 0) + totalInvestmentValue + totalAssetValue ).toLocaleString()}
                 </h4>
               </div>
             </div>

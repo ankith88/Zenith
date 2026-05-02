@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LayoutDashboard, MessageSquare, Plus, Settings as SettingsIcon, LogOut, User, Menu, X, Loader2, Tag, TrendingUp, ChevronLeft, ChevronRight, Sun, Moon, Home, Car, BarChart3, Globe } from 'lucide-react';
+import { 
+  LayoutDashboard, MessageSquare, Plus, Settings as SettingsIcon, LogOut, User, Menu, X, Loader2, Tag, TrendingUp, 
+  ChevronLeft, ChevronRight, Sun, Moon, Home, Car, BarChart3, Globe,
+  ArrowRightLeft, Search, Calendar, ShieldCheck, TrendingDown, Palette, Rocket
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Transaction, Milestone } from './lib/db';
@@ -24,13 +28,14 @@ import MortgageSetupWizard from './components/MortgageSetupWizard';
 import CarLoanSetupWizard from './components/CarLoanSetupWizard';
 import ErrorBoundary from './components/ErrorBoundary';
 import BillCalendar from './components/BillCalendar';
-import { ArrowRightLeft, BarChart3, Search, Calendar, ShieldCheck, TrendingDown, Home, Car, Palette, Moon, Sun } from 'lucide-react';
+
+import HoldingsManager from './components/HoldingsManager';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isInitialSyncComplete, setIsInitialSyncComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'categories' | 'settings' | 'transfers' | 'reports' | 'subscriptions' | 'calendar' | 'debt' | 'transactions'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'holdings' | 'chat' | 'categories' | 'settings' | 'transfers' | 'reports' | 'subscriptions' | 'calendar' | 'debt' | 'transactions'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('zenith_sidebar_collapsed');
@@ -45,7 +50,10 @@ export default function App() {
   const [appLogo, setAppLogo] = useState<string | null>('/logo.svg');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [householdView, setHouseholdView] = useState(false);
+  const [householdView, setHouseholdView] = useState(() => {
+    const saved = localStorage.getItem('zenith_household_view');
+    return saved ? JSON.parse(saved) : false;
+  });
   const [debtView, setDebtView] = useState<'general' | 'offset'>('general');
   const [voiceQuery, setVoiceQuery] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -74,6 +82,11 @@ export default function App() {
   }, [displayCurrency]);
 
   useEffect(() => {
+    localStorage.setItem('zenith_household_view', JSON.stringify(householdView));
+    db.settings.put({ key: 'zenith_household_view', value: householdView });
+  }, [householdView]);
+
+  useEffect(() => {
     (window as any).showMortgageWizard = () => setShowMortgageWizard(true);
     (window as any).showCarLoanWizard = () => setShowCarLoanWizard(true);
     (window as any).runRecurringCheck = () => processRecurring();
@@ -86,6 +99,8 @@ export default function App() {
   const recurring = useLiveQuery(() => db.recurringTransactions.toArray()) || [];
   const goals = useLiveQuery(() => db.goals.toArray()) || [];
   const milestones = useLiveQuery(() => db.milestones.toArray()) || [];
+  const investments = useLiveQuery(() => db.investments.toArray()) || [];
+  const assets = useLiveQuery(() => db.assets.toArray()) || [];
 
   const accountBalances = useMemo(() => {
     const balances = accounts.reduce((acc, account) => {
@@ -117,15 +132,17 @@ export default function App() {
     const init = async () => {
       try {
         // Load settings from DB for reliability
-        const [collapsed, currency, darkMode] = await Promise.all([
+        const [collapsed, currency, darkMode, household] = await Promise.all([
           db.settings.get('zenith_sidebar_collapsed'),
           db.settings.get('zenith_display_currency'),
-          db.settings.get('zenith_dark_mode')
+          db.settings.get('zenith_dark_mode'),
+          db.settings.get('zenith_household_view')
         ]);
         
         if (collapsed !== undefined) setIsSidebarCollapsed(collapsed.value);
         if (currency !== undefined) setDisplayCurrency(currency.value);
         if (darkMode !== undefined) setIsDarkMode(darkMode.value);
+        if (household !== undefined) setHouseholdView(household.value);
 
         await checkAuth();
       } catch (err) {
@@ -466,6 +483,14 @@ export default function App() {
               {!isSidebarCollapsed && <span>Dashboard</span>}
             </button>
             <button
+              onClick={() => { setActiveTab('holdings'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'holdings' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Holdings"
+            >
+              <Rocket className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Holdings</span>}
+            </button>
+            <button
               onClick={() => { setActiveTab('transactions'); setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'transactions' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
               title="Transactions"
@@ -712,7 +737,7 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="h-full p-6 lg:p-8"
               >
-                <Transactions transactions={transactions} accounts={accounts} />
+                <Transactions transactions={transactions} accounts={accounts} displayCurrency={displayCurrency} />
               </motion.div>
             ) : activeTab === 'reports' ? (
               <motion.div
@@ -732,7 +757,7 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="h-full p-6 lg:p-8"
               >
-                <CashFlowCalendar transactions={transactions} accounts={accounts} recurring={recurring} />
+                <CashFlowCalendar transactions={transactions} accounts={accounts} recurring={recurring} displayCurrency={displayCurrency} />
               </motion.div>
             ) : activeTab === 'subscriptions' ? (
               <motion.div
@@ -742,7 +767,7 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="h-full p-6 lg:p-8"
               >
-                <SubscriptionAudit transactions={transactions} accounts={accounts} />
+                <SubscriptionAudit transactions={transactions} accounts={accounts} displayCurrency={displayCurrency} />
               </motion.div>
             ) : activeTab === 'debt' ? (
               <motion.div
@@ -774,10 +799,20 @@ export default function App() {
                 </div>
 
                 {debtView === 'general' ? (
-                  <DebtSimulator accounts={accounts} transactions={transactions} />
+                  <DebtSimulator accounts={accounts} transactions={transactions} displayCurrency={displayCurrency} />
                 ) : (
-                  <LoanOffsetSimulator accounts={accounts} transactions={transactions} />
+                  <LoanOffsetSimulator accounts={accounts} transactions={transactions} displayCurrency={displayCurrency} />
                 )}
+              </motion.div>
+            ) : activeTab === 'holdings' ? (
+              <motion.div
+                key="holdings"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full p-6 lg:p-8"
+              >
+                <HoldingsManager investments={investments} assets={assets} displayCurrency={displayCurrency} />
               </motion.div>
             ) : activeTab === 'chat' ? (
               <motion.div
@@ -814,7 +849,7 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="h-full p-6 lg:p-8"
               >
-                <TransferReport transactions={transactions} accounts={accounts} />
+                <TransferReport transactions={transactions} accounts={accounts} displayCurrency={displayCurrency} />
               </motion.div>
             ) : (
               <motion.div

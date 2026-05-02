@@ -3,13 +3,15 @@ import { Transaction, Account } from '../lib/db';
 import { ArrowRightLeft, TrendingUp, History, Landmark, Briefcase, Calendar, Wallet } from 'lucide-react';
 import { motion } from 'motion/react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { getCurrencySymbol } from '../lib/utils';
 
 interface TransferReportProps {
   transactions: Transaction[];
   accounts: Account[];
+  displayCurrency: string;
 }
 
-export default function TransferReport({ transactions, accounts }: TransferReportProps) {
+export default function TransferReport({ transactions, accounts, displayCurrency }: TransferReportProps) {
   const transfers = useMemo(() => 
     transactions.filter(t => t.type === 'Transfer').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   , [transactions]);
@@ -110,7 +112,7 @@ export default function TransferReport({ transactions, accounts }: TransferRepor
             <ArrowRightLeft className="w-6 h-6" />
           </div>
           <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Transferred</p>
-          <h4 className="text-2xl font-black text-gray-900 dark:text-white">${totalTransferred.toLocaleString()}</h4>
+          <h4 className="text-2xl font-black text-gray-900 dark:text-white">{getCurrencySymbol(displayCurrency)}{totalTransferred.toLocaleString()}</h4>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{transfers.length} total transfers recorded</p>
         </div>
 
@@ -168,14 +170,14 @@ export default function TransferReport({ transactions, accounts }: TransferRepor
               <div key={i} className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">{dest.name}</h4>
-                  <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">${dest.total.toLocaleString()}</span>
+                  <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{getCurrencySymbol(displayCurrency)}{dest.total.toLocaleString()}</span>
                 </div>
                 <div className="space-y-3">
                   {Object.values(dest.sources).map((source, si) => (
                     <div key={si} className="space-y-1">
                       <div className="flex justify-between text-xs font-bold">
                         <span className="text-gray-500 dark:text-gray-400">{source.name}</span>
-                        <span className="text-gray-900 dark:text-white">${source.amount.toLocaleString()}</span>
+                        <span className="text-gray-900 dark:text-white">{getCurrencySymbol(displayCurrency)}{source.amount.toLocaleString()}</span>
                       </div>
                       <div className="h-1.5 bg-gray-50 dark:bg-gray-800 rounded-full overflow-hidden">
                         <motion.div 
@@ -214,7 +216,7 @@ export default function TransferReport({ transactions, accounts }: TransferRepor
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-black text-gray-900 dark:text-white">${t.amount.toLocaleString()}</p>
+                    <p className="text-sm font-black text-gray-900 dark:text-white">{getCurrencySymbol(displayCurrency)}{t.amount.toLocaleString()}</p>
                     <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase">{new Date(t.date).toLocaleDateString()}</p>
                   </div>
                 </div>

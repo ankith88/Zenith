@@ -6,13 +6,15 @@ import {
 import { TrendingDown, Zap, Calculator, AlertCircle, CheckCircle2, ArrowRight, Sparkles, Home, Wallet, Clock, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Account, Transaction } from '../lib/db';
+import { getCurrencySymbol, convertCurrency } from '../lib/utils';
 
 interface LoanOffsetSimulatorProps {
   accounts: Account[];
   transactions: Transaction[];
+  displayCurrency: string;
 }
 
-export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffsetSimulatorProps) {
+export default function LoanOffsetSimulator({ accounts, transactions, displayCurrency }: LoanOffsetSimulatorProps) {
   const [selectedMortgageId, setSelectedMortgageId] = useState<number | null>(null);
   const [selectedOffsetId, setSelectedOffsetId] = useState<number | null>(null);
   const [extraMonthly, setExtraMonthly] = useState<number>(0);
@@ -139,7 +141,7 @@ export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffs
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl border border-white/10">
               <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-1">Interest Saved</p>
-              <h3 className="text-3xl font-black text-white">${simulation?.interestSaved.toLocaleString()}</h3>
+              <h3 className="text-3xl font-black text-white">{getCurrencySymbol(displayCurrency)}{simulation?.interestSaved.toLocaleString()}</h3>
               <p className="text-white/40 text-[10px] font-bold mt-1 uppercase">Over the life of the loan</p>
             </div>
             <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl border border-white/10">
@@ -176,7 +178,7 @@ export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffs
                   className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
                   {mortgages.map(m => (
-                    <option key={m.id} value={m.id}>{m.name} (${Math.abs(accountBalances[m.id!] || 0).toLocaleString()})</option>
+                    <option key={m.id} value={m.id}>{m.name} ({getCurrencySymbol(displayCurrency)}{convertCurrency(Math.abs(accountBalances[m.id!] || 0), m.currency || 'USD', displayCurrency).toLocaleString()})</option>
                   ))}
                 </select>
               </div>
@@ -189,7 +191,7 @@ export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffs
                   className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
                   {liquidAccounts.map(a => (
-                    <option key={a.id} value={a.id}>{a.name} (${Math.abs(accountBalances[a.id!] || 0).toLocaleString()})</option>
+                    <option key={a.id} value={a.id}>{a.name} ({getCurrencySymbol(displayCurrency)}{convertCurrency(Math.abs(accountBalances[a.id!] || 0), a.currency || 'USD', displayCurrency).toLocaleString()})</option>
                   ))}
                 </select>
               </div>
@@ -197,7 +199,7 @@ export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffs
               <div>
                 <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2 block">Extra Monthly Payment</label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 dark:text-gray-500">$</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 dark:text-gray-500">{getCurrencySymbol(displayCurrency)}</span>
                   <input
                     type="number"
                     value={extraMonthly}
@@ -269,7 +271,7 @@ export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffs
                     axisLine={false} 
                     tickLine={false} 
                     tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }}
-                    tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`}
+                    tickFormatter={(val) => `${getCurrencySymbol(displayCurrency)}${(val/1000).toFixed(0)}k`}
                   />
                   <Tooltip 
                     contentStyle={{ 
@@ -283,6 +285,7 @@ export default function LoanOffsetSimulator({ accounts, transactions }: LoanOffs
                     itemStyle={{ fontSize: '14px', fontWeight: 'black' }}
                     labelStyle={{ fontSize: '10px', fontWeight: 'bold', color: '#9ca3af', marginBottom: '4px', textTransform: 'uppercase' }}
                     labelFormatter={(label) => `Year ${label}`}
+                    formatter={(value: number) => [`${getCurrencySymbol(displayCurrency)}${value.toLocaleString()}`, 'Balance']}
                   />
                   <Area 
                     data={simulation?.baseline.data || []}

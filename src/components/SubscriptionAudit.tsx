@@ -3,6 +3,7 @@ import { CreditCard, AlertTriangle, CheckCircle2, Loader2, Sparkles, Trash2, Ext
 import { motion, AnimatePresence } from 'motion/react';
 import { Transaction, Account } from '../lib/db';
 import { analystService } from '../lib/gemini';
+import { getCurrencySymbol } from '../lib/utils';
 
 interface Subscription {
   name: string;
@@ -18,9 +19,10 @@ interface Subscription {
 interface SubscriptionAuditProps {
   transactions: Transaction[];
   accounts: Account[];
+  displayCurrency: string;
 }
 
-export default function SubscriptionAudit({ transactions, accounts }: SubscriptionAuditProps) {
+export default function SubscriptionAudit({ transactions, accounts, displayCurrency }: SubscriptionAuditProps) {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasRun, setHasRun] = useState(false);
@@ -90,11 +92,11 @@ export default function SubscriptionAudit({ transactions, accounts }: Subscripti
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
               <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl border border-white/10">
                 <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-1">Total Monthly Burn</p>
-                <h3 className="text-3xl font-black text-white">${totalMonthly.toFixed(2)}</h3>
+                <h3 className="text-3xl font-black text-white">{getCurrencySymbol(displayCurrency)}{totalMonthly.toFixed(2)}</h3>
               </div>
               <div className="bg-rose-500/20 backdrop-blur-md p-6 rounded-3xl border border-rose-500/20">
                 <p className="text-rose-200 text-xs font-bold uppercase tracking-widest mb-1">Potential Monthly Savings</p>
-                <h3 className="text-3xl font-black text-rose-100">${potentialSavings.toFixed(2)}</h3>
+                <h3 className="text-3xl font-black text-rose-100">{getCurrencySymbol(displayCurrency)}{potentialSavings.toFixed(2)}</h3>
               </div>
             </div>
           )}
@@ -143,7 +145,7 @@ export default function SubscriptionAudit({ transactions, accounts }: Subscripti
 
                 <div className="flex items-center justify-between md:justify-end gap-8">
                   <div className="text-right">
-                    <p className="text-2xl font-black text-gray-900 dark:text-white">${sub.amount.toFixed(2)}</p>
+                    <p className="text-2xl font-black text-gray-900 dark:text-white">{getCurrencySymbol(displayCurrency)}{sub.amount.toFixed(2)}</p>
                     <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Last: {sub.lastDate}</p>
                   </div>
                   

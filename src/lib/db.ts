@@ -79,6 +79,32 @@ export interface Goal {
   synced: boolean;
 }
 
+export interface Investment {
+  id?: number;
+  name: string;
+  symbol?: string;
+  type: 'Stock' | 'Crypto' | 'Mutual Fund' | 'Other';
+  quantity: number;
+  costBasis: number; // Total cost paid
+  currentPrice: number; // Current price per unit
+  datePurchased: string;
+  accountId?: number; // Related bank/brokerage account
+  notes?: string;
+  synced: boolean;
+}
+
+export interface Asset {
+  id?: number;
+  name: string;
+  type: 'Property' | 'Vehicle' | 'Collectibles' | 'Other';
+  purchasePrice: number;
+  currentValuation: number;
+  purchaseDate: string;
+  notes?: string;
+  imageUrl?: string;
+  synced: boolean;
+}
+
 export interface Milestone {
   id?: number;
   type: 'streak' | 'badge';
@@ -96,18 +122,22 @@ export class ZenithDB extends Dexie {
   budgets!: Table<Budget>;
   recurringTransactions!: Table<RecurringTransaction>;
   goals!: Table<Goal>;
+  investments!: Table<Investment>;
+  assets!: Table<Asset>;
   milestones!: Table<Milestone>;
   settings!: Table<AppSetting>;
   categoryMetadata!: Table<CategoryMetadata>;
 
   constructor() {
     super('ZenithDB');
-    this.version(13).stores({
+    this.version(14).stores({
       transactions: '++id, date, category, type, accountId, toAccountId, synced',
       accounts: '++id, name, type, isPrivate, synced',
       budgets: '++id, category, synced',
       recurringTransactions: '++id, frequency, accountId, toAccountId, synced',
       goals: '++id, name, category, synced',
+      investments: '++id, symbol, type, synced',
+      assets: '++id, type, synced',
       milestones: '++id, type, name, synced',
       settings: 'key',
       categoryMetadata: 'name'

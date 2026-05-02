@@ -37,6 +37,17 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
   const [isProcessing, setIsProcessing] = useState(false);
   const [showLiquidBreakdown, setShowLiquidBreakdown] = useState(false);
 
+  const investments = useLiveQuery(() => db.investments.toArray()) || [];
+  const assets = useLiveQuery(() => db.assets.toArray()) || [];
+
+  const totalInvestmentValue = useMemo(() => 
+    investments.reduce((sum, i) => sum + convertCurrency(i.quantity * i.currentPrice, 'USD', displayCurrency), 0)
+  , [investments, displayCurrency]);
+
+  const totalPhysicalAssetValue = useMemo(() => 
+    assets.reduce((sum, a) => sum + convertCurrency(a.currentValuation, 'USD', displayCurrency), 0)
+  , [assets, displayCurrency]);
+
   const categoryMetadata = useLiveQuery(() => db.categoryMetadata.toArray()) || [];
   const colorMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -152,6 +163,11 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
     }, 0);
     const netWorth = totalBalance + totalAssetValue;
 
+    // Fetch and add Investments & Assets to net worth
+    // Note: Since stats is a useMemo, we can't easily wait for useLiveQuery inside it
+    // But we can pull them directly from db if needed, or pass them as props.
+    // However, Dashboard already has access to db.
+
     const workingTransactions = (householdView ? filteredTransactions : filteredTransactions.map(t => {
       const acc = accounts.find(a => a.id === t.accountId);
       if (acc?.ownershipPercentage) {
@@ -231,8 +247,8 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       income, 
       expenses, 
       totalBalance, 
-      netWorth, 
-      totalAssetValue, 
+      netWorth: netWorth + totalInvestmentValue + totalPhysicalAssetValue, 
+      totalAssetValue: totalAssetValue + totalInvestmentValue + totalPhysicalAssetValue, 
       liquidBalance: liquidBalanceInDisplay, 
       totalDebt: totalDebtInDisplay, 
       pieData, 
@@ -245,7 +261,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       filteredTransactions,
       filteredRecurring
     };
-  }, [transactions, accounts, budgets, recurring, goals, householdView, accountBalances, displayCurrency]);
+  }, [transactions, accounts, budgets, recurring, goals, householdView, accountBalances, displayCurrency, totalInvestmentValue, totalPhysicalAssetValue]);
 
   const getAccountName = (id: number) => accounts.find(a => a.id === id)?.name || 'Unknown';
 
@@ -419,7 +435,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       </div>
 
       {/* Account Manager Section */}
-      <AccountManager accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} />
+      <AccountManager accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} displayCurrency={displayCurrency} />
 
       {/* Savings Goals Section */}
       <SavingsGoals goals={goals} accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} monthlySavings={stats.monthlySavings} displayCurrency={displayCurrency} />

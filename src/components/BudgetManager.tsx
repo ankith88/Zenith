@@ -250,6 +250,7 @@ export default function BudgetManager({ budgets, transactions, accounts, display
                 <BudgetFraming 
                   transactions={transactions} 
                   accounts={accounts} 
+                  displayCurrency={displayCurrency}
                   onComplete={() => setIsFraming(false)} 
                 />
               </div>

@@ -6,46 +6,56 @@ import {
 import { Calendar, TrendingUp, TrendingDown, Wallet, ArrowRight, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Transaction, Account, RecurringTransaction } from '../lib/db';
-import { formatLocalDate } from '../lib/utils';
+import { formatLocalDate, getCurrencySymbol, convertCurrency } from '../lib/utils';
 
 interface CashFlowCalendarProps {
   transactions: Transaction[];
   accounts: Account[];
   recurring: RecurringTransaction[];
+  displayCurrency: string;
 }
 
-export default function CashFlowCalendar({ transactions, accounts, recurring }: CashFlowCalendarProps) {
+export default function CashFlowCalendar({ transactions, accounts, recurring, displayCurrency }: CashFlowCalendarProps) {
   const projection = useMemo(() => {
     const today = new Date();
     const days = 30;
     const data = [];
     
-    // Calculate current balance
-    const accountBalances = accounts.reduce((acc, account) => {
-      acc[account.id!] = account.initialBalance;
+    // Calculate current balance in display currency
+    const accountBalancesDis = accounts.reduce((acc, account) => {
+      const balanceInDisplay = convertCurrency(account.initialBalance, account.currency || 'USD', displayCurrency);
+      acc[account.id!] = balanceInDisplay;
       return acc;
     }, {} as Record<number, number>);
 
     transactions.forEach(t => {
+      const acc = accounts.find(a => a.id === t.accountId);
+      const toAcc = t.toAccountId ? accounts.find(a => a.id === t.toAccountId) : null;
+      const amountInDisplay = convertCurrency(t.amount, acc?.currency || 'USD', displayCurrency);
+
       if (t.type === 'Income') {
-        accountBalances[t.accountId] = (accountBalances[t.accountId] || 0) + t.amount;
+        accountBalancesDis[t.accountId] = (accountBalancesDis[t.accountId] || 0) + amountInDisplay;
       } else if (t.type === 'Expense') {
-        accountBalances[t.accountId] = (accountBalances[t.accountId] || 0) - t.amount;
+        accountBalancesDis[t.accountId] = (accountBalancesDis[t.accountId] || 0) - amountInDisplay;
       } else if (t.type === 'Transfer' && t.toAccountId) {
-        accountBalances[t.accountId] = (accountBalances[t.accountId] || 0) - t.amount;
-        accountBalances[t.toAccountId] = (accountBalances[t.toAccountId] || 0) + t.amount;
+        accountBalancesDis[t.accountId] = (accountBalancesDis[t.accountId] || 0) - amountInDisplay;
+        const toAmountInDisplay = convertCurrency(t.amount, toAcc?.currency || 'USD', displayCurrency); // Technically should be same relative value but let's be precise
+        accountBalancesDis[t.toAccountId] = (accountBalancesDis[t.toAccountId] || 0) + toAmountInDisplay;
       }
     });
 
-    let currentTotal = Object.values(accountBalances).reduce((sum, b) => sum + b, 0);
+    let currentTotal = Object.values(accountBalancesDis).reduce((sum, b) => sum + b, 0);
     
-    // Calculate average daily spend (last 30 days)
+    // Calculate average daily spend (last 30 days) in display currency
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(today.getDate() - 30);
-    const last30DaysExpenses = transactions
+    const last30DaysExpensesDis = transactions
       .filter(t => t.type === 'Expense' && new Date(t.date) >= thirtyDaysAgo)
-      .reduce((sum, t) => sum + t.amount, 0);
-    const avgDailySpend = last30DaysExpenses / 30;
+      .reduce((sum, t) => {
+        const acc = accounts.find(a => a.id === t.accountId);
+        return sum + convertCurrency(t.amount, acc?.currency || 'USD', displayCurrency);
+      }, 0);
+    const avgDailySpend = last30DaysExpensesDis / 30;
 
     // Project forward
     for (let i = 0; i < days; i++) {
@@ -74,8 +84,12 @@ export default function CashFlowCalendar({ transactions, accounts, recurring }: 
         if (r.frequency === 'Weekly') return start.getDay() === date.getDay();
         return false;
       });
-      const recurringNet = dayRecurring.reduce((sum, r) => 
-        r.type === 'Income' ? sum + r.amount : sum - r.amount, 0);
+
+      const recurringNet = dayRecurring.reduce((sum, r) => {
+        const acc = accounts.find(a => a.id === r.accountId);
+        const amountDis = convertCurrency(r.amount, acc?.currency || 'USD', displayCurrency);
+        return r.type === 'Income' ? sum + amountDis : sum - amountDis;
+      }, 0);
 
       currentTotal += recurringNet - avgDailySpend;
       
@@ -83,12 +97,12 @@ export default function CashFlowCalendar({ transactions, accounts, recurring }: 
         date: dateStr,
         balance: Math.max(0, currentTotal),
         recurring: recurringNet,
-        isLow: currentTotal < 1000 // Flag low balance
+        isLow: currentTotal < 1000 // Flag low balance (in display currency)
       });
     }
 
     return data;
-  }, [transactions, accounts, recurring]);
+  }, [transactions, accounts, recurring, displayCurrency]);
 
   const lowBalancePoints = projection.filter(p => p.isLow);
   const finalBalance = projection[projection.length - 1].balance;
@@ -140,7 +154,7 @@ export default function CashFlowCalendar({ transactions, accounts, recurring }: 
                 axisLine={false} 
                 tickLine={false} 
                 tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }}
-                tickFormatter={(val) => `$${val.toLocaleString()}`}
+                tickFormatter={(val) => `${getCurrencySymbol(displayCurrency)}${val.toLocaleString()}`}
               />
               <Tooltip 
                 contentStyle={{ 
@@ -153,7 +167,7 @@ export default function CashFlowCalendar({ transactions, accounts, recurring }: 
                 }}
                 itemStyle={{ fontSize: '14px', fontWeight: 'black', color: document.documentElement.classList.contains('dark') ? '#ffffff' : '#000000' }}
                 labelStyle={{ fontSize: '10px', fontWeight: 'bold', color: '#9ca3af', marginBottom: '4px', textTransform: 'uppercase' }}
-                formatter={(value: number) => [`$${value.toLocaleString()}`, 'Projected Balance']}
+                formatter={(value: number) => [`${getCurrencySymbol(displayCurrency)}${value.toLocaleString()}`, 'Projected Balance']}
               />
               <Area 
                 type="monotone" 
@@ -172,7 +186,7 @@ export default function CashFlowCalendar({ transactions, accounts, recurring }: 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
           <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">End of Month Projection</p>
-          <h3 className="text-2xl font-black text-gray-900 dark:text-white">${finalBalance.toLocaleString()}</h3>
+          <h3 className="text-2xl font-black text-gray-900 dark:text-white">{getCurrencySymbol(displayCurrency)}{finalBalance.toLocaleString()}</h3>
           <div className="mt-2 flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
             <Sparkles className="w-3 h-3" />
             AI Predicted
@@ -181,7 +195,7 @@ export default function CashFlowCalendar({ transactions, accounts, recurring }: 
 
         <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
           <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">Daily Burn Rate</p>
-          <h3 className="text-2xl font-black text-gray-900 dark:text-white">${(finalBalance < startBalance ? (startBalance - finalBalance) / 30 : 0).toLocaleString()}/day</h3>
+          <h3 className="text-2xl font-black text-gray-900 dark:text-white">{getCurrencySymbol(displayCurrency)}{(finalBalance < startBalance ? (startBalance - finalBalance) / 30 : 0).toLocaleString()}/day</h3>
           <p className="mt-2 text-xs font-bold text-gray-400 dark:text-gray-500">Based on last 30 days</p>
         </div>
 
@@ -199,7 +213,7 @@ export default function CashFlowCalendar({ transactions, accounts, recurring }: 
           <p className={`mt-2 text-xs font-bold ${
             lowBalancePoints.length > 0 ? 'text-rose-400 dark:text-rose-500' : 'text-emerald-400 dark:text-emerald-500'
           }`}>
-            {lowBalancePoints.length > 0 ? 'Balance predicted below $1,000' : 'Healthy runway detected'}
+            {lowBalancePoints.length > 0 ? `Balance predicted below ${getCurrencySymbol(displayCurrency)}1,000` : 'Healthy runway detected'}
           </p>
         </div>
       </div>
@@ -213,7 +227,7 @@ export default function CashFlowCalendar({ transactions, accounts, recurring }: 
             <div>
               <h3 className="text-xl font-black mb-2">Liquidity Warning</h3>
               <p className="text-rose-100 font-medium text-sm leading-relaxed max-w-2xl">
-                Zenith predicts your balance will dip below your $1,000 safety threshold on **{new Date(lowBalancePoints[0].date).toLocaleDateString()}**. 
+                Zenith predicts your balance will dip below your {getCurrencySymbol(displayCurrency)}1,000 safety threshold on **{new Date(lowBalancePoints[0].date).toLocaleDateString()}**. 
                 Consider initiating a transfer from your business account or delaying non-essential expenses around this date.
               </p>
             </div>

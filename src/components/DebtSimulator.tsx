@@ -6,10 +6,12 @@ import {
 import { TrendingDown, Zap, Snowflake, Calculator, AlertCircle, CheckCircle2, ArrowRight, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Account, Transaction } from '../lib/db';
+import { getCurrencySymbol, convertCurrency } from '../lib/utils';
 
 interface DebtSimulatorProps {
   accounts: Account[];
   transactions: Transaction[];
+  displayCurrency: string;
 }
 
 interface DebtItem {
@@ -20,7 +22,7 @@ interface DebtItem {
   minPayment: number;
 }
 
-export default function DebtSimulator({ accounts, transactions }: DebtSimulatorProps) {
+export default function DebtSimulator({ accounts, transactions, displayCurrency }: DebtSimulatorProps) {
   const [strategy, setStrategy] = useState<'snowball' | 'avalanche'>('avalanche');
   const [extraPayment, setExtraPayment] = useState<number>(0);
 
@@ -47,12 +49,12 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
       .map(acc => ({
         id: acc.id!,
         name: acc.name,
-        balance: Math.abs(accountBalances[acc.id!]),
+        balance: convertCurrency(Math.abs(accountBalances[acc.id!]), acc.currency || 'USD', displayCurrency),
         interestRate: acc.interestRate || 0,
-        minPayment: acc.minPayment || 0
+        minPayment: convertCurrency(acc.minPayment || 0, acc.currency || 'USD', displayCurrency)
       }))
       .filter(d => d.balance > 0);
-  }, [accounts, transactions]);
+  }, [accounts, transactions, displayCurrency]);
 
   const simulation = useMemo(() => {
     if (debts.length === 0) return null;
@@ -149,7 +151,7 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
             <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl border border-white/10">
               <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-1">Total Debt</p>
-              <h3 className="text-3xl font-black text-white">${debts.reduce((sum, d) => sum + d.balance, 0).toLocaleString()}</h3>
+              <h3 className="text-3xl font-black text-white">{getCurrencySymbol(displayCurrency)}{debts.reduce((sum, d) => sum + d.balance, 0).toLocaleString()}</h3>
             </div>
             <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl border border-white/10">
               <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-1">Payoff Timeline</p>
@@ -157,7 +159,7 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
             </div>
             <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl border border-white/10">
               <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-1">Total Interest</p>
-              <h3 className="text-3xl font-black text-white">${simulation?.totalInterest.toLocaleString()}</h3>
+              <h3 className="text-3xl font-black text-white">{getCurrencySymbol(displayCurrency)}{simulation?.totalInterest.toLocaleString()}</h3>
             </div>
           </div>
         </div>
@@ -193,7 +195,7 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
               <div>
                 <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2 block">Extra Monthly Payment</label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 dark:text-gray-500">$</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 dark:text-gray-500">{getCurrencySymbol(displayCurrency)}</span>
                   <input
                     type="number"
                     value={extraPayment}
@@ -219,10 +221,10 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
                   <div>
                     <p className="font-bold text-gray-900 dark:text-white">{debt.name}</p>
                     <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-                      {debt.interestRate}% APR • ${debt.minPayment}/mo
+                      {debt.interestRate}% APR • {getCurrencySymbol(displayCurrency)}{debt.minPayment}/mo
                     </p>
                   </div>
-                  <p className="font-black text-gray-900 dark:text-white">${debt.balance.toLocaleString()}</p>
+                  <p className="font-black text-gray-900 dark:text-white">{getCurrencySymbol(displayCurrency)}{debt.balance.toLocaleString()}</p>
                 </div>
               ))}
             </div>
@@ -260,7 +262,7 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
                     axisLine={false} 
                     tickLine={false} 
                     tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }}
-                    tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`}
+                    tickFormatter={(val) => `${getCurrencySymbol(displayCurrency)}${(val/1000).toFixed(0)}k`}
                   />
                   <Tooltip 
                     contentStyle={{ 
@@ -273,7 +275,7 @@ export default function DebtSimulator({ accounts, transactions }: DebtSimulatorP
                     }}
                     itemStyle={{ fontSize: '14px', fontWeight: 'black', color: '#e11d48' }}
                     labelStyle={{ fontSize: '10px', fontWeight: 'bold', color: '#9ca3af', marginBottom: '4px', textTransform: 'uppercase' }}
-                    formatter={(value: number) => [`$${value.toLocaleString()}`, 'Remaining Debt']}
+                    formatter={(value: number) => [`${getCurrencySymbol(displayCurrency)}${value.toLocaleString()}`, 'Remaining Debt']}
                     labelFormatter={(label) => `Month ${label}`}
                   />
                   <Area 

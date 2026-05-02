@@ -3,13 +3,15 @@ import { Search, Filter, ArrowUpRight, ArrowDownLeft, RefreshCw, Edit2, Trash2, 
 import { motion, AnimatePresence } from 'motion/react';
 import { Transaction, Account, db } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
+import { getCurrencySymbol, convertCurrency } from '../lib/utils';
 
 interface TransactionsProps {
   transactions: Transaction[];
   accounts: Account[];
+  displayCurrency: string;
 }
 
-export default function Transactions({ transactions, accounts }: TransactionsProps) {
+export default function Transactions({ transactions, accounts, displayCurrency }: TransactionsProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'All' | 'Income' | 'Expense' | 'Transfer'>('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -240,7 +242,19 @@ export default function Transactions({ transactions, accounts }: TransactionsPro
                     t.type === 'Income' ? 'text-emerald-600 dark:text-emerald-400' : 
                     t.type === 'Expense' ? 'text-red-600 dark:text-red-400' : 'text-indigo-600 dark:text-indigo-400'
                   }`}>
-                    {t.type === 'Income' ? '+' : t.type === 'Expense' ? '-' : ''}${t.amount.toLocaleString()}
+                    <div className="flex flex-col items-end">
+                      <span>
+                        {t.type === 'Income' ? '+' : t.type === 'Expense' ? '-' : ''}
+                        {getCurrencySymbol(accounts.find(a => a.id === t.accountId)?.currency)}
+                        {t.amount.toLocaleString()}
+                      </span>
+                      {accounts.find(a => a.id === t.accountId)?.currency !== displayCurrency && (
+                        <span className="text-[10px] font-medium opacity-60">
+                          ≈ {getCurrencySymbol(displayCurrency)}
+                          {convertCurrency(t.amount, accounts.find(a => a.id === t.accountId)?.currency || 'USD', displayCurrency).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-8 py-4 text-right">
                     <div className="flex items-center justify-end gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
