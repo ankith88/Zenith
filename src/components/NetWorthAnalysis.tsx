@@ -3,13 +3,15 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Transaction, Account } from '../lib/db';
 import { TrendingUp, TrendingDown, Activity, Scale, ArrowUpRight, ArrowDownRight, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
+import { convertCurrency, getCurrencySymbol } from '../lib/utils';
 
 interface NetWorthAnalysisProps {
   transactions: Transaction[];
   accounts: Account[];
+  displayCurrency: string;
 }
 
-export default function NetWorthAnalysis({ transactions, accounts, householdView }: NetWorthAnalysisProps & { householdView?: boolean }) {
+export default function NetWorthAnalysis({ transactions, accounts, householdView, displayCurrency }: NetWorthAnalysisProps & { householdView?: boolean }) {
   const trendData = useMemo(() => {
     const sortedTransactions = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
     
@@ -28,7 +30,7 @@ export default function NetWorthAnalysis({ transactions, accounts, householdView
       .reduce((sum, a) => {
         let bal = a.initialBalance;
         if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
-        return sum + bal;
+        return sum + convertCurrency(bal, a.currency || 'USD', displayCurrency);
       }, 0);
       
     let currentDebt = accounts
@@ -36,7 +38,7 @@ export default function NetWorthAnalysis({ transactions, accounts, householdView
       .reduce((sum, a) => {
         let bal = Math.abs(a.initialBalance);
         if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
-        return sum + bal;
+        return sum + convertCurrency(bal, a.currency || 'USD', displayCurrency);
       }, 0);
 
     const dates = Array.from(new Set(workingTransactions.map(t => t.date))).sort();
@@ -50,13 +52,14 @@ export default function NetWorthAnalysis({ transactions, accounts, householdView
         // Find the account to see if it's asset or debt
         const account = accounts.find(a => a.id === t.accountId);
         const isDebt = account && ['Mortgage', 'Car Loan', 'Credit Card'].includes(account.type);
+        const amountInDisplay = convertCurrency(t.amount, account?.currency || 'USD', displayCurrency);
 
         if (t.type === 'Income') {
-          if (isDebt) currentDebt -= t.amount; // Paying off debt
-          else currentAssets += t.amount;
+          if (isDebt) currentDebt -= amountInDisplay; // Paying off debt
+          else currentAssets += amountInDisplay;
         } else if (t.type === 'Expense') {
-          if (isDebt) currentDebt += t.amount; // Increasing debt
-          else currentAssets -= t.amount;
+          if (isDebt) currentDebt += amountInDisplay; // Increasing debt
+          else currentAssets -= amountInDisplay;
         }
       });
 
@@ -77,16 +80,16 @@ export default function NetWorthAnalysis({ transactions, accounts, householdView
     .reduce((sum, a) => {
       let bal = a.initialBalance;
       if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
-      return sum + bal;
-    }, 0), [accounts, householdView]);
+      return sum + convertCurrency(bal, a.currency || 'USD', displayCurrency);
+    }, 0), [accounts, householdView, displayCurrency]);
     
   const currentDebt = useMemo(() => accounts
     .filter(a => ['Mortgage', 'Car Loan', 'Credit Card'].includes(a.type))
     .reduce((sum, a) => {
       let bal = Math.abs(a.initialBalance);
       if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
-      return sum + bal;
-    }, 0), [accounts, householdView]);
+      return sum + convertCurrency(bal, a.currency || 'USD', displayCurrency);
+    }, 0), [accounts, householdView, displayCurrency]);
 
   const netWorth = currentAssets - currentDebt;
   
@@ -111,7 +114,7 @@ export default function NetWorthAnalysis({ transactions, accounts, householdView
             <TrendingUp className="w-24 h-24 text-emerald-600" />
           </div>
           <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Total Assets</p>
-          <h4 className="text-3xl font-black text-gray-900 dark:text-white mb-2">${currentAssets.toLocaleString()}</h4>
+          <h4 className="text-3xl font-black text-gray-900 dark:text-white mb-2">{getCurrencySymbol(displayCurrency)}{currentAssets.toLocaleString()}</h4>
           <div className="flex items-center gap-1 text-emerald-500 text-xs font-bold">
             <ArrowUpRight className="w-3 h-3" />
             <span>Growing Trend</span>
@@ -123,7 +126,7 @@ export default function NetWorthAnalysis({ transactions, accounts, householdView
             <TrendingDown className="w-24 h-24 text-rose-600" />
           </div>
           <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Total Liabilities</p>
-          <h4 className="text-3xl font-black text-gray-900 dark:text-white mb-2">${currentDebt.toLocaleString()}</h4>
+          <h4 className="text-3xl font-black text-gray-900 dark:text-white mb-2">{getCurrencySymbol(displayCurrency)}{currentDebt.toLocaleString()}</h4>
           <div className="flex items-center gap-1 text-rose-500 text-xs font-bold">
             <ArrowDownRight className="w-3 h-3" />
             <span>Decreasing Trend</span>
@@ -135,7 +138,7 @@ export default function NetWorthAnalysis({ transactions, accounts, householdView
             <Scale className="w-24 h-24 text-white dark:text-black" />
           </div>
           <p className="text-xs font-bold text-white/40 dark:text-black/40 uppercase tracking-widest mb-2">Net Worth</p>
-          <h4 className="text-3xl font-black text-white dark:text-black mb-2">${netWorth.toLocaleString()}</h4>
+          <h4 className="text-3xl font-black text-white dark:text-black mb-2">{getCurrencySymbol(displayCurrency)}{netWorth.toLocaleString()}</h4>
           <div className={`flex items-center gap-1 text-xs font-bold ${netWorth >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
             {netWorth >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
             <span>{netWorth >= 0 ? 'Positive Equity' : 'Negative Equity'}</span>
@@ -192,7 +195,7 @@ export default function NetWorthAnalysis({ transactions, accounts, householdView
                 axisLine={false} 
                 tickLine={false} 
                 tick={{ fontSize: 12, fontWeight: 600, fill: '#9ca3af' }}
-                tickFormatter={(val) => `$${val >= 1000 ? (val/1000) + 'k' : val}`}
+                tickFormatter={(val) => `${getCurrencySymbol(displayCurrency)}${val >= 1000 ? (val/1000) + 'k' : val}`}
               />
               <Tooltip 
                 contentStyle={{ 

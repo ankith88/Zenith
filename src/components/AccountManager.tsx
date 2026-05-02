@@ -31,7 +31,10 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
     paymentFrequency: 'Monthly',
     paymentDueDay: '',
     ownershipPercentage: '100',
-    currency: 'USD'
+    currency: 'USD',
+    principalAmount: '',
+    tenorMonths: '',
+    maturityDate: '',
   });
 
   const commonNames = ['Main Checking', 'Emergency Fund', 'Mortgage Offset', 'Travel Savings', 'Side Hustle', 'Daily Cash', 'Salary Hub', 'Business Account', 'Home Mortgage'];
@@ -54,6 +57,9 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
         paymentDueDay: formData.paymentDueDay ? parseInt(formData.paymentDueDay) : undefined,
         ownershipPercentage: formData.ownershipPercentage ? parseFloat(formData.ownershipPercentage) : undefined,
         currency: formData.currency,
+        tenorMonths: formData.tenorMonths ? parseInt(formData.tenorMonths) : undefined,
+        maturityDate: formData.maturityDate || undefined,
+        principalAmount: formData.principalAmount ? parseFloat(formData.principalAmount) : undefined,
         owner: formData.owner,
         isPrivate: formData.isPrivate,
         synced: false
@@ -64,7 +70,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
       await db.accounts.update(newAccount.id!, { synced: true });
       
       setIsAdding(false);
-      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '', paymentFrequency: 'Monthly', paymentDueDay: '', ownershipPercentage: '100', currency: 'USD' });
+      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '', paymentFrequency: 'Monthly', paymentDueDay: '', ownershipPercentage: '100', currency: 'USD', principalAmount: '', tenorMonths: '', maturityDate: '' });
     } catch (error) {
       console.error("Add account error:", error);
     } finally {
@@ -85,7 +91,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
       await sheetsService.updateAccount(updatedAccount);
       await db.accounts.update(editingAccount.id!, { synced: true });
       setEditingAccount(null);
-      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '', paymentFrequency: 'Monthly', paymentDueDay: '', ownershipPercentage: '100', currency: 'USD' });
+      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '', paymentFrequency: 'Monthly', paymentDueDay: '', ownershipPercentage: '100', currency: 'USD', principalAmount: '', tenorMonths: '', maturityDate: '' });
     } catch (error) {
       console.error("Update account error:", error);
     } finally {
@@ -155,6 +161,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
   const getIcon = (type: string) => {
     switch (type) {
       case 'Savings': return <Landmark className="w-5 h-5" />;
+      case 'Fixed Deposit': return <ShieldCheck className="w-5 h-5" />;
       case 'Offset Account': return <ShieldCheck className="w-5 h-5" />;
       case 'Checking': return <Wallet className="w-5 h-5" />;
       case 'Credit Card': return <CreditCard className="w-5 h-5" />;
@@ -208,6 +215,12 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                 )}
               </div>
               <p className="text-xs text-gray-400 dark:text-gray-500">{acc.type}</p>
+              {acc.type === 'Fixed Deposit' && (
+                <div className="mt-1 space-y-0.5">
+                  {acc.principalAmount && <p className="text-[10px] font-bold text-indigo-500">Principal: {getCurrencySymbol(acc.currency)}{acc.principalAmount.toLocaleString()}</p>}
+                  {acc.maturityDate && <p className="text-[10px] text-gray-400">Matures: {acc.maturityDate}</p>}
+                </div>
+              )}
               {acc.type === 'Credit Card' && acc.creditLimit && (
                 <div className="mt-2 w-full bg-gray-100 dark:bg-gray-800 h-1 rounded-full overflow-hidden">
                   <div 
@@ -424,6 +437,7 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                   >
                     <option value="Checking">Checking</option>
                     <option value="Savings">Savings</option>
+                    <option value="Fixed Deposit">Fixed Deposit</option>
                     <option value="Offset Account">Offset Account</option>
                     <option value="Salary Account">Salary Account</option>
                     <option value="Daily Account">Daily Account</option>
@@ -448,10 +462,10 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                   )}
                 </div>
 
-                {( (editingAccount && (editingAccount.type === 'Credit Card' || editingAccount.type === 'Mortgage')) || (!editingAccount && (formData.type === 'Credit Card' || formData.type === 'Mortgage')) ) && (
+                {( (editingAccount && (['Credit Card', 'Mortgage', 'Savings', 'Fixed Deposit', 'Car Loan', 'Personal Loan'].includes(editingAccount.type))) || (!editingAccount && (['Credit Card', 'Mortgage', 'Savings', 'Fixed Deposit', 'Car Loan', 'Personal Loan'].includes(formData.type))) ) && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Interest Rate (%)</label>
+                      <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Annual Interest Rate (%)</label>
                       <input
                         type="number"
                         step="0.01"
@@ -461,16 +475,59 @@ export default function AccountManager({ accounts, accountBalances }: AccountMan
                         className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                       />
                     </div>
-                    <div>
-                      <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Min. Payment</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={editingAccount ? editingAccount.minPayment || '' : formData.minPayment}
-                        onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, minPayment: parseFloat(e.target.value) }) : setFormData({ ...formData, minPayment: e.target.value })}
-                        placeholder="0.00"
-                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
-                      />
+                    {((editingAccount && (['Credit Card', 'Mortgage', 'Car Loan', 'Personal Loan'].includes(editingAccount.type))) || (!editingAccount && (['Credit Card', 'Mortgage', 'Car Loan', 'Personal Loan'].includes(formData.type)))) && (
+                      <div>
+                        <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Min. Payment</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editingAccount ? editingAccount.minPayment || '' : formData.minPayment}
+                          onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, minPayment: parseFloat(e.target.value) }) : setFormData({ ...formData, minPayment: e.target.value })}
+                          placeholder="0.00"
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {( (editingAccount && editingAccount.type === 'Fixed Deposit') || (!editingAccount && formData.type === 'Fixed Deposit') ) && (
+                  <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/30 space-y-3">
+                    <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400">
+                      <TrendingUp className="w-4 h-4" />
+                      <span className="text-xs font-bold uppercase tracking-wider">Fixed Deposit Details</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold text-indigo-600 dark:text-indigo-500 uppercase mb-1 block">Principal Amount</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editingAccount ? editingAccount.principalAmount || '' : formData.principalAmount}
+                          onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, principalAmount: parseFloat(e.target.value) }) : setFormData({ ...formData, principalAmount: e.target.value })}
+                          placeholder="0.00"
+                          className="w-full px-4 py-2 bg-white dark:bg-gray-800 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-indigo-600 dark:text-indigo-500 uppercase mb-1 block">Tenor (Months)</label>
+                        <input
+                          type="number"
+                          value={editingAccount ? editingAccount.tenorMonths || '' : formData.tenorMonths}
+                          onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, tenorMonths: parseInt(e.target.value) }) : setFormData({ ...formData, tenorMonths: e.target.value })}
+                          placeholder="e.g. 12"
+                          className="w-full px-4 py-2 bg-white dark:bg-gray-800 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-[10px] font-bold text-indigo-600 dark:text-indigo-500 uppercase mb-1 block">Maturity Date</label>
+                        <input
+                          type="date"
+                          value={editingAccount ? editingAccount.maturityDate || '' : formData.maturityDate}
+                          onChange={(e) => editingAccount ? setEditingAccount({ ...editingAccount, maturityDate: e.target.value }) : setFormData({ ...formData, maturityDate: e.target.value })}
+                          className="w-full px-4 py-2 bg-white dark:bg-gray-800 border-none rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}

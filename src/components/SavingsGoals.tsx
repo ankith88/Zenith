@@ -10,9 +10,10 @@ interface SavingsGoalsProps {
   accounts: Account[];
   accountBalances: Record<number, number>;
   monthlySavings: number;
+  displayCurrency: string;
 }
 
-export default function SavingsGoals({ goals, accounts, accountBalances, monthlySavings }: SavingsGoalsProps) {
+export default function SavingsGoals({ goals, accounts, accountBalances, monthlySavings, displayCurrency }: SavingsGoalsProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [deletingGoalId, setDeletingGoalId] = useState<number | null>(null);
@@ -122,7 +123,7 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
   const calculateETA = (goal: Goal) => {
     const linkedAccount = goal.accountId ? accounts.find(a => a.id === goal.accountId) : null;
     const currentAmount = goal.accountId ? (accountBalances[goal.accountId] || 0) : goal.currentAmount;
-    const goalCurrency = linkedAccount?.currency || 'USD';
+    const goalCurrency = linkedAccount?.currency || displayCurrency;
     
     const remaining = goal.targetAmount - currentAmount;
     if (remaining <= 0) return "Goal Reached!";
@@ -224,10 +225,10 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
                 <div className="flex items-end justify-between">
                   <div>
                     <p className="text-2xl font-black text-gray-900 dark:text-white">
-                      {getCurrencySymbol(linkedAccount?.currency)}{currentAmount.toLocaleString()}
+                      {getCurrencySymbol(linkedAccount?.currency || displayCurrency)}{currentAmount.toLocaleString()}
                     </p>
                     <p className="text-xs font-bold text-gray-400 dark:text-gray-500">
-                      of {getCurrencySymbol(linkedAccount?.currency)}{goal.targetAmount.toLocaleString()}
+                      of {getCurrencySymbol(linkedAccount?.currency || displayCurrency)}{goal.targetAmount.toLocaleString()}
                     </p>
                   </div>
                   <div className="text-right">

@@ -10,9 +10,10 @@ interface BudgetManagerProps {
   budgets: Budget[];
   transactions: Transaction[];
   accounts: Account[];
+  displayCurrency: string;
 }
 
-export default function BudgetManager({ budgets, transactions, accounts }: BudgetManagerProps) {
+export default function BudgetManager({ budgets, transactions, accounts, displayCurrency }: BudgetManagerProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [isFraming, setIsFraming] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -110,7 +111,7 @@ export default function BudgetManager({ budgets, transactions, accounts }: Budge
               <p className="text-xs text-gray-400 dark:text-gray-500">{budget.period}</p>
             </div>
             <div className="text-right flex flex-col items-end gap-1">
-              <p className="text-sm font-black text-gray-900 dark:text-white">{getCurrencySymbol('USD')}{budget.amount.toLocaleString()}</p>
+              <p className="text-sm font-black text-gray-900 dark:text-white">{getCurrencySymbol(displayCurrency)}{budget.amount.toLocaleString()}</p>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button 
                   onClick={() => handleEdit(budget)}

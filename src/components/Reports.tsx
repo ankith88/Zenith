@@ -24,7 +24,7 @@ interface ReportsProps {
 
 type ReportTab = 'overview' | 'networth' | 'anomalies' | 'mood' | 'framing';
 
-export default function Reports({ transactions, accounts, budgets, goals, householdView }: ReportsProps & { householdView?: boolean }) {
+export default function Reports({ transactions, accounts, budgets, goals, householdView, displayCurrency }: ReportsProps & { householdView?: boolean, displayCurrency: string }) {
   const [activeSubTab, setActiveSubTab] = useState<ReportTab>('overview');
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -52,12 +52,12 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
       return { ...t, amount };
     });
 
-    // Normalize to USD for global reporting
+    // Normalize to display currency for global reporting
     return baseFiltered.map(t => {
       const acc = accounts.find(a => a.id === t.accountId);
-      return { ...t, amountInUsd: convertCurrency(t.amount, acc?.currency || 'USD', 'USD') };
+      return { ...t, amountInDisplayCurrency: convertCurrency(t.amount, acc?.currency || 'USD', displayCurrency) };
     });
-  }, [transactions, accounts, householdView]);
+  }, [transactions, accounts, householdView, displayCurrency]);
 
   const categoryMetadata = useLiveQuery(() => db.categoryMetadata.toArray()) || [];
   const colorMap = useMemo(() => {
@@ -98,10 +98,10 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
     workingTransactions.forEach(t => {
       const date = new Date(t.date);
       const month = date.toLocaleString('default', { month: 'short', year: '2-digit' });
-      const amountInUsd = (t as any).amountInUsd;
+      const amountInDisplay = (t as any).amountInDisplayCurrency;
       if (data[month]) {
-        if (t.type === 'Income') data[month].income += amountInUsd;
-        else if (t.type === 'Expense') data[month].expense += amountInUsd;
+        if (t.type === 'Income') data[month].income += amountInDisplay;
+        else if (t.type === 'Expense') data[month].expense += amountInDisplay;
         data[month].net = data[month].income - data[month].expense;
       }
     });
@@ -114,12 +114,12 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
     const sortedTransactions = [...workingTransactions].sort((a, b) => a.date.localeCompare(b.date));
     const dailyNetWorth: Record<string, number> = {};
     
-    let currentBalanceInUsd = workingAccounts.reduce((sum, a) => {
+    let currentBalanceInDisplay = workingAccounts.reduce((sum, a) => {
       let balance = a.initialBalance;
       if (!householdView && a.ownershipPercentage) {
         balance = balance * (a.ownershipPercentage / 100);
       }
-      return sum + convertCurrency(balance, a.currency || 'USD', 'USD');
+      return sum + convertCurrency(balance, a.currency || 'USD', displayCurrency);
     }, 0);
     
     const dates = Array.from(new Set(sortedTransactions.map(t => t.date))).sort();
@@ -127,11 +127,11 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
     dates.forEach(date => {
       const dayTransactions = sortedTransactions.filter(t => t.date === date);
       dayTransactions.forEach(t => {
-        const amountInUsd = (t as any).amountInUsd;
-        if (t.type === 'Income') currentBalanceInUsd += amountInUsd;
-        else if (t.type === 'Expense') currentBalanceInUsd -= amountInUsd;
+        const amountInDisplay = (t as any).amountInDisplayCurrency;
+        if (t.type === 'Income') currentBalanceInDisplay += amountInDisplay;
+        else if (t.type === 'Expense') currentBalanceInDisplay -= amountInDisplay;
       });
-      dailyNetWorth[date] = currentBalanceInUsd;
+      dailyNetWorth[date] = currentBalanceInDisplay;
     });
 
     return Object.entries(dailyNetWorth).map(([date, value]) => ({
@@ -143,7 +143,7 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
   const categoryBreakdown = useMemo(() => {
     const categories: Record<string, number> = {};
     workingTransactions.filter(t => t.type === 'Expense').forEach(t => {
-      categories[t.category] = (categories[t.category] || 0) + (t as any).amountInUsd;
+      categories[t.category] = (categories[t.category] || 0) + (t as any).amountInDisplayCurrency;
     });
     return Object.entries(categories)
       .map(([name, value]) => ({ name, value, color: colorMap[name] }))
@@ -151,10 +151,10 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
   }, [workingTransactions, colorMap]);
 
   const savingsRate = useMemo(() => {
-    const totalIncomeInUsd = workingTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + (t as any).amountInUsd, 0);
-    const totalExpenseInUsd = workingTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + (t as any).amountInUsd, 0);
-    if (totalIncomeInUsd === 0) return 0;
-    return Math.max(0, ((totalIncomeInUsd - totalExpenseInUsd) / totalIncomeInUsd) * 100);
+    const totalIncomeInDisplay = workingTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + (t as any).amountInDisplayCurrency, 0);
+    const totalExpenseInDisplay = workingTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + (t as any).amountInDisplayCurrency, 0);
+    if (totalIncomeInDisplay === 0) return 0;
+    return Math.max(0, ((totalIncomeInDisplay - totalExpenseInDisplay) / totalIncomeInDisplay) * 100);
   }, [workingTransactions]);
 
   const PRESET_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#f43f5e', '#06b6d4', '#84cc16', '#71717a'];
@@ -236,23 +236,25 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
               <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
                 <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Avg. Monthly Spend</p>
                 <h4 className="text-3xl font-black text-gray-900 dark:text-white">
-                  ${(monthlyData.reduce((sum, d) => sum + d.expense, 0) / (monthlyData.length || 1)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  {getCurrencySymbol(displayCurrency)}{(monthlyData.reduce((sum, d) => sum + d.expense, 0) / (monthlyData.length || 1)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </h4>
               </div>
               <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm transition-colors">
                 <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Total Assets</p>
                 <h4 className="text-3xl font-black text-gray-900 dark:text-white">
-                  ${workingAccounts.filter(a => !['Mortgage', 'Car Loan', 'Credit Card'].includes(a.type)).reduce((sum, a) => {
+                  {getCurrencySymbol(displayCurrency)}
+                  {workingAccounts.filter(a => !['Mortgage', 'Car Loan', 'Credit Card'].includes(a.type)).reduce((sum, a) => {
                     let bal = a.initialBalance;
                     if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
-                    return sum + convertCurrency(bal, a.currency || 'USD', 'USD');
+                    return sum + convertCurrency(bal, a.currency || 'USD', displayCurrency);
                   }, 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </h4>
               </div>
               <div className="bg-black dark:bg-white p-6 rounded-3xl shadow-xl transition-colors">
                 <p className="text-xs font-bold text-white/40 dark:text-black/40 uppercase tracking-wider mb-1">Current Net Worth</p>
                 <h4 className="text-3xl font-black text-white dark:text-black">
-                  ${(netWorthData[netWorthData.length - 1]?.value || 0).toLocaleString()}
+                  {getCurrencySymbol(displayCurrency)}
+                  {(netWorthData[netWorthData.length - 1]?.value || 0).toLocaleString()}
                 </h4>
               </div>
             </div>
@@ -392,7 +394,7 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
                     <div key={i} className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color || PRESET_COLORS[i % PRESET_COLORS.length] }} />
                       <span className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate">{item.name}</span>
-                      <span className="text-xs font-bold text-gray-900 dark:text-white ml-auto">${item.value.toLocaleString()}</span>
+                      <span className="text-xs font-bold text-gray-900 dark:text-white ml-auto">{getCurrencySymbol(displayCurrency)}{item.value.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
@@ -406,7 +408,7 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
           >
-            <NetWorthAnalysis transactions={transactions} accounts={accounts} householdView={householdView} />
+            <NetWorthAnalysis transactions={transactions} accounts={accounts} householdView={householdView} displayCurrency={displayCurrency} />
           </motion.div>
         ) : activeSubTab === 'anomalies' ? (
           <motion.div
@@ -415,7 +417,7 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
           >
-            <AnomalyDetection transactions={transactions} accounts={accounts} householdView={householdView} />
+            <AnomalyDetection transactions={transactions} accounts={accounts} householdView={householdView} displayCurrency={displayCurrency} />
           </motion.div>
         ) : activeSubTab === 'mood' ? (
           <motion.div
@@ -433,7 +435,7 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
           >
-            <BudgetFraming transactions={transactions} accounts={accounts} householdView={householdView} />
+            <BudgetFraming transactions={transactions} accounts={accounts} householdView={householdView} displayCurrency={displayCurrency} />
           </motion.div>
         )}
       </AnimatePresence>

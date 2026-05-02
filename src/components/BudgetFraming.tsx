@@ -3,10 +3,12 @@ import { Transaction, Account, db } from '../lib/db';
 import { analystService } from '../lib/gemini';
 import { Layout, Loader2, Sparkles, Check, X, Shield, Heart, PiggyBank, ArrowRight, AlertTriangle, Activity, Scale } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { getCurrencySymbol } from '../lib/utils';
 
 interface BudgetFramingProps {
   transactions: Transaction[];
   accounts: Account[];
+  displayCurrency: string;
   onComplete?: () => void;
 }
 
@@ -25,7 +27,7 @@ interface FramingData {
   };
 }
 
-export default function BudgetFraming({ transactions, accounts, householdView, onComplete }: BudgetFramingProps & { householdView?: boolean }) {
+export default function BudgetFraming({ transactions, accounts, householdView, displayCurrency, onComplete }: BudgetFramingProps & { householdView?: boolean }) {
   const [framing, setFraming] = useState<FramingData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
@@ -210,11 +212,11 @@ export default function BudgetFraming({ transactions, accounts, householdView, o
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white/5 dark:bg-black/5 backdrop-blur-md p-6 rounded-3xl border border-white/10 dark:border-black/10">
               <p className="text-white/40 dark:text-black/40 text-[10px] font-black uppercase tracking-widest mb-2">Avg. Monthly Income</p>
-              <p className="text-3xl font-black">${framing.currentStats.avgMonthlyIncome.toLocaleString()}</p>
+              <p className="text-3xl font-black">{getCurrencySymbol(displayCurrency)}{framing.currentStats.avgMonthlyIncome.toLocaleString()}</p>
             </div>
             <div className="bg-white/5 dark:bg-black/5 backdrop-blur-md p-6 rounded-3xl border border-white/10 dark:border-black/10">
               <p className="text-white/40 dark:text-black/40 text-[10px] font-black uppercase tracking-widest mb-2">Avg. Monthly Expense</p>
-              <p className="text-3xl font-black">${framing.currentStats.avgMonthlyExpense.toLocaleString()}</p>
+              <p className="text-3xl font-black">{getCurrencySymbol(displayCurrency)}{framing.currentStats.avgMonthlyExpense.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -242,7 +244,7 @@ export default function BudgetFraming({ transactions, accounts, householdView, o
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-black text-gray-900 dark:text-white">${b.amount.toLocaleString()}</p>
+                  <p className="text-lg font-black text-gray-900 dark:text-white">{getCurrencySymbol(displayCurrency)}{b.amount.toLocaleString()}</p>
                   <p className="text-[10px] font-bold text-gray-400 uppercase">{b.period}</p>
                 </div>
               </motion.div>

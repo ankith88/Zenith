@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LayoutDashboard, MessageSquare, Plus, Settings as SettingsIcon, LogOut, User, Menu, X, Loader2, Tag, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Plus, Settings as SettingsIcon, LogOut, User, Menu, X, Loader2, Tag, TrendingUp, ChevronLeft, ChevronRight, Sun, Moon, Home, Car, BarChart3, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, Transaction, Milestone } from './lib/db';
 import { sheetsService } from './lib/sheets';
 import { milestoneService } from './lib/milestones';
-import { formatLocalDate, parseLocalDate } from './lib/utils';
+import { formatLocalDate, parseLocalDate, SUPPORTED_CURRENCIES } from './lib/utils';
 import Dashboard from './components/Dashboard';
 import InsightsChat from './components/InsightsChat';
 import VoiceInput from './components/VoiceInput';
@@ -36,6 +36,10 @@ export default function App() {
     const saved = localStorage.getItem('zenith_sidebar_collapsed');
     return saved ? JSON.parse(saved) : false;
   });
+  const [displayCurrency, setDisplayCurrency] = useState(() => {
+    const saved = localStorage.getItem('zenith_display_currency');
+    return saved || 'USD';
+  });
   const [showMortgageWizard, setShowMortgageWizard] = useState(false);
   const [showCarLoanWizard, setShowCarLoanWizard] = useState(false);
   const [appLogo, setAppLogo] = useState<string | null>('/logo.svg');
@@ -51,6 +55,7 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('zenith_dark_mode', JSON.stringify(isDarkMode));
+    db.settings.put({ key: 'zenith_dark_mode', value: isDarkMode });
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -60,7 +65,13 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('zenith_sidebar_collapsed', JSON.stringify(isSidebarCollapsed));
+    db.settings.put({ key: 'zenith_sidebar_collapsed', value: isSidebarCollapsed });
   }, [isSidebarCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem('zenith_display_currency', displayCurrency);
+    db.settings.put({ key: 'zenith_display_currency', value: displayCurrency });
+  }, [displayCurrency]);
 
   useEffect(() => {
     (window as any).showMortgageWizard = () => setShowMortgageWizard(true);
@@ -105,6 +116,17 @@ export default function App() {
   useEffect(() => {
     const init = async () => {
       try {
+        // Load settings from DB for reliability
+        const [collapsed, currency, darkMode] = await Promise.all([
+          db.settings.get('zenith_sidebar_collapsed'),
+          db.settings.get('zenith_display_currency'),
+          db.settings.get('zenith_dark_mode')
+        ]);
+        
+        if (collapsed !== undefined) setIsSidebarCollapsed(collapsed.value);
+        if (currency !== undefined) setDisplayCurrency(currency.value);
+        if (darkMode !== undefined) setIsDarkMode(darkMode.value);
+
         await checkAuth();
       } catch (err) {
         console.error("Initialization error:", err);
@@ -128,15 +150,14 @@ export default function App() {
 
   const processInterest = async () => {
     try {
-      const loanAccounts = await db.accounts
-        .where('type')
-        .anyOf(['Mortgage', 'Car Loan', 'Credit Card'])
-        .toArray();
+      const allAccounts = await db.accounts.toArray();
+      const interestAccounts = allAccounts.filter(acc => acc.interestRate && acc.interestRate > 0);
+      
       const today = new Date();
       const todayStr = formatLocalDate(today);
 
-      for (const acc of loanAccounts) {
-        if (typeof acc.id !== 'number' || !acc.interestRate || acc.interestRate <= 0) continue;
+      for (const acc of interestAccounts) {
+        if (typeof acc.id !== 'number') continue;
 
         // Calculate current balance
         const accTransactions = await db.transactions.where('accountId').equals(acc.id).toArray();
@@ -151,15 +172,11 @@ export default function App() {
           if (t.type === 'Transfer') currentBalance += t.amount;
         });
 
-        // Only apply interest if balance is negative (debt) or it's a known debt account type
-        const isDebtAccount = acc.type === 'Mortgage' || acc.type === 'Credit Card' || acc.type === 'Car Loan';
-        if (currentBalance >= 0 && !isDebtAccount) {
-          continue; 
-        }
+        // Determine if it's debt or savings
+        const isDebtAccount = acc.type === 'Mortgage' || acc.type === 'Credit Card' || acc.type === 'Car Loan' || acc.type === 'Personal Loan' || (acc.type === 'Other' && currentBalance < 0);
+        const isSavingsAccount = acc.type === 'Savings' || acc.type === 'Fixed Deposit' || (acc.type === 'Other' && currentBalance > 0);
         
-        // Ensure balance is treated for calculation
-        const debtBalance = Math.abs(currentBalance);
-        if (debtBalance < 1) continue;
+        if (!isDebtAccount && !isSavingsAccount) continue;
         
         // Ensure paymentDueDay is set if missing
         if (acc.paymentDueDay === undefined) {
@@ -169,12 +186,10 @@ export default function App() {
           await db.accounts.update(acc.id!, { synced: true });
         }
 
-        // Use parseLocalDate to ensure we treat the stored date as local time
         let lastDate: Date;
         if (acc.lastInterestDate) {
           lastDate = parseLocalDate(acc.lastInterestDate);
         } else {
-          // Default to previous period
           lastDate = new Date(today);
           if (acc.paymentFrequency === 'Weekly') {
             lastDate.setDate(lastDate.getDate() - 7);
@@ -183,7 +198,6 @@ export default function App() {
           }
           
           if (acc.paymentFrequency === 'Weekly') {
-            // Adjust to the correct day of week
             const currentDay = lastDate.getDay();
             const diff = acc.paymentDueDay - currentDay;
             lastDate.setDate(lastDate.getDate() + diff);
@@ -191,8 +205,6 @@ export default function App() {
             lastDate.setDate(acc.paymentDueDay);
           }
 
-          // If the calculated lastDate is still in the future relative to today - period, 
-          // pull it back one more period to ensure we have a valid starting point
           if (lastDate > today) {
              if (acc.paymentFrequency === 'Weekly') {
                lastDate.setDate(lastDate.getDate() - 7);
@@ -222,35 +234,35 @@ export default function App() {
         while (nextDate <= today) {
           const dateStr = formatLocalDate(nextDate);
           
-          // Check if already exists to prevent duplicates on refresh
           const existing = await db.transactions
             .where('date').equals(dateStr)
-            .and(t => t.description === `[Interest] Monthly Interest Charge` && t.accountId === acc.id)
+            .and(t => (t.description === `[Interest] Monthly Interest Charge` || t.description === `[Interest] Monthly Interest Earned`) && t.accountId === acc.id)
             .first();
 
           if (!existing) {
             const rate = acc.interestRate / 100;
+            const absoluteBalance = Math.abs(currentBalance);
             const interestAmount = acc.paymentFrequency === 'Weekly' 
-              ? debtBalance * (rate / 52)
-              : debtBalance * (rate / 12);
+              ? absoluteBalance * (rate / 52)
+              : absoluteBalance * (rate / 12);
 
             if (interestAmount > 0.01) {
-              const interestTx: Transaction = {
+              const contributionTx: Transaction = {
                 date: dateStr,
                 amount: interestAmount,
                 category: 'Interest',
-                description: `[Interest] ${acc.paymentFrequency || 'Monthly'} Interest Charge`,
-                type: 'Expense',
+                description: isDebtAccount ? `[Interest] ${acc.paymentFrequency || 'Monthly'} Interest Charge` : `[Interest] Monthly Interest Earned`,
+                type: isDebtAccount ? 'Expense' : 'Income',
                 accountId: acc.id!,
                 synced: false
               };
 
-              const tId = await db.transactions.add(interestTx);
-              await sheetsService.appendTransaction({ ...interestTx, id: tId });
+              const tId = await db.transactions.add(contributionTx);
+              await sheetsService.appendTransaction({ ...contributionTx, id: tId });
               await db.transactions.update(tId, { synced: true });
               
-              // Update balance for next period calculation
-              currentBalance -= interestAmount;
+              if (isDebtAccount) currentBalance -= interestAmount;
+              else currentBalance += interestAmount;
             }
           }
 
@@ -275,13 +287,11 @@ export default function App() {
             }
           }
           
-          // Add a small delay to avoid hitting rate limits in tight loops
           await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
     } catch (err) {
       console.error("Interest processing failed:", err);
-      // Don't throw here to avoid crashing the app, but log it
     }
   };
 
@@ -562,6 +572,22 @@ export default function App() {
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isDarkMode ? 'left-5' : 'left-1'}`} />
                 </button>
               </div>
+
+              <div className={`flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-2xl transition-colors ${isSidebarCollapsed ? 'flex-col gap-2' : ''}`}>
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-gray-400" />
+                  {!isSidebarCollapsed && <span className="text-xs font-bold text-gray-600 dark:text-gray-400">Currency</span>}
+                </div>
+                <select
+                  value={displayCurrency}
+                  onChange={(e) => setDisplayCurrency(e.target.value)}
+                  className="bg-transparent border-none text-[10px] font-bold text-gray-600 dark:text-gray-400 focus:ring-0 cursor-pointer p-0"
+                >
+                  {SUPPORTED_CURRENCIES.map(c => (
+                    <option key={c.code} value={c.code} className="bg-white dark:bg-gray-900">{c.code}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {!isSidebarCollapsed && (
@@ -673,6 +699,7 @@ export default function App() {
                   milestones={milestones}
                   accountBalances={accountBalances}
                   householdView={householdView}
+                  displayCurrency={displayCurrency}
                   isDarkMode={isDarkMode}
                   onViewAllTransactions={() => setActiveTab('transactions')}
                 />
@@ -695,7 +722,7 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className="h-full p-6 lg:p-8"
               >
-                <Reports transactions={transactions} accounts={accounts} budgets={budgets} goals={goals} householdView={householdView} />
+                <Reports transactions={transactions} accounts={accounts} budgets={budgets} goals={goals} householdView={householdView} displayCurrency={displayCurrency} />
               </motion.div>
             ) : activeTab === 'calendar' ? (
               <motion.div

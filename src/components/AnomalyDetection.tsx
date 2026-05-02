@@ -3,13 +3,15 @@ import { Transaction, Account } from '../lib/db';
 import { analystService } from '../lib/gemini';
 import { AlertTriangle, Sparkles, Loader2, ChevronRight, TrendingUp, TrendingDown, DollarSign, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { getCurrencySymbol } from '../lib/utils';
 
 interface AnomalyDetectionProps {
   transactions: Transaction[];
   accounts: Account[];
+  displayCurrency: string;
 }
 
-export default function AnomalyDetection({ transactions, accounts, householdView }: AnomalyDetectionProps & { householdView?: boolean }) {
+export default function AnomalyDetection({ transactions, accounts, householdView, displayCurrency }: AnomalyDetectionProps & { householdView?: boolean }) {
   const [anomalies, setAnomalies] = useState<any[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [hasScanned, setHasScanned] = useState(false);
@@ -140,9 +142,9 @@ export default function AnomalyDetection({ transactions, accounts, householdView
                   <div className="flex items-center justify-between pt-4 border-t border-black/5 dark:border-white/5">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-white dark:bg-gray-800 rounded-xl flex items-center justify-center shadow-sm">
-                        <DollarSign className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500">{getCurrencySymbol(displayCurrency)}</span>
                       </div>
-                      <span className="text-sm font-bold text-gray-900 dark:text-white">${anomaly.amount.toLocaleString()}</span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white">{getCurrencySymbol(displayCurrency)}{anomaly.amount.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-white dark:bg-gray-800 rounded-xl flex items-center justify-center shadow-sm">

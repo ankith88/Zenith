@@ -4,7 +4,7 @@ import {
   BarChart, Bar, Cell, PieChart, Pie
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
-import { TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Landmark, Banknote, Trash2, Edit2, Target, X, Home, Briefcase, Car, Sparkles } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Landmark, Banknote, Trash2, Edit2, Target, X, Home, Briefcase, Car, Sparkles, ShieldCheck } from 'lucide-react';
 import { Transaction, Account, Budget, RecurringTransaction, Goal, Milestone, db } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
 import { formatLocalDate, convertCurrency, getCurrencySymbol } from '../lib/utils';
@@ -25,11 +25,12 @@ interface DashboardProps {
   milestones: Milestone[];
   accountBalances: Record<number, number>;
   householdView: boolean;
+  displayCurrency: string;
   isDarkMode: boolean;
   onViewAllTransactions?: () => void;
 }
 
-export default function Dashboard({ transactions, accounts, budgets, recurring, goals, milestones, accountBalances, householdView, isDarkMode, onViewAllTransactions }: DashboardProps) {
+export default function Dashboard({ transactions, accounts, budgets, recurring, goals, milestones, accountBalances, householdView, displayCurrency, isDarkMode, onViewAllTransactions }: DashboardProps) {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deletingTransactionId, setDeletingTransactionId] = useState<number | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -136,10 +137,10 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       })
     ) as Record<string, number>;
 
-    // Total balance in USD
+    // Total balance in display currency
     const totalBalance = Object.entries(filteredAccountBalances).reduce((sum, [id, balance]) => {
       const acc = accounts.find(a => a.id === parseInt(id));
-      return sum + convertCurrency(balance, acc?.currency || 'USD', 'USD');
+      return sum + convertCurrency(balance, acc?.currency || 'USD', displayCurrency);
     }, 0);
 
     const totalAssetValue = filteredAccounts.reduce((sum, acc) => {
@@ -147,7 +148,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       if (!householdView && acc.ownershipPercentage) {
         val = val * (acc.ownershipPercentage / 100);
       }
-      return sum + convertCurrency(val, acc.currency || 'USD', 'USD');
+      return sum + convertCurrency(val, acc.currency || 'USD', displayCurrency);
     }, 0);
     const netWorth = totalBalance + totalAssetValue;
 
@@ -159,14 +160,14 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       return t;
     })).map(t => {
       const acc = accounts.find(a => a.id === t.accountId);
-      return { ...t, amountInUsd: convertCurrency(t.amount, acc?.currency || 'USD', 'USD') };
+      return { ...t, amountInDisplayCurrency: convertCurrency(t.amount, acc?.currency || 'USD', displayCurrency) };
     });
 
-    const income = workingTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + (t as any).amountInUsd, 0);
-    const expenses = workingTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + (t as any).amountInUsd, 0);
+    const income = workingTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + (t as any).amountInDisplayCurrency, 0);
+    const expenses = workingTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + (t as any).amountInDisplayCurrency, 0);
     
     const categories = workingTransactions.filter(t => t.type === 'Expense').reduce((acc, t) => {
-      acc[t.category] = (acc[t.category] || 0) + (t as any).amountInUsd;
+      acc[t.category] = (acc[t.category] || 0) + (t as any).amountInDisplayCurrency;
       return acc;
     }, {} as Record<string, number>);
 
@@ -179,46 +180,46 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
     const dailyData = workingTransactions.reduce((acc, t) => {
       const date = t.date;
       if (!acc[date]) acc[date] = { date, income: 0, expense: 0 };
-      if (t.type === 'Income') acc[date].income += (t as any).amountInUsd;
-      else if (t.type === 'Expense') acc[date].expense += (t as any).amountInUsd;
+      if (t.type === 'Income') acc[date].income += (t as any).amountInDisplayCurrency;
+      else if (t.type === 'Expense') acc[date].expense += (t as any).amountInDisplayCurrency;
       return acc;
     }, {} as Record<string, any>);
 
     const areaData = Object.values(dailyData).sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
 
-    // Calculate monthly savings rate
+    // Calculate monthly savings rate in display currency
     const last30Days = new Date();
     last30Days.setDate(last30Days.getDate() - 30);
     const last30DaysStr = formatLocalDate(last30Days);
     
-    const recentIncome = filteredTransactions
+    const recentIncome = workingTransactions
       .filter(t => t.type === 'Income' && t.date >= last30DaysStr)
-      .reduce((sum, t) => sum + t.amount, 0);
-    const recentExpenses = filteredTransactions
+      .reduce((sum, t) => sum + (t as any).amountInDisplayCurrency, 0);
+    const recentExpenses = workingTransactions
       .filter(t => t.type === 'Expense' && t.date >= last30DaysStr)
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => sum + (t as any).amountInDisplayCurrency, 0);
     const monthlySavings = Math.max(0, recentIncome - recentExpenses);
 
-    // Calculate Liquid vs Debt in USD
-    let liquidBalanceInUsd = 0;
-    let totalDebtInUsd = 0;
+    // Calculate Liquid vs Debt in display currency
+    let liquidBalanceInDisplay = 0;
+    let totalDebtInDisplay = 0;
 
     filteredAccounts.forEach(acc => {
       const balance = filteredAccountBalances[acc.id!] || 0;
-      const balanceInUsd = convertCurrency(balance, acc.currency || 'USD', 'USD');
-      if (acc.type === 'Mortgage' || acc.type === 'Credit Card' || acc.type === 'Car Loan') {
-        totalDebtInUsd += Math.abs(balanceInUsd);
+      const balanceInDisplay = convertCurrency(balance, acc.currency || 'USD', displayCurrency);
+      if (acc.type === 'Mortgage' || acc.type === 'Credit Card' || acc.type === 'Car Loan' || acc.type === 'Personal Loan') {
+        totalDebtInDisplay += Math.abs(balanceInDisplay);
       } else {
-        liquidBalanceInUsd += balanceInUsd;
+        liquidBalanceInDisplay += balanceInDisplay;
       }
     });
 
-    // Calculate budget progress (Budget amounts are assumed to be in USD base)
+    // Calculate budget progress (Budget amounts are assumed to be in display currency)
     const budgetProgress = budgets.map(b => {
-      const spentInUsd = workingTransactions
+      const spentInDisplay = workingTransactions
         .filter(t => t.category === b.category && t.type === 'Expense')
-        .reduce((sum, t) => sum + (t as any).amountInUsd, 0);
-      return { ...b, spent: spentInUsd, percent: Math.min((spentInUsd / b.amount) * 100, 100) };
+        .reduce((sum, t) => sum + (t as any).amountInDisplayCurrency, 0);
+      return { ...b, spent: spentInDisplay, percent: Math.min((spentInDisplay / b.amount) * 100, 100) };
     });
 
     const unsyncedCount = transactions.filter(t => !t.synced).length + 
@@ -232,8 +233,8 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       totalBalance, 
       netWorth, 
       totalAssetValue, 
-      liquidBalance: liquidBalanceInUsd, 
-      totalDebt: totalDebtInUsd, 
+      liquidBalance: liquidBalanceInDisplay, 
+      totalDebt: totalDebtInDisplay, 
       pieData, 
       areaData, 
       accountBalances: filteredAccountBalances, 
@@ -244,7 +245,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       filteredTransactions,
       filteredRecurring
     };
-  }, [transactions, accounts, budgets, recurring, goals, householdView, accountBalances]);
+  }, [transactions, accounts, budgets, recurring, goals, householdView, accountBalances, displayCurrency]);
 
   const getAccountName = (id: number) => accounts.find(a => a.id === id)?.name || 'Unknown';
 
@@ -357,7 +358,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
             </div>
           </div>
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Income</p>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{getCurrencySymbol('USD')}{stats.income.toLocaleString()}</h3>
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{getCurrencySymbol(displayCurrency)}{stats.income.toLocaleString()}</h3>
         </div>
 
         <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-all group">
@@ -367,7 +368,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
             </div>
           </div>
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Expenses</p>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{getCurrencySymbol('USD')}{stats.expenses.toLocaleString()}</h3>
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{getCurrencySymbol(displayCurrency)}{stats.expenses.toLocaleString()}</h3>
         </div>
 
         <div 
@@ -383,7 +384,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
             </div>
           </div>
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400 relative z-10">Liquid Assets</p>
-          <h3 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1 relative z-10">{getCurrencySymbol('USD')}{stats.liquidBalance.toLocaleString()}</h3>
+          <h3 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1 relative z-10">{getCurrencySymbol(displayCurrency)}{stats.liquidBalance.toLocaleString()}</h3>
         </div>
 
         <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-rose-100 dark:border-rose-900/30 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
@@ -396,7 +397,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
             </div>
           </div>
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400 relative z-10">Total Debt</p>
-          <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1 relative z-10">{getCurrencySymbol('USD')}{stats.totalDebt.toLocaleString()}</h3>
+          <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1 relative z-10">{getCurrencySymbol(displayCurrency)}{stats.totalDebt.toLocaleString()}</h3>
         </div>
 
         <div className="bg-black dark:bg-white p-6 rounded-3xl shadow-xl dark:shadow-white/5 group relative overflow-hidden">
@@ -409,10 +410,10 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
             </div>
           </div>
           <p className="text-sm font-medium text-gray-400 dark:text-gray-600 relative z-10">Net Worth</p>
-          <h3 className="text-2xl font-bold text-white dark:text-black mt-1 relative z-10">{getCurrencySymbol('USD')}{stats.netWorth.toLocaleString()}</h3>
+          <h3 className="text-2xl font-bold text-white dark:text-black mt-1 relative z-10">{getCurrencySymbol(displayCurrency)}{stats.netWorth.toLocaleString()}</h3>
           <div className="mt-2 flex items-center gap-1 text-[9px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative z-10">
             <span>Assets:</span>
-            <span className="text-emerald-400">{getCurrencySymbol('USD')}{stats.totalAssetValue.toLocaleString()}</span>
+            <span className="text-emerald-400">{getCurrencySymbol(displayCurrency)}{stats.totalAssetValue.toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -421,7 +422,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       <AccountManager accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} />
 
       {/* Savings Goals Section */}
-      <SavingsGoals goals={goals} accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} monthlySavings={stats.monthlySavings} />
+      <SavingsGoals goals={goals} accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} monthlySavings={stats.monthlySavings} displayCurrency={displayCurrency} />
 
       {/* Milestones Section */}
       <Milestones milestones={milestones} />
@@ -503,7 +504,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
               <div key={i} className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color || PRESET_COLORS[i % PRESET_COLORS.length] }} />
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{item.name}</span>
-                <span className="text-sm font-bold text-gray-900 dark:text-white ml-auto">${item.value.toLocaleString()}</span>
+                <span className="text-sm font-bold text-gray-900 dark:text-white ml-auto">{getCurrencySymbol(displayCurrency)}{item.value.toLocaleString()}</span>
               </div>
             ))}
           </div>
@@ -526,8 +527,8 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                   <div className="flex justify-between text-sm">
                     <span className="font-bold text-gray-700 dark:text-gray-300">{budget.category}</span>
                     <span className="text-gray-400 dark:text-gray-500">
-                      <span className="text-gray-900 dark:text-white font-bold">${budget.spent.toLocaleString()}</span>
-                      {' / '}${budget.amount.toLocaleString()}
+                      <span className="text-gray-900 dark:text-white font-bold">{getCurrencySymbol(displayCurrency)}{budget.spent.toLocaleString()}</span>
+                      {' / '}{getCurrencySymbol(displayCurrency)}{budget.amount.toLocaleString()}
                     </span>
                   </div>
                   <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden shadow-inner">
@@ -553,7 +554,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
             <p className="text-gray-400 dark:text-gray-500 max-w-[240px]">Track your spending by setting monthly category budgets.</p>
           </div>
         )}
-        <BudgetManager budgets={budgets} transactions={transactions} accounts={accounts} />
+        <BudgetManager budgets={budgets} transactions={transactions} accounts={accounts} displayCurrency={displayCurrency} />
       </div>
 
       {/* Recurring Transactions */}
@@ -619,9 +620,19 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                     t.type === 'Income' ? 'text-emerald-600 dark:text-emerald-400' : 
                     t.type === 'Expense' ? 'text-red-600 dark:text-red-400' : 'text-indigo-600 dark:text-indigo-400'
                   }`}>
-                    {t.type === 'Income' ? '+' : t.type === 'Expense' ? '-' : ''}
-                    {getCurrencySymbol(accounts.find(a => a.id === t.accountId)?.currency)}
-                    {t.amount.toLocaleString()}
+                    <div className="flex flex-col items-end">
+                      <span>
+                        {t.type === 'Income' ? '+' : t.type === 'Expense' ? '-' : ''}
+                        {getCurrencySymbol(accounts.find(a => a.id === t.accountId)?.currency)}
+                        {t.amount.toLocaleString()}
+                      </span>
+                      {accounts.find(a => a.id === t.accountId)?.currency !== displayCurrency && (
+                        <span className="text-[10px] font-medium opacity-60">
+                          ≈ {getCurrencySymbol(displayCurrency)}
+                          {convertCurrency(t.amount, accounts.find(a => a.id === t.accountId)?.currency || 'USD', displayCurrency).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-8 py-4 text-right">
                     <div className="flex items-center justify-end gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
@@ -795,6 +806,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-white dark:bg-gray-700 rounded-xl flex items-center justify-center text-gray-900 dark:text-white shadow-sm border border-gray-100 dark:border-gray-600">
                           {acc.type === 'Savings' ? <Landmark className="w-5 h-5" /> : 
+                           acc.type === 'Fixed Deposit' ? <ShieldCheck className="w-5 h-5" /> :
                            acc.type === 'Checking' ? <Wallet className="w-5 h-5" /> : 
                            acc.type === 'Cash' ? <Banknote className="w-5 h-5" /> : 
                            acc.type === 'Business Account' ? <Briefcase className="w-5 h-5" /> :
@@ -809,9 +821,9 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                         <p className="text-lg font-black text-gray-900 dark:text-white">
                           {getCurrencySymbol(acc.currency)}{(stats.accountBalances[acc.id!] || 0).toLocaleString()}
                         </p>
-                        {acc.currency && acc.currency !== 'USD' && (
+                        {acc.currency && acc.currency !== displayCurrency && (
                           <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold">
-                            (${convertCurrency(stats.accountBalances[acc.id!] || 0, acc.currency, 'USD').toLocaleString()} USD)
+                            ({getCurrencySymbol(displayCurrency)}{convertCurrency(stats.accountBalances[acc.id!] || 0, acc.currency, displayCurrency).toLocaleString()} {displayCurrency})
                           </p>
                         )}
                       </div>
@@ -820,7 +832,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                 
                 <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
                   <p className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Total Liquid Assets</p>
-                  <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">${stats.liquidBalance.toLocaleString()}</p>
+                  <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{getCurrencySymbol(displayCurrency)}{stats.liquidBalance.toLocaleString()}</p>
                 </div>
               </div>
 

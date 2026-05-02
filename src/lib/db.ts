@@ -17,6 +17,9 @@ export interface Account {
   ownershipPercentage?: number; // 0-100, defaults to 100
   currency?: string; // e.g., 'USD', 'EUR', 'AUD', 'INR'
   synced: boolean;
+  tenorMonths?: number; 
+  maturityDate?: string;
+  principalAmount?: number;
 }
 
 export interface Transaction {
