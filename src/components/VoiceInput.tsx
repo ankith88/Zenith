@@ -65,28 +65,43 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
 
     setIsParsing(true);
     setIsMenuOpen(false);
+    setError(null);
+    
     try {
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const base64 = (reader.result as string).split(',')[1];
-        const data = await analystService.parseReceipt(base64, file.type);
-        setParsedData(data);
-        
-        // Auto-select accounts if AI found them
-        if (data.sourceAccount) {
-          const acc = accounts.find(a => a.name.toLowerCase().includes(data.sourceAccount!.toLowerCase()));
-          if (acc) setSelectedAccountId(acc.id!);
+        try {
+          const result = reader.result as string;
+          if (!result) throw new Error("Could not read file");
+          
+          const base64 = result.split(',')[1];
+          const data = await analystService.parseReceipt(base64, file.type);
+          setParsedData(data);
+          
+          // Auto-select accounts if AI found them
+          if (data.sourceAccount) {
+            const acc = accounts.find(a => a.name.toLowerCase().includes(data.sourceAccount!.toLowerCase()));
+            if (acc) setSelectedAccountId(acc.id!);
+          }
+          if (data.destinationAccount) {
+            const acc = accounts.find(a => a.name.toLowerCase().includes(data.destinationAccount!.toLowerCase()));
+            if (acc) setToAccountId(acc.id!);
+          }
+        } catch (error) {
+          console.error("Receipt processing err:", error);
+          setError("Failed to parse receipt. Please make sure the image is clear.");
+        } finally {
+          setIsParsing(false);
         }
-        if (data.destinationAccount) {
-          const acc = accounts.find(a => a.name.toLowerCase().includes(data.destinationAccount!.toLowerCase()));
-          if (acc) setToAccountId(acc.id!);
-        }
-        
+      };
+      reader.onerror = () => {
+        setError("Failed to read file.");
         setIsParsing(false);
       };
       reader.readAsDataURL(file);
     } catch (error) {
-      console.error("Receipt parsing error:", error);
+      console.error("File upload error:", error);
+      setError("An unexpected error occurred during upload.");
       setIsParsing(false);
     }
   };
@@ -141,13 +156,13 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
       });
       
       if (result.actionPerformed) {
-        // If an action was performed, we might want to show a success message or refresh data
+        // If an action was performed, we show a success message
         setTranscript(result.text);
-        // We don't need to setParsedData because the action is already done in db
+        // Reset after 5s
         setTimeout(() => {
-          setTranscript('');
-          // Refresh the page or trigger a global update if needed
-          window.location.reload(); 
+          if (!isMenuOpen) {
+            setTranscript('');
+          }
         }, 5000);
         return;
       }

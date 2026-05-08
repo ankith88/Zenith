@@ -456,7 +456,7 @@ export default function HoldingsManager({ investments, assets, displayCurrency }
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Total Cost Basis</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Total Invested (Cost Basis)</label>
                     <input
                       required
                       type="number"
@@ -466,6 +466,7 @@ export default function HoldingsManager({ investments, assets, displayCurrency }
                       onChange={e => setInvestmentForm({...investmentForm, costBasis: e.target.value})}
                       placeholder="0.00"
                     />
+                    <p className="text-[9px] text-gray-400 mt-1 font-medium">Total amount paid including all fees.</p>
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Current Price (Unit)</label>
