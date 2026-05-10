@@ -30,9 +30,15 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
   const [isPredicting, setIsPredicting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const transactions = useLiveQuery(() => db.transactions.toArray()) || [];
   const accounts = useLiveQuery(() => db.accounts.toArray()) || [];
   const budgets = useLiveQuery(() => db.budgets.toArray()) || [];
-  const categories = useMemo(() => Array.from(new Set(budgets.map(b => b.category))), [budgets]);
+  
+  const categories = useMemo(() => {
+    const fromBudgets = budgets.map(b => b.category);
+    const fromTransactions = transactions.map(t => t.category);
+    return Array.from(new Set([...fromBudgets, ...fromTransactions])).filter(Boolean).sort();
+  }, [budgets, transactions]);
 
   useEffect(() => {
     if (isManualEntry && manualData.description.length > 3 && categories.length > 0) {
@@ -396,11 +402,17 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
                 <div className="relative">
                   <input
                     type="text"
+                    list="category-suggestions"
                     value={manualData.category}
                     onChange={(e) => setManualData({ ...manualData, category: e.target.value })}
                     placeholder="e.g. Food"
                     className={`w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all ${isPredicting ? 'ring-1 ring-indigo-200' : ''}`}
                   />
+                  <datalist id="category-suggestions">
+                    {categories.map(cat => (
+                      <option key={cat} value={cat} />
+                    ))}
+                  </datalist>
                   {manualData.category && categories.includes(manualData.category) && (
                     <div className="absolute right-2 top-1/2 -translate-y-1/2">
                       <Check className="w-3 h-3 text-emerald-500" />

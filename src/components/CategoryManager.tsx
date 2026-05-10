@@ -141,14 +141,22 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
               
               <div className="flex flex-col">
                 {editingCategory === cat ? (
-                  <input
-                    autoFocus
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleRename(cat)}
-                    className="bg-gray-50 dark:bg-gray-800 border-none rounded-lg px-3 py-1 text-sm font-bold focus:ring-2 focus:ring-black dark:focus:ring-white outline-none text-gray-900 dark:text-white"
-                  />
+                  <div className="relative">
+                    <input
+                      autoFocus
+                      type="text"
+                      list="rename-category-suggestions"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleRename(cat)}
+                      className="bg-gray-50 dark:bg-gray-800 border-none rounded-lg px-3 py-1 text-sm font-bold focus:ring-2 focus:ring-black dark:focus:ring-white outline-none text-gray-900 dark:text-white"
+                    />
+                    <datalist id="rename-category-suggestions">
+                      {categories.filter(c => c !== cat).map(c => (
+                        <option key={c} value={c} />
+                      ))}
+                    </datalist>
+                  </div>
                 ) : (
                   <>
                     <span className="text-sm font-bold text-gray-900 dark:text-white">{cat}</span>

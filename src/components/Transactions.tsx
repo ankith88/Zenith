@@ -21,6 +21,7 @@ export default function Transactions({ transactions, accounts, displayCurrency }
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deletingTransactionId, setDeletingTransactionId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPredicting, setIsPredicting] = useState(false);
 
   const categories = useMemo(() => {
     const unique = new Set(transactions.map(t => t.category));
@@ -58,6 +59,24 @@ export default function Transactions({ transactions, accounts, displayCurrency }
       console.error("Update transaction error:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const predictCategory = async (description: string) => {
+    if (description.length <= 3 || categories.length === 0) return;
+    
+    setIsPredicting(true);
+    try {
+      // Lazy load analystService to avoid circular dependency or unnecessary imports
+      const { analystService } = await import('../lib/gemini');
+      const predicted = await analystService.predictCategory(description, categories.filter(c => c !== 'All'));
+      if (predicted && predicted !== 'Other' && editingTransaction) {
+        setEditingTransaction(prev => prev ? { ...prev, category: predicted } : null);
+      }
+    } catch (error) {
+      console.error("Prediction error:", error);
+    } finally {
+      setIsPredicting(false);
     }
   };
 
@@ -352,7 +371,13 @@ export default function Transactions({ transactions, accounts, displayCurrency }
                     required
                     type="text"
                     value={editingTransaction.description}
-                    onChange={(e) => setEditingTransaction({ ...editingTransaction, description: e.target.value })}
+                    onChange={(e) => {
+                      const newDesc = e.target.value;
+                      setEditingTransaction({ ...editingTransaction, description: newDesc });
+                      // Debounce prediction
+                      const timer = setTimeout(() => predictCategory(newDesc), 1000);
+                      return () => clearTimeout(timer);
+                    }}
                     className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                   />
                 </div>
@@ -370,13 +395,26 @@ export default function Transactions({ transactions, accounts, displayCurrency }
                   </div>
                   <div>
                     <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Category</label>
+                  <div className="relative">
                     <input
                       required
                       type="text"
+                      list="edit-category-suggestions"
                       value={editingTransaction.category}
                       onChange={(e) => setEditingTransaction({ ...editingTransaction, category: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
+                      className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all ${isPredicting ? 'ring-1 ring-indigo-200' : ''}`}
                     />
+                    <datalist id="edit-category-suggestions">
+                      {categories.filter(c => c !== 'All').map(cat => (
+                        <option key={cat} value={cat} />
+                      ))}
+                    </datalist>
+                    {isPredicting && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <RefreshCw className="w-4 h-4 animate-spin text-indigo-500" />
+                      </div>
+                    )}
+                  </div>
                   </div>
                 </div>
                 <div>
