@@ -13,6 +13,7 @@ import Markdown from 'react-markdown';
 import NetWorthAnalysis from './NetWorthAnalysis';
 import AnomalyDetection from './AnomalyDetection';
 import SpendingMood from './SpendingMood';
+import BudgetPerformance from './BudgetPerformance';
 import BudgetFraming from './BudgetFraming';
 
 interface ReportsProps {
@@ -22,7 +23,7 @@ interface ReportsProps {
   goals: Goal[];
 }
 
-type ReportTab = 'overview' | 'networth' | 'anomalies' | 'mood' | 'framing';
+type ReportTab = 'overview' | 'networth' | 'anomalies' | 'mood' | 'framing' | 'performance';
 
 export default function Reports({ transactions, accounts, budgets, goals, householdView, displayCurrency }: ReportsProps & { householdView?: boolean, displayCurrency: string }) {
   const [activeSubTab, setActiveSubTab] = useState<ReportTab>('overview');
@@ -219,6 +220,15 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
           >
             <Layout className="w-4 h-4" />
             Budget Framing
+          </button>
+          <button
+            onClick={() => setActiveSubTab('performance')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+              activeSubTab === 'performance' ? 'bg-white dark:bg-gray-700 text-black dark:text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            Performance History
           </button>
         </div>
       </div>
@@ -439,7 +449,7 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
           >
             <SpendingMood transactions={transactions} accounts={accounts} householdView={householdView} />
           </motion.div>
-        ) : (
+        ) : activeSubTab === 'framing' ? (
           <motion.div
             key="framing"
             initial={{ opacity: 0, y: 20 }}
@@ -447,6 +457,15 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
             exit={{ opacity: 0, y: -20 }}
           >
             <BudgetFraming transactions={transactions} accounts={accounts} householdView={householdView} displayCurrency={displayCurrency} />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="performance"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <BudgetPerformance budgets={budgets} transactions={transactions} accounts={accounts} displayCurrency={displayCurrency} />
           </motion.div>
         )}
       </AnimatePresence>

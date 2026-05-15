@@ -107,7 +107,10 @@ export class FinancialAnalystService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ transactions: transactions.slice(-200), today })
     });
-    if (!response.ok) throw new Error("Projection failed");
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+      throw new Error(errorData.error || "Projection failed");
+    }
     return response.json();
   }
 

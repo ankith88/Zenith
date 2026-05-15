@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LayoutDashboard, MessageSquare, Plus, Settings as SettingsIcon, LogOut, User, Menu, X, Loader2, Tag, TrendingUp, 
-  ChevronLeft, ChevronRight, Sun, Moon, Home, Car, BarChart3, Globe,
+  ChevronLeft, ChevronRight, Sun, Moon, Home, Car, BarChart3, Globe, Layout,
   ArrowRightLeft, Search, Calendar, ShieldCheck, TrendingDown, Palette, Rocket, Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -13,7 +13,6 @@ import { formatLocalDate, parseLocalDate, SUPPORTED_CURRENCIES } from './lib/uti
 import BudgetManager from './components/BudgetManager';
 import SavingsGoals from './components/SavingsGoals';
 import RecurringManager from './components/RecurringManager';
-import BudgetFraming from './components/BudgetFraming';
 import Dashboard from './components/Dashboard';
 import InsightsChat from './components/InsightsChat';
 import VoiceInput from './components/VoiceInput';
@@ -557,6 +556,14 @@ export default function App() {
             >
               <Tag className="w-5 h-5 shrink-0" />
               {!isSidebarCollapsed && <span>Categories</span>}
+            </button>
+            <button
+              onClick={() => { setActiveTab('budgets'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'budgets' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Budgets & Goals"
+            >
+              <Layout className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Budgets & Goals</span>}
             </button>
             <button
               onClick={() => { setActiveTab('transfers'); setIsSidebarOpen(false); }}

@@ -380,122 +380,44 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
         </div>
       </div>
 
-      {/* Quick Setup Banners */}
+      {/* Quick Setup Banners (Condensed) */}
       {(!hasMortgage || !hasBusiness || !hasCarLoan) && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="flex items-center gap-3 overflow-x-auto pb-4 no-scrollbar">
           {!hasMortgage && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-indigo-600 p-6 rounded-[32px] text-white flex items-center justify-between group cursor-pointer overflow-hidden relative"
+            <button 
               onClick={() => (window as any).showMortgageWizard()}
+              className="flex-shrink-0 px-6 py-4 bg-indigo-600 text-white rounded-[2rem] flex items-center gap-3 group active:scale-95 transition-all shadow-lg shadow-indigo-500/10"
             >
-              <div className="relative z-10">
-                <h4 className="text-lg font-black mb-1">Setup Your Mortgage</h4>
-                <p className="text-xs font-bold text-indigo-200 uppercase tracking-widest">Automate your 3-way split</p>
-              </div>
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform relative z-10">
-                <Home className="w-6 h-6" />
-              </div>
-              <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12">
-                <Home className="w-32 h-32" />
-              </div>
-            </motion.div>
+              <Home className="w-5 h-5" />
+              <span className="text-sm font-black whitespace-nowrap">Setup Mortgage</span>
+            </button>
           )}
           {!hasCarLoan && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-blue-600 p-6 rounded-[32px] text-white flex items-center justify-between group cursor-pointer overflow-hidden relative"
+            <button 
               onClick={() => (window as any).showCarLoanWizard()}
+              className="flex-shrink-0 px-6 py-4 bg-blue-600 text-white rounded-[2rem] flex items-center gap-3 group active:scale-95 transition-all shadow-lg shadow-blue-500/10"
             >
-              <div className="relative z-10">
-                <h4 className="text-lg font-black mb-1">Setup Car Loan</h4>
-                <p className="text-xs font-bold text-blue-200 uppercase tracking-widest">Automate your repayments</p>
-              </div>
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform relative z-10">
-                <Car className="w-6 h-6" />
-              </div>
-              <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12">
-                <Car className="w-32 h-32" />
-              </div>
-            </motion.div>
+              <Car className="w-5 h-5" />
+              <span className="text-sm font-black whitespace-nowrap">Setup Car Loan</span>
+            </button>
           )}
           {!hasBusiness && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-emerald-600 p-6 rounded-[32px] text-white flex items-center justify-between group cursor-pointer overflow-hidden relative"
+            <button 
               onClick={() => {
                 const el = document.getElementById('account-manager-add-btn');
                 if (el) el.click();
               }}
+              className="flex-shrink-0 px-6 py-4 bg-emerald-600 text-white rounded-[2rem] flex items-center gap-3 group active:scale-95 transition-all shadow-lg shadow-emerald-500/10"
             >
-              <div className="relative z-10">
-                <h4 className="text-lg font-black mb-1">Business Account</h4>
-                <p className="text-xs font-bold text-emerald-200 uppercase tracking-widest">Track only what you take out</p>
-              </div>
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform relative z-10">
-                <Briefcase className="w-6 h-6" />
-              </div>
-              <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12">
-                <Briefcase className="w-32 h-32" />
-              </div>
-            </motion.div>
+              <Briefcase className="w-5 h-5" />
+              <span className="text-sm font-black whitespace-nowrap">Business Account</span>
+            </button>
           )}
         </div>
       )}
 
       {/* Summary Cards */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-2xl font-black text-gray-900 dark:text-white">Overview</h3>
-        <div className="flex items-center gap-3">
-          {stats.unsyncedCount > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-xl border border-amber-100 dark:border-amber-900/30 animate-pulse">
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span className="text-xs font-bold">{stats.unsyncedCount} unsynced items</span>
-            </div>
-          )}
-          <button
-            onClick={handleProcessInterest}
-            disabled={isProcessing}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all active:scale-95 disabled:opacity-50"
-          >
-            {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            Refresh Interest
-          </button>
-          <button
-            onClick={handleSync}
-            disabled={isSyncing}
-            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95 disabled:opacity-50"
-          >
-            {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Sync Sheets
-          </button>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-all group">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/30 transition-colors">
-              <ArrowUpRight className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-            </div>
-          </div>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Income ({stats.selectedMonthLabel})</p>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{getCurrencySymbol(displayCurrency)}{stats.income.toLocaleString()}</h3>
-        </div>
-
-        <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-all group">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl group-hover:bg-red-100 dark:group-hover:bg-red-900/30 transition-colors">
-              <ArrowDownLeft className="w-6 h-6 text-red-600 dark:text-red-400" />
-            </div>
-          </div>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Expenses ({stats.selectedMonthLabel})</p>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{getCurrencySymbol(displayCurrency)}{stats.expenses.toLocaleString()}</h3>
-        </div>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div 
           onClick={() => setShowLiquidBreakdown(true)}
           className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-indigo-100 dark:border-indigo-900/30 shadow-sm hover:shadow-md transition-all group relative overflow-hidden cursor-pointer active:scale-95"
@@ -508,24 +430,11 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
               <Wallet className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
             </div>
           </div>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 relative z-10">Liquid Assets</p>
-          <h3 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1 relative z-10">{getCurrencySymbol(displayCurrency)}{stats.liquidBalance.toLocaleString()}</h3>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 relative z-10">Total Balance</p>
+          <h3 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1 relative z-10">{getCurrencySymbol(displayCurrency)}{stats.totalBalance.toLocaleString()}</h3>
         </div>
 
-        <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-rose-100 dark:border-rose-900/30 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-5 dark:opacity-10">
-            <TrendingDown className="w-16 h-16 text-rose-600 dark:text-rose-400" />
-          </div>
-          <div className="flex items-center justify-between mb-4 relative z-10">
-            <div className="p-3 bg-rose-50 dark:bg-rose-900/20 rounded-2xl group-hover:bg-rose-100 dark:group-hover:bg-rose-900/30 transition-colors">
-              <TrendingDown className="w-6 h-6 text-rose-600 dark:text-rose-400" />
-            </div>
-          </div>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 relative z-10">Total Debt</p>
-          <h3 className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1 relative z-10">{getCurrencySymbol(displayCurrency)}{stats.totalDebt.toLocaleString()}</h3>
-        </div>
-
-        <div className="bg-black dark:bg-white p-6 rounded-3xl shadow-xl dark:shadow-white/5 group relative overflow-hidden">
+        <div className="bg-black dark:bg-white p-6 rounded-3xl shadow-xl group relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-10">
             <TrendingUp className="w-16 h-16 text-white dark:text-black" />
           </div>
@@ -536,47 +445,64 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
           </div>
           <p className="text-sm font-medium text-gray-400 dark:text-gray-600 relative z-10">Net Worth</p>
           <h3 className="text-2xl font-bold text-white dark:text-black mt-1 relative z-10">{getCurrencySymbol(displayCurrency)}{stats.netWorth.toLocaleString()}</h3>
-          <div className="mt-2 flex items-center gap-1 text-[9px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider relative z-10">
-            <span>Assets:</span>
-            <span className="text-emerald-400">{getCurrencySymbol(displayCurrency)}{stats.totalAssetValue.toLocaleString()}</span>
-          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-all group">
+          <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Monthly In</p>
+          <h3 className="text-2xl font-bold text-emerald-600 mt-1">{getCurrencySymbol(displayCurrency)}{stats.income.toLocaleString()}</h3>
+        </div>
+
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-all group">
+          <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Monthly Out</p>
+          <h3 className="text-2xl font-bold text-red-600 mt-1">{getCurrencySymbol(displayCurrency)}{stats.expenses.toLocaleString()}</h3>
         </div>
       </div>
-
-      {/* Account Manager Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          <AccountManager accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} displayCurrency={displayCurrency} />
+      
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-8 space-y-8">
+          {/* Condensed Account Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {stats.filteredAccounts.slice(0, 4).map(acc => (
+              <div key={acc.id} className="bg-white dark:bg-gray-900 p-5 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm flex items-center justify-between group hover:border-black dark:hover:border-white transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl flex items-center justify-center shadow-sm">
+                    {acc.type === 'Credit Card' ? <CreditCard className="w-5 h-5" /> : <Landmark className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate max-w-[120px]">{acc.name}</h4>
+                    <p className="text-[10px] text-gray-400 uppercase font-black">{acc.type}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-black text-gray-900 dark:text-white">
+                    {getCurrencySymbol(acc.currency)}{(stats.accountBalances[acc.id!] || 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
           
           {/* Recent Transactions Table */}
-          <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
-              <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">Recent Activity</h3>
+              <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">Recent Transactions</h3>
               <button 
                 onClick={onViewAllTransactions}
-                className="text-[10px] font-black text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors uppercase tracking-widest"
+                className="text-[10px] font-black text-gray-400 hover:text-black dark:hover:text-white transition-colors uppercase tracking-widest"
               >
-                View Ledger
+                Go to Ledger
               </button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-gray-50/50 dark:bg-gray-800/50">
-                    <th className="px-6 py-3 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Date</th>
-                    <th className="px-6 py-3 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Transaction</th>
-                    <th className="px-6 py-3 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest text-right">Amount</th>
-                  </tr>
-                </thead>
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                  {transactions.slice(-8).reverse().map((t) => (
+                  {transactions.slice(-6).reverse().map((t) => (
                     <tr key={t.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors group">
-                      <td className="px-6 py-4 text-xs font-medium text-gray-400 dark:text-gray-500 font-mono">{t.date}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className={`p-2 rounded-xl shrink-0 ${
-                            t.type === 'Income' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 
-                            t.type === 'Expense' ? 'bg-red-50 dark:bg-red-900/20 text-red-600' : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600'
+                            t.type === 'Income' ? 'bg-emerald-50 text-emerald-600' : 
+                            t.type === 'Expense' ? 'bg-red-50 text-red-600' : 'bg-indigo-50 text-indigo-600'
                           }`}>
                             {t.type === 'Income' ? <ArrowUpRight className="w-3.5 h-3.5" /> : 
                              t.type === 'Expense' ? <ArrowDownLeft className="w-3.5 h-3.5" /> : 
@@ -584,13 +510,13 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                           </div>
                           <div className="flex flex-col min-w-0">
                             <span className="text-sm font-bold text-gray-900 dark:text-white truncate">{t.description}</span>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{getAccountName(t.accountId)}</span>
+                            <span className="text-[10px] font-bold text-gray-400">{t.date}</span>
                           </div>
                         </div>
                       </td>
                       <td className={`px-6 py-4 text-sm font-black text-right ${
-                        t.type === 'Income' ? 'text-emerald-600 dark:text-emerald-400' : 
-                        t.type === 'Expense' ? 'text-red-600 dark:text-red-400' : 'text-indigo-600 dark:text-indigo-400'
+                        t.type === 'Income' ? 'text-emerald-600' : 
+                        t.type === 'Expense' ? 'text-red-600' : 'text-indigo-600'
                       }`}>
                         {t.type === 'Income' ? '+' : t.type === 'Expense' ? '-' : ''}
                         {getCurrencySymbol(accounts.find(a => a.id === t.accountId)?.currency)}
@@ -604,71 +530,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
           </div>
         </div>
 
-        <div className="space-y-8">
-          {/* AI Projection Card */}
-          <div className="bg-indigo-600 p-8 rounded-[40px] text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-              <SparklesIcon className="w-24 h-24" />
-            </div>
-            
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-6">
-                <div className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                  <Zap className="w-3 h-3 text-yellow-300" />
-                  Zenith AI Insight
-                </div>
-                <button 
-                  onClick={handleProjectFuture}
-                  disabled={isProjecting}
-                  className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all"
-                >
-                  <RefreshCw className={`w-4 h-4 ${isProjecting ? 'animate-spin' : ''}`} />
-                </button>
-              </div>
-
-              {!projection && !isProjecting ? (
-                <div className="space-y-4">
-                  <h4 className="text-2xl font-black leading-tight">Predict your next month</h4>
-                  <p className="text-sm font-medium text-indigo-100 italic">"I can analyze your spending patterns to forecast next month's totals."</p>
-                  {projectionError && (
-                    <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-xs font-bold text-red-100 animate-shake">
-                      {projectionError}
-                    </div>
-                  )}
-                  <button 
-                    onClick={handleProjectFuture}
-                    className="w-full py-4 bg-white text-indigo-600 rounded-2xl font-black text-sm active:scale-95 transition-all shadow-lg"
-                  >
-                    Generate AI Forecast
-                  </button>
-                </div>
-              ) : isProjecting ? (
-                <div className="py-12 flex flex-col items-center justify-center gap-4">
-                  <Loader2 className="w-8 h-8 animate-spin opacity-50" />
-                  <p className="text-xs font-bold uppercase tracking-widest opacity-60">Architecting Forecast...</p>
-                </div>
-              ) : (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200">Projected Burn</p>
-                    <h4 className="text-4xl font-black">{getCurrencySymbol(displayCurrency)}{projection.projectedTotal.toLocaleString()}</h4>
-                  </div>
-                  <p className="text-xs font-medium text-indigo-50 leading-relaxed italic">
-                    "{projection.reasoning}"
-                  </p>
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    {projection.categoryBreakdown.slice(0, 4).map((item: any, i: number) => (
-                      <div key={i} className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm">
-                        <p className="text-[8px] font-black uppercase tracking-widest text-indigo-200 truncate">{item.category}</p>
-                        <p className="text-sm font-bold">{getCurrencySymbol(displayCurrency)}{item.amount.toLocaleString()}</p>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </div>
-          </div>
-
+        <div className="lg:col-span-4 space-y-6">
           {/* Spending Distribution */}
           <div className="bg-white dark:bg-gray-900 p-8 rounded-[40px] border border-gray-100 dark:border-gray-800 shadow-sm">
             <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight mb-6">Spend Mix</h3>
@@ -699,54 +561,29 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                 <div key={i} className="flex items-center justify-between group">
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color || PRESET_COLORS[i % PRESET_COLORS.length] }} />
-                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{item.name}</span>
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 capitalize">{item.name}</span>
                   </div>
                   <span className="text-xs font-black text-gray-900 dark:text-white">{getCurrencySymbol(displayCurrency)}{item.value.toLocaleString()}</span>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Cash Flow Section */}
-      <div className="bg-white dark:bg-gray-900 p-8 rounded-[40px] border border-gray-100 dark:border-gray-800 shadow-sm">
-        <div className="flex items-center justify-between mb-8">
-          <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">Financial Pulse</h3>
-          <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest">
-            <div className="flex items-center gap-2 text-emerald-500">
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              Inflow
+          <div className="bg-indigo-600 p-8 rounded-[40px] text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+              <SparklesIcon className="w-24 h-24" />
             </div>
-            <div className="flex items-center gap-2 text-red-500">
-              <div className="w-2 h-2 rounded-full bg-red-500" />
-              Outflow
+            <div className="relative z-10">
+               <h4 className="text-lg font-black mb-2">Smart Insights</h4>
+               <p className="text-white/70 text-sm font-medium mb-6">Ask Zenith about your spending habits.</p>
+               <button 
+                onClick={() => (window as any).setActiveTab('chat')}
+                className="w-full py-3 bg-white text-indigo-600 rounded-2xl font-black text-xs active:scale-95 transition-all"
+               >
+                 Open AI Chat
+               </button>
             </div>
           </div>
-        </div>
-        <div className="h-[250px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={stats.areaData}>
-              <defs>
-                <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1}/>
-                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-              />
-              <Area type="monotone" dataKey="income" stroke="#10b981" fillOpacity={1} fill="url(#colorIncome)" strokeWidth={4} />
-              <Area type="monotone" dataKey="expense" stroke="#ef4444" fillOpacity={1} fill="url(#colorExpense)" strokeWidth={4} />
-            </AreaChart>
-          </ResponsiveContainer>
         </div>
       </div>
       {/* Edit Transaction Modal */}

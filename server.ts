@@ -18,7 +18,14 @@ const app = express();
 const PORT = 3000;
 
 // Initialize Gemini
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const genAI = new GoogleGenAI({ 
+  apiKey: process.env.GEMINI_API_KEY || "",
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    }
+  }
+});
 
 // Trust proxy is required for secure cookies behind Cloud Run/Nginx
 app.set("trust proxy", 1);
@@ -245,13 +252,16 @@ app.post("/api/auth/logout", (req, res) => {
 // Gemini AI Proxy Endpoints
 app.post("/api/ai/predict-category", async (req, res) => {
   const { description, categories } = req.body;
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: "Gemini API key is not configured. Please add it to Settings > Secrets." });
+  }
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts: [{ text: `Predict the best category for this transaction description: "${description}". 
+      model: "gemini-3-flash-preview",
+      contents: `Predict the best category for this transaction description: "${description}". 
       Available categories: ${categories.join(', ')}. 
       Return a JSON object with a single key "category". 
-      If none fit well, strictly return "Other".` }] }],
+      If none fit well, strictly return "Other".`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -263,25 +273,29 @@ app.post("/api/ai/predict-category", async (req, res) => {
         }
       }
     });
-    res.json(JSON.parse(response.text || "{}"));
+    const responseText = response.text || "{}";
+    const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    res.json(JSON.parse(cleanJson));
   } catch (error: any) {
-    console.error("AI Category Prediction error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("AI Category Prediction error details:", error);
+    res.status(500).json({ error: error.message || "AI category prediction failed" });
   }
 });
 
 app.post("/api/ai/parse-receipt", async (req, res) => {
   const { base64Image, mimeType, today } = req.body;
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: "Gemini API key is not configured. Please add it to Settings > Secrets." });
+  }
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{
-        role: "user",
+      model: "gemini-3-flash-preview",
+      contents: {
         parts: [
           { inlineData: { data: base64Image, mimeType } },
           { text: `Extract transaction details from this receipt. Return a JSON object. Current Date (for context): ${today}. If date is not found on receipt, use current date. Ensure currency values are numbers.` }
         ]
-      }],
+      },
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -299,19 +313,24 @@ app.post("/api/ai/parse-receipt", async (req, res) => {
         },
       }
     });
-    res.json(JSON.parse(response.text || "{}"));
+    const responseText = response.text || "{}";
+    const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    res.json(JSON.parse(cleanJson));
   } catch (error: any) {
-    console.error("AI Receipt Parsing error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("AI Receipt Parsing error details:", error);
+    res.status(500).json({ error: error.message || "AI receipt parsing failed" });
   }
 });
 
 app.post("/api/ai/parse-voice", async (req, res) => {
   const { text, today } = req.body;
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: "Gemini API key is not configured. Please add it to Settings > Secrets." });
+  }
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts: [{ text: `Analyze spoken input: "${text}". Determine intent ("transaction" or "query"). If transaction, parse into JSON. Current date: ${today}.` }] }],
+      model: "gemini-3-flash-preview",
+      contents: `Analyze spoken input: "${text}". Determine intent ("transaction" or "query"). If transaction, parse into JSON. Current date: ${today}.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -331,53 +350,64 @@ app.post("/api/ai/parse-voice", async (req, res) => {
         },
       }
     });
-    res.json(JSON.parse(response.text || "{}"));
+    const responseText = response.text || "{}";
+    const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    res.json(JSON.parse(cleanJson));
   } catch (error: any) {
-    console.error("AI Voice Parsing error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("AI Voice Parsing error details:", error);
+    res.status(500).json({ error: error.message || "AI voice parsing failed" });
   }
 });
 
 app.post("/api/ai/insights", async (req, res) => {
   const { query, context, today } = req.body;
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: "Gemini API key is not configured. Please add it to Settings > Secrets." });
+  }
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts: [{ text: query }] }],
+      model: "gemini-3-flash-preview",
+      contents: query,
       config: {
         systemInstruction: `You are Zenith, a high-end personal finance AI. Context: ${JSON.stringify(context)}. Today: ${today}.`,
       }
     });
     res.json({ text: response.text });
   } catch (error: any) {
-    console.error("AI Insights error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("AI Insights error details:", error);
+    res.status(500).json({ error: error.message || "AI insights generation failed" });
   }
 });
 
 app.post("/api/ai/health-checkup", async (req, res) => {
   const { context, today } = req.body;
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: "Gemini API key is not configured. Please add it to Settings > Secrets." });
+  }
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts: [{ text: "Generate health checkup" }] }],
+      model: "gemini-3-flash-preview",
+      contents: "Generate health checkup",
       config: {
         systemInstruction: `You are Zenith. Context: ${JSON.stringify(context)}. Today: ${today}. Report health score, efficiency, and recs.`,
       }
     });
     res.json({ text: response.text });
   } catch (error: any) {
-    console.error("AI Health Checkup error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("AI Health Checkup error details:", error);
+    res.status(500).json({ error: error.message || "AI health checkup failed" });
   }
 });
 
 app.post("/api/ai/audit-subscriptions", async (req, res) => {
   const { transactions } = req.body;
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: "Gemini API key is not configured. Please add it to Settings > Secrets." });
+  }
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts: [{ text: `Identify recurring subscriptions. Transactions: ${transactions}` }] }],
+      model: "gemini-3-flash-preview",
+      contents: `Identify recurring subscriptions. Transactions: ${transactions}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -405,19 +435,24 @@ app.post("/api/ai/audit-subscriptions", async (req, res) => {
         },
       }
     });
-    res.json(JSON.parse(response.text || "{}"));
+    const responseText = response.text || "{}";
+    const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    res.json(JSON.parse(cleanJson));
   } catch (error: any) {
-    console.error("AI Audit error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("AI Audit error details:", error);
+    res.status(500).json({ error: error.message || "AI subscription audit failed" });
   }
 });
 
 app.post("/api/ai/detect-anomalies", async (req, res) => {
   const { transactions } = req.body;
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: "Gemini API key is not configured. Please add it to Settings > Secrets." });
+  }
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts: [{ text: `Detect anomalies in: ${transactions}` }] }],
+      model: "gemini-3-flash-preview",
+      contents: `Detect anomalies in: ${transactions}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -444,19 +479,24 @@ app.post("/api/ai/detect-anomalies", async (req, res) => {
         },
       }
     });
-    res.json(JSON.parse(response.text || "{}"));
+    const responseText = response.text || "{}";
+    const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    res.json(JSON.parse(cleanJson));
   } catch (error: any) {
-    console.error("AI Anomaly error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("AI Anomaly error details:", error);
+    res.status(500).json({ error: error.message || "AI anomaly detection failed" });
   }
 });
 
 app.post("/api/ai/spending-mood", async (req, res) => {
   const { transactions } = req.body;
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: "Gemini API key is not configured. Please add it to Settings > Secrets." });
+  }
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts: [{ text: `Analyze spending mood: ${transactions}` }] }],
+      model: "gemini-3-flash-preview",
+      contents: `Analyze spending mood: ${transactions}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -472,19 +512,24 @@ app.post("/api/ai/spending-mood", async (req, res) => {
         },
       }
     });
-    res.json(JSON.parse(response.text || "{}"));
+    const responseText = response.text || "{}";
+    const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    res.json(JSON.parse(cleanJson));
   } catch (error: any) {
-    console.error("AI Mood error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("AI Mood error details:", error);
+    res.status(500).json({ error: error.message || "AI mood analysis failed" });
   }
 });
 
 app.post("/api/ai/budget-framing", async (req, res) => {
   const { transactions, accounts } = req.body;
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: "Gemini API key is not configured. Please add it to Settings > Secrets." });
+  }
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts: [{ text: `Suggest budget. Trans: ${JSON.stringify(transactions)}. Accs: ${JSON.stringify(accounts)}` }] }],
+      model: "gemini-3-flash-preview",
+      contents: `Suggest budget. Trans: ${JSON.stringify(transactions)}. Accs: ${JSON.stringify(accounts)}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -518,10 +563,12 @@ app.post("/api/ai/budget-framing", async (req, res) => {
         }
       }
     });
-    res.json(JSON.parse(response.text || "{}"));
+    const responseText = response.text || "{}";
+    const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    res.json(JSON.parse(cleanJson));
   } catch (error: any) {
-    console.error("AI Budget Framing error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("AI Budget Framing error details:", error);
+    res.status(500).json({ error: error.message || "AI budget framing failed" });
   }
 });
 
@@ -574,10 +621,13 @@ const transferMoneyTool: any = {
 
 app.post("/api/ai/chat", async (req, res) => {
   const { message, context, today } = req.body;
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: "Gemini API key is not configured. Please add it to Settings > Secrets." });
+  }
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts: [{ text: message }] }],
+      model: "gemini-3-flash-preview",
+      contents: message,
       config: {
         systemInstruction: `You are Zenith, a high-end personal financial agent. 
         Today's Date: ${today}. 
@@ -596,8 +646,8 @@ app.post("/api/ai/chat", async (req, res) => {
       functionCalls: calls || []
     });
   } catch (error: any) {
-    console.error("AI Chat error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("AI Chat error details:", error);
+    res.status(500).json({ error: error.message || "AI chat failed" });
   }
 });
 
@@ -605,10 +655,10 @@ app.post("/api/ai/project-future", async (req, res) => {
   const { transactions, today } = req.body;
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts: [{ text: `Based on these historical transactions, predict the user's total expenses and category breakdown for the NEXT month. 
+      model: "gemini-3-flash-preview",
+      contents: `Based on these historical transactions, predict the user's total expenses and category breakdown for the NEXT month. 
       Today's date: ${today}. 
-      Transactions: ${JSON.stringify(transactions)}` }] }],
+      Transactions: ${JSON.stringify(transactions)}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -637,10 +687,19 @@ app.post("/api/ai/project-future", async (req, res) => {
         }
       }
     });
-    res.json(JSON.parse(response.text || "{}"));
+    const responseText = response.text || "";
+    if (!responseText) {
+      throw new Error("AI returned empty response");
+    }
+    const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    console.log("AI Projection Clean JSON:", cleanJson);
+    res.json(JSON.parse(cleanJson));
   } catch (error: any) {
-    console.error("AI Projection error:", error);
-    res.status(500).json({ error: error.message });
+    console.error("AI Projection error details:", error);
+    res.status(500).json({ 
+      error: error.message || "AI forecast generation failed",
+      details: error.stack
+    });
   }
 });
 

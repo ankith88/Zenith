@@ -19,13 +19,16 @@ export default function BudgetPerformance({ budgets, transactions, accounts, dis
   const performanceData = useMemo(() => {
     const now = new Date();
     const months: string[] = [];
-    for (let i = 5; i >= 0; i--) {
+    for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
     }
 
     const data = months.map(month => {
-      const monthData: any = { month };
+      const monthData: any = { 
+        month,
+        displayName: new Date(month + '-01').toLocaleString('default', { month: 'short' })
+      };
       const [year, m] = month.split('-').map(Number);
       
       const monthTransactions = transactions.filter(t => {
@@ -98,15 +101,10 @@ export default function BudgetPerformance({ budgets, transactions, accounts, dis
           <ComposedChart data={performanceData}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-chart-grid)" opacity={0.1} />
             <XAxis 
-              dataKey="month" 
+              dataKey="displayName" 
               axisLine={false} 
               tickLine={false} 
               tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }}
-              tickFormatter={(val) => {
-                const [y, m] = val.split('-');
-                const date = new Date(Number(y), Number(m) - 1, 1);
-                return date.toLocaleDateString('en-US', { month: 'short' });
-              }}
             />
             <YAxis 
               axisLine={false} 
@@ -140,7 +138,8 @@ export default function BudgetPerformance({ budgets, transactions, accounts, dis
                   {performanceData.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
-                      fill={entry[selectedCategory] > entry[`${selectedCategory}_limit`] ? '#ef4444' : '#6366f1'} 
+                      fill={entry[selectedCategory] > entry[`${selectedCategory}_limit`] ? '#f87171' : '#818cf8'} 
+                      fillOpacity={index === performanceData.length - 1 ? 1 : 0.6}
                     />
                   ))}
                 </Bar>
@@ -148,11 +147,12 @@ export default function BudgetPerformance({ budgets, transactions, accounts, dis
                   type="monotone" 
                   dataKey={`${selectedCategory}_limit`} 
                   name="Budget Limit"
-                  stroke="#94a3b8" 
-                  strokeWidth={2}
+                  stroke="#ef4444" 
+                  strokeWidth={3}
                   strokeDasharray="5 5"
-                  dot={{ r: 4, fill: '#94a3b8' }}
+                  dot={{ r: 6, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }}
                 />
+                <ReferenceLine y={performanceData[performanceData.length - 1][`${selectedCategory}_limit`]} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'right', value: 'LIMIT', fill: '#ef4444', fontSize: 10, fontWeight: 'black' }} />
               </>
             ) : (
               <>
