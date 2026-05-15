@@ -192,9 +192,12 @@ export class SheetsService {
         fetchRange('Transactions!A2:I'),
       ]);
 
+      // Only clear if we actually got some accounts from the sheet, to prevent accidental wipe on sync error
+      const remoteAccountsCount = accData.values?.filter((row: any[]) => row && row.length >= 4 && isFinite(parseInt(row[0]))).length || 0;
+      
       await db.transaction('rw', [db.accounts, db.budgets, db.recurringTransactions, db.goals, db.milestones, db.transactions], async () => {
         // Sync Accounts
-        if (accData.values) {
+        if (accData.values && remoteAccountsCount > 0) {
           const accounts: Account[] = accData.values
             .filter((row: any[]) => row && row.length >= 4 && isFinite(parseInt(row[0])))
             .map((row: any[]) => ({

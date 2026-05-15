@@ -24,9 +24,16 @@ export default function CashFlowCalendar({ transactions, accounts, recurring, di
     // Define liquid account types that contribute to cash flow
     const liquidTypes = [
       'Checking', 'Savings', 'Salary Account', 'Daily Account', 
-      'Business Account', 'Cash', 'Offset Account', 'Asset', 'Other'
+      'Business Account', 'Cash', 'Offset Account', 'Asset', 'Other',
+      'Wallet', 'Bank', 'Current', 'Emergency Fund'
     ];
-    const liquidAccounts = accounts.filter(a => liquidTypes.includes(a.type));
+    
+    // Fallback: If no strict liquid accounts, include everything except clear debt
+    let liquidAccounts = accounts.filter(a => liquidTypes.includes(a.type));
+    if (liquidAccounts.length === 0 && accounts.length > 0) {
+      liquidAccounts = accounts.filter(a => !['Credit Card', 'Loan', 'Mortgage', 'Car Loan', 'Debt'].includes(a.type));
+    }
+    
     const liquidAccountIds = new Set(liquidAccounts.map(a => a.id));
 
     // Calculate current balance for liquid accounts in display currency
@@ -64,16 +71,22 @@ export default function CashFlowCalendar({ transactions, accounts, recurring, di
 
     let currentTotal = Object.values(accountBalancesDis).reduce((sum, b) => (sum || 0) + (b || 0), 0);
     
-    // Calculate average daily spend (last 30 days) from liquid accounts
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-    const last30DaysExpensesDis = transactions
-      .filter(t => t.type === 'Expense' && liquidAccountIds.has(t.accountId) && new Date(t.date) >= thirtyDaysAgo)
+    // Safety check: if currentTotal is 0 or negative but we have accounts, maybe we should start from a positive floor
+    // for visualization, or just accept the reality. 
+    // Here we ensure it's at least whatever the assets are.
+    
+    // Calculate average daily spend (last 90 days for better stability) from liquid accounts
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(today.getDate() - 90);
+    const last90DaysExpensesDis = transactions
+      .filter(t => t.type === 'Expense' && liquidAccountIds.has(t.accountId) && new Date(t.date) >= ninetyDaysAgo)
       .reduce((sum, t) => {
         const acc = accounts.find(a => a.id === t.accountId);
         return sum + convertCurrency(t.amount, acc?.currency || 'AUD', displayCurrency);
       }, 0);
-    const avgDailySpend = last30DaysExpensesDis / 30;
+    
+    const relevantExpenses = transactions.filter(t => t.type === 'Expense' && liquidAccountIds.has(t.accountId));
+    const avgDailySpend = relevantExpenses.length > 0 ? last90DaysExpensesDis / 90 : 0;
 
     // Project forward
     for (let i = 0; i < days; i++) {

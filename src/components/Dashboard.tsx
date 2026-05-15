@@ -56,12 +56,19 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
     }
   };
 
+  useEffect(() => {
+    // Auto-trigger projection on mount if we have enough transactions and no projection yet
+    if (transactions.length >= 20 && !projection && !isProjecting) {
+      handleProjectFuture();
+    }
+  }, [transactions.length]);
+
   const totalInvestmentValue = useMemo(() => 
-    investments.reduce((sum, i) => sum + convertCurrency(i.quantity * i.currentPrice, 'AUD', displayCurrency), 0)
+    investments.reduce((sum, i) => sum + convertCurrency(i.quantity * i.currentPrice, 'AUD', displayCurrency || 'AUD'), 0)
   , [investments, displayCurrency]);
 
   const totalPhysicalAssetValue = useMemo(() => 
-    assets.reduce((sum, a) => sum + convertCurrency(a.currentValuation, 'AUD', displayCurrency), 0)
+    assets.reduce((sum, a) => sum + convertCurrency(a.currentValuation, 'AUD', displayCurrency || 'AUD'), 0)
   , [assets, displayCurrency]);
 
   const categoryMetadata = useLiveQuery(() => db.categoryMetadata.toArray()) || [];
@@ -583,6 +590,101 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                  Open AI Chat
                </button>
             </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 p-8 rounded-[40px] border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden group">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-2xl">
+                <Sparkles className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h4 className="text-lg font-black text-gray-900 dark:text-white">AI Expense Forecast</h4>
+                <p className="text-gray-400 dark:text-gray-500 text-xs font-medium uppercase tracking-widest">Next 30 Days</p>
+              </div>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {!projection ? (
+                <motion.div
+                  key="cta"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="space-y-4"
+                >
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Get an AI-powered prediction of your upcoming expenses based on past behavior.
+                  </p>
+                  <button
+                    onClick={handleProjectFuture}
+                    disabled={isProjecting}
+                    className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black text-xs active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isProjecting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Generating Forecast...
+                      </>
+                    ) : (
+                      <>
+                        Generate Prediction
+                        <TrendingUp className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                  {projectionError && (
+                    <p className="text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-900/10 p-3 rounded-xl">
+                      {projectionError}
+                    </p>
+                  )}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="results"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="space-y-6"
+                >
+                  <div className="text-center">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Projected Total Out</p>
+                    <h3 className="text-3xl font-black text-gray-900 dark:text-white">
+                      {getCurrencySymbol(displayCurrency)}{projection.projectedTotal.toLocaleString()}
+                    </h3>
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-gray-800 pb-2">Top Predicted Categories</p>
+                    {projection.categoryBreakdown.slice(0, 3).map((item: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400">{item.category}</span>
+                        <span className="text-xs font-black text-gray-900 dark:text-white">{getCurrencySymbol(displayCurrency)}{item.amount.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {projection.riskFactors && projection.riskFactors.length > 0 && (
+                    <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-100 dark:border-amber-900/30">
+                      <p className="text-[10px] font-black text-amber-800 dark:text-amber-400 uppercase tracking-widest mb-2">Key Risk Factors</p>
+                      <ul className="space-y-2">
+                        {projection.riskFactors.slice(0, 2).map((risk: string, i: number) => (
+                          <li key={i} className="text-xs font-medium text-amber-700 dark:text-amber-300 flex items-start gap-2">
+                            <Zap className="w-3 h-3 mt-0.5 shrink-0" />
+                            {risk}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => setProjection(null)}
+                    className="w-full text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-900 dark:hover:text-white transition-colors"
+                  >
+                    Reset Prediction
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
