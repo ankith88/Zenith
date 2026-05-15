@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LayoutDashboard, MessageSquare, Plus, Settings as SettingsIcon, LogOut, User, Menu, X, Loader2, Tag, TrendingUp, 
   ChevronLeft, ChevronRight, Sun, Moon, Home, Car, BarChart3, Globe,
-  ArrowRightLeft, Search, Calendar, ShieldCheck, TrendingDown, Palette, Rocket
+  ArrowRightLeft, Search, Calendar, ShieldCheck, TrendingDown, Palette, Rocket, Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -10,6 +10,10 @@ import { db, Transaction, Milestone } from './lib/db';
 import { sheetsService } from './lib/sheets';
 import { milestoneService } from './lib/milestones';
 import { formatLocalDate, parseLocalDate, SUPPORTED_CURRENCIES } from './lib/utils';
+import BudgetManager from './components/BudgetManager';
+import SavingsGoals from './components/SavingsGoals';
+import RecurringManager from './components/RecurringManager';
+import BudgetFraming from './components/BudgetFraming';
 import Dashboard from './components/Dashboard';
 import InsightsChat from './components/InsightsChat';
 import VoiceInput from './components/VoiceInput';

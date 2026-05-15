@@ -18,14 +18,7 @@ const app = express();
 const PORT = 3000;
 
 // Initialize Gemini
-const genAI = new GoogleGenAI({ 
-  apiKey: process.env.GEMINI_API_KEY || "",
-  httpOptions: {
-    customHeaders: {
-      "User-Agent": "aistudio-build"
-    }
-  }
-});
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 // Trust proxy is required for secure cookies behind Cloud Run/Nginx
 app.set("trust proxy", 1);
