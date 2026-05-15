@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Filter, ArrowUpRight, ArrowDownLeft, RefreshCw, Edit2, Trash2, X, Download, Calendar as CalendarIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Transaction, Account, db } from '../lib/db';
@@ -23,9 +23,11 @@ export default function Transactions({ transactions, accounts, displayCurrency }
   const [isLoading, setIsLoading] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
 
+  const DEFAULT_CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Housing', 'Health', 'Utilities', 'Salary', 'Investment', 'Other'];
+
   const categories = useMemo(() => {
-    const unique = new Set(transactions.map(t => t.category));
-    return Array.from(unique).sort();
+    const unique = Array.from(new Set(transactions.map(t => t.category))).filter(Boolean);
+    return unique.length > 0 ? unique.sort() : DEFAULT_CATEGORIES;
   }, [transactions]);
 
   const filteredTransactions = useMemo(() => {
@@ -79,6 +81,15 @@ export default function Transactions({ transactions, accounts, displayCurrency }
       setIsPredicting(false);
     }
   };
+
+  useEffect(() => {
+    if (editingTransaction && editingTransaction.description.length > 3 && categories.length > 0) {
+      const timer = setTimeout(() => {
+        predictCategory(editingTransaction.description);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [editingTransaction?.description]);
 
   const handleDeleteTransaction = async (id: number) => {
     setIsLoading(true);
@@ -371,13 +382,7 @@ export default function Transactions({ transactions, accounts, displayCurrency }
                     required
                     type="text"
                     value={editingTransaction.description}
-                    onChange={(e) => {
-                      const newDesc = e.target.value;
-                      setEditingTransaction({ ...editingTransaction, description: newDesc });
-                      // Debounce prediction
-                      const timer = setTimeout(() => predictCategory(newDesc), 1000);
-                      return () => clearTimeout(timer);
-                    }}
+                    onChange={(e) => setEditingTransaction({ ...editingTransaction, description: e.target.value })}
                     className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                   />
                 </div>
@@ -394,25 +399,44 @@ export default function Transactions({ transactions, accounts, displayCurrency }
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Category</label>
-                  <div className="relative">
-                    <input
-                      required
-                      type="text"
-                      list="edit-category-suggestions"
+                    <label className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block flex items-center justify-between">
+                      Category
+                      {isPredicting && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-1 text-indigo-500">
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                          <span className="text-[8px] font-bold">Predicting...</span>
+                        </motion.div>
+                      )}
+                    </label>
+                  <div className="relative group">
+                    <select
                       value={editingTransaction.category}
-                      onChange={(e) => setEditingTransaction({ ...editingTransaction, category: e.target.value })}
-                      className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all ${isPredicting ? 'ring-1 ring-indigo-200' : ''}`}
-                    />
-                    <datalist id="edit-category-suggestions">
+                      onChange={(e) => {
+                        if (e.target.value === 'NEW') {
+                          // Handle manual entry if needed, or just let them select from others
+                          // For simplicity, we'll keep it as a select for existing categories
+                        } else {
+                          setEditingTransaction({ ...editingTransaction, category: e.target.value });
+                        }
+                      }}
+                      className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all appearance-none ${isPredicting ? 'ring-1 ring-indigo-200' : ''}`}
+                    >
                       {categories.filter(c => c !== 'All').map(cat => (
-                        <option key={cat} value={cat} />
+                        <option key={cat} value={cat}>{cat}</option>
                       ))}
-                    </datalist>
-                    {isPredicting && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <RefreshCw className="w-4 h-4 animate-spin text-indigo-500" />
-                      </div>
+                      <option value="Manual">+ Type manually...</option>
+                    </select>
+
+                    {editingTransaction.category === 'Manual' && (
+                      <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="mt-2">
+                        <input
+                          autoFocus
+                          type="text"
+                          placeholder="Type category..."
+                          onBlur={(e) => setEditingTransaction({ ...editingTransaction, category: e.target.value })}
+                          className="w-full px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl text-sm"
+                        />
+                      </motion.div>
                     )}
                   </div>
                   </div>

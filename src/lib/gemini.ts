@@ -1,94 +1,16 @@
-import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { Transaction, Account, Budget, Goal, db } from "./db";
 import { formatLocalDate } from "./utils";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-
-const createTransactionTool: FunctionDeclaration = {
-  name: "create_transaction",
-  description: "Create a new financial transaction (Income or Expense).",
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      date: { type: Type.STRING, description: "Date in YYYY-MM-DD format." },
-      amount: { type: Type.NUMBER, description: "The transaction amount." },
-      category: { type: Type.STRING, description: "The category of the transaction." },
-      description: { type: Type.STRING, description: "A brief description." },
-      type: { type: Type.STRING, enum: ["Income", "Expense"], description: "The type of transaction." },
-      accountId: { type: Type.NUMBER, description: "The ID of the account." }
-    },
-    required: ["date", "amount", "category", "description", "type", "accountId"]
-  }
-};
-
-const transferMoneyTool: FunctionDeclaration = {
-  name: "transfer_money",
-  description: "Transfer money between two accounts.",
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      date: { type: Type.STRING, description: "Date in YYYY-MM-DD format." },
-      amount: { type: Type.NUMBER, description: "The amount to transfer." },
-      description: { type: Type.STRING, description: "A brief description." },
-      fromAccountId: { type: Type.NUMBER, description: "The source account ID." },
-      toAccountId: { type: Type.NUMBER, description: "The destination account ID." }
-    },
-    required: ["date", "amount", "description", "fromAccountId", "toAccountId"]
-  }
-};
-
-const updateBudgetTool: FunctionDeclaration = {
-  name: "update_budget",
-  description: "Update or create a budget for a category.",
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      category: { type: Type.STRING, description: "The category name." },
-      amount: { type: Type.NUMBER, description: "The monthly budget amount." },
-      period: { type: Type.STRING, enum: ["Monthly", "Weekly"], description: "The budget period." }
-    },
-    required: ["category", "amount", "period"]
-  }
-};
 
 export class FinancialAnalystService {
   async parseReceipt(base64Image: string, mimeType: string): Promise<Partial<Transaction> & { sourceAccount?: string; destinationAccount?: string }> {
     const today = formatLocalDate();
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [
-        {
-          inlineData: {
-            data: base64Image,
-            mimeType: mimeType,
-          },
-        },
-        {
-          text: `Extract transaction details from this receipt. 
-          Return a JSON object with: date (YYYY-MM-DD), amount (number), category (string), description (string), type (Income/Expense/Transfer).
-          If date is not found, use today's date: ${today}.`,
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            date: { type: Type.STRING },
-            amount: { type: Type.NUMBER },
-            category: { type: Type.STRING },
-            description: { type: Type.STRING },
-            type: { type: Type.STRING, enum: ["Income", "Expense", "Transfer"] },
-            sourceAccount: { type: Type.STRING },
-            destinationAccount: { type: Type.STRING },
-          },
-          required: ["date", "amount", "category", "description", "type"],
-        },
-      }
+    const response = await fetch('/api/ai/parse-receipt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base64Image, mimeType, today })
     });
-
-    if (!response.text) throw new Error("Could not parse receipt");
-    return JSON.parse(response.text);
+    if (!response.ok) throw new Error("Failed to parse receipt via AI");
+    return response.json();
   }
 
   async parseVoiceTransaction(text: string): Promise<{
@@ -103,143 +25,50 @@ export class FinancialAnalystService {
     query?: string;
   }> {
     const today = formatLocalDate();
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Analyze this spoken input: "${text}". 
-      Determine if the user wants to record a transaction (intent: "transaction") or ask a question about their finances (intent: "query").
-      
-      If it's a transaction, parse it into structured JSON.
-      If it's a query, just return the intent and the original text.
-      
-      Today's date: ${today}.`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            intent: { type: Type.STRING, enum: ["transaction", "query"] },
-            date: { type: Type.STRING, description: "Only for transactions" },
-            amount: { type: Type.NUMBER, description: "Only for transactions" },
-            category: { type: Type.STRING, description: "Only for transactions" },
-            description: { type: Type.STRING, description: "Only for transactions" },
-            type: { type: Type.STRING, enum: ["Income", "Expense", "Transfer"], description: "Only for transactions" },
-            sourceAccount: { type: Type.STRING, description: "Only for transactions" },
-            destinationAccount: { type: Type.STRING, description: "Only for transactions" },
-            query: { type: Type.STRING, description: "The original text if intent is query" }
-          },
-          required: ["intent"],
-        },
-      }
+    const response = await fetch('/api/ai/parse-voice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, today })
     });
-
-    if (!response.text) throw new Error("Could not parse voice input");
-    return JSON.parse(response.text);
+    if (!response.ok) throw new Error("Failed to parse voice via AI");
+    return response.json();
   }
 
   async getInsights(query: string, transactions: Transaction[], accounts: Account[], budgets: Budget[], goals: Goal[]): Promise<string> {
     const today = formatLocalDate();
-    const transactionContext = transactions.map((t: any) => 
-      `${t.date}, ${t.amount}, ${t.category}, ${t.description}, ${t.type}`
-    ).join('\n');
-
-    const accountContext = accounts.map((a: any) => 
-      `${a.name}, ${a.type}, Initial Balance: ${a.initialBalance}`
-    ).join('\n');
-
-    const budgetContext = budgets.map((b: any) => 
-      `${b.category}, ${b.amount}, ${b.period}`
-    ).join('\n');
-
-    const systemPrompt = `You are Zenith, a high-end personal finance AI analyst. 
-    You have access to the user's full financial profile.
-    
-    Data Context:
-    ACCOUNTS:
-    ${accountContext}
-    
-    BUDGETS:
-    ${budgetContext}
-    
-    TRANSACTIONS (CSV: Date, Amount, Category, Description, Type):
-    ${transactionContext}
-    
-    Current Date: ${today}
-    
-    Your goals:
-    1. Provide deep reasoning over the data.
-    2. Identify spending outliers and trends.
-    3. Compare actual spending against the user's defined BUDGETS.
-    4. Suggest actionable savings strategies based on their specific habits.
-    
-    Answer the user's query concisely but with high-end financial insight. Use Markdown for formatting.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
-      contents: query,
-      config: {
-        systemInstruction: systemPrompt,
-      },
+    const context = { transactions: transactions.slice(-100), accounts, budgets, goals };
+    const response = await fetch('/api/ai/insights', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, context, today })
     });
-
-    return response.text || "No insights found.";
+    if (!response.ok) throw new Error("Failed to get insights");
+    const data = await response.json();
+    return data.text;
   }
 
   async getFinancialHealthCheckup(transactions: Transaction[], accounts: Account[], budgets: Budget[], goals: Goal[]): Promise<string> {
     const today = formatLocalDate();
-    const transactionContext = transactions.slice(-100).map((t: any) => 
-      `${t.date}, ${t.amount}, ${t.category}, ${t.description}, ${t.type}`
-    ).join('\n');
-
-    const accountContext = accounts.map((a: any) => 
-      `${a.name}, ${a.type}, Initial Balance: ${a.initialBalance}`
-    ).join('\n');
-
-    const budgetContext = budgets.map((b: any) => 
-      `${b.category}, ${b.amount}, ${b.period}`
-    ).join('\n');
-
-    const systemPrompt = `You are Zenith, a high-end personal finance AI analyst. 
-    Perform a comprehensive "Financial Health Checkup" for the user.
-    
-    Data Context:
-    ACCOUNTS:
-    ${accountContext}
-    
-    BUDGETS:
-    ${budgetContext}
-    
-    RECENT TRANSACTIONS:
-    ${transactionContext}
-    
-    Current Date: ${today}
-    
-    Your report MUST include:
-    1. Financial Health Score (0-100)
-    2. Spending Efficiency
-    3. Burn Rate Analysis
-    4. Top 3 Actionable Recommendations
-    
-    Use Markdown.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
-      contents: "Generate my comprehensive financial health checkup report.",
-      config: {
-        systemInstruction: systemPrompt,
-      },
+    const context = { transactions: transactions.slice(-100), accounts, budgets, goals };
+    const response = await fetch('/api/ai/health-checkup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context, today })
     });
-
-    return response.text || "Health report currently unavailable.";
+    if (!response.ok) throw new Error("Failed to get health checkup");
+    const data = await response.json();
+    return data.text;
   }
 
   async predictCategory(description: string, categories: string[]): Promise<string> {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Predict the best category for this transaction description: "${description}". 
-      Available categories: ${categories.join(', ')}.
-      Return ONLY the category name from the list. If none fit well, return "Other".`,
+    const response = await fetch('/api/ai/predict-category', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description, categories })
     });
-    return response.text.trim();
+    if (!response.ok) return "Other";
+    const data = await response.json();
+    return data.category || "Other";
   }
 
   async auditSubscriptions(transactions: Transaction[]): Promise<{
@@ -258,41 +87,28 @@ export class FinancialAnalystService {
       `${t.date}, ${t.amount}, ${t.category}, ${t.description}`
     ).join('\n');
 
-    const response = await ai.models.generateContent({ 
-      model: "gemini-3-flash-preview",
-      contents: `Analyze these transactions to identify recurring subscriptions or fixed monthly costs.
-      Transactions:
-      ${recentTransactions}`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            subscriptions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  name: { type: Type.STRING },
-                  amount: { type: Type.NUMBER },
-                  frequency: { type: Type.STRING },
-                  category: { type: Type.STRING },
-                  lastDate: { type: Type.STRING },
-                  confidence: { type: Type.NUMBER },
-                  isPotentialWaste: { type: Type.BOOLEAN },
-                  reason: { type: Type.STRING },
-                },
-                required: ["name", "amount", "frequency", "category", "lastDate", "confidence", "isPotentialWaste"],
-              },
-            },
-          },
-          required: ["subscriptions"],
-        },
-      }
+    const response = await fetch('/api/ai/audit-subscriptions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactions: recentTransactions })
     });
+    return response.json();
+  }
 
-    if (!response.text) throw new Error("Audit failed");
-    return JSON.parse(response.text);
+  async projectFutureExpenses(transactions: Transaction[]): Promise<{
+    projectedTotal: number;
+    reasoning: string;
+    categoryBreakdown: Array<{ category: string; amount: number; confidence?: number }>;
+    riskFactors?: string[];
+  }> {
+    const today = formatLocalDate();
+    const response = await fetch('/api/ai/project-future', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactions: transactions.slice(-200), today })
+    });
+    if (!response.ok) throw new Error("Projection failed");
+    return response.json();
   }
 
   async detectSpendingAnomalies(transactions: Transaction[]): Promise<{
@@ -310,40 +126,13 @@ export class FinancialAnalystService {
       `${t.date}, ${t.amount}, ${t.category}, ${t.description}`
     ).join('\n');
 
-    const response = await ai.models.generateContent({ 
-      model: "gemini-3-flash-preview",
-      contents: `Analyze these transactions for spending anomalies or unusual patterns.
-      Transactions:
-      ${recentTransactions}`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            anomalies: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  type: { type: Type.STRING },
-                  description: { type: Type.STRING },
-                  amount: { type: Type.NUMBER },
-                  category: { type: Type.STRING },
-                  date: { type: Type.STRING },
-                  insight: { type: Type.STRING },
-                  severity: { type: Type.STRING, enum: ["Low", "Medium", "High"] },
-                },
-                required: ["type", "description", "amount", "category", "date", "insight", "severity"],
-              },
-            },
-          },
-          required: ["anomalies"],
-        },
-      }
+    const response = await fetch('/api/ai/detect-anomalies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactions: recentTransactions })
     });
-
-    if (!response.text) throw new Error("Detection failed");
-    return JSON.parse(response.text);
+    if (!response.ok) throw new Error("Detection failed");
+    return response.json();
   }
 
   async getSpendingMoodAnalysis(transactions: Transaction[]): Promise<{
@@ -357,30 +146,13 @@ export class FinancialAnalystService {
       `${t.date}, ${t.amount}, ${t.category}, ${t.description}, ${t.type}`
     ).join('\n');
 
-    const response = await ai.models.generateContent({ 
-      model: "gemini-3-flash-preview",
-      contents: `Analyze these transactions to determine the user's "Spending Mood" (e.g., Stress Spending, Value Spending, Impulsive, Disciplined).
-      Transactions:
-      ${recentTransactions}`,
-      config: {
-        systemInstruction: "You are a financial psychologist. Analyze spending patterns to find emotional triggers or value-based alignment.",
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            mood: { type: Type.STRING },
-            description: { type: Type.STRING },
-            insight: { type: Type.STRING },
-            recommendation: { type: Type.STRING },
-            score: { type: Type.NUMBER },
-          },
-          required: ["mood", "description", "insight", "recommendation", "score"],
-        },
-      }
+    const response = await fetch('/api/ai/spending-mood', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactions: recentTransactions })
     });
-
-    if (!response.text) throw new Error("Mood analysis failed");
-    return JSON.parse(response.text);
+    if (!response.ok) throw new Error("Mood analysis failed");
+    return response.json();
   }
 
   async getBudgetFraming(transactions: Transaction[], accounts: Account[]): Promise<{
@@ -397,58 +169,13 @@ export class FinancialAnalystService {
       avgMonthlyExpense: number;
     };
   }> {
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    
-    let filteredTransactions = transactions.filter((t: any) => new Date(t.date) >= ninetyDaysAgo);
-    if (filteredTransactions.length === 0) filteredTransactions = transactions.slice(-100);
-
-    const recentTransactions = filteredTransactions.map((t: any) => 
-      `${t.date}, ${t.amount}, ${t.category}, ${t.description}, ${t.type}`
-    ).join('\n');
-
-    const response = await ai.models.generateContent({ 
-      model: "gemini-3.1-pro-preview",
-      contents: `Analyze the past transaction history to suggest a structured budget methodology.
-      Transactions:
-      ${recentTransactions}`,
-      config: {
-        systemInstruction: "You are a financial architect. Analyze income and spending to frame a perfect budget structure.",
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            methodology: { type: Type.STRING, enum: ["50/30/20", "Zero-Based", "Custom"] },
-            analysis: { type: Type.STRING },
-            suggestedBudgets: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  category: { type: Type.STRING },
-                  amount: { type: Type.NUMBER },
-                  period: { type: Type.STRING, enum: ["Monthly", "Weekly"] },
-                  type: { type: Type.STRING, enum: ["Needs", "Wants", "Savings/Debt"] }
-                },
-                required: ["category", "amount", "period", "type"]
-              }
-            },
-            currentStats: {
-              type: Type.OBJECT,
-              properties: {
-                avgMonthlyIncome: { type: Type.NUMBER },
-                avgMonthlyExpense: { type: Type.NUMBER }
-              },
-              required: ["avgMonthlyIncome", "avgMonthlyExpense"]
-            }
-          },
-          required: ["methodology", "analysis", "suggestedBudgets", "currentStats"]
-        }
-      }
+    const response = await fetch('/api/ai/budget-framing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactions: transactions.slice(-100), accounts })
     });
-
-    if (!response.text) throw new Error("Framing failed");
-    return JSON.parse(response.text);
+    if (!response.ok) throw new Error("Framing failed");
+    return response.json();
   }
 
   async chatWithAgent(message: string, context: { transactions: Transaction[], accounts: Account[], budgets: Budget[] }): Promise<{
@@ -456,28 +183,19 @@ export class FinancialAnalystService {
     actionPerformed?: string;
   }> {
     const today = formatLocalDate();
-    const accountContext = context.accounts.map((a: any) => `ID: ${a.id}, Name: ${a.name}, Type: ${a.type}`).join('\n');
-    
-    const systemInstruction = `You are Zenith, a high-end personal financial agent. 
-    Today's Date: ${today}
-    Available Accounts:
-    ${accountContext}
-    Confirm the action you are taking. If you need more info, ask.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
-      contents: message,
-      config: {
-        systemInstruction,
-        tools: [{ functionDeclarations: [createTransactionTool, transferMoneyTool, updateBudgetTool] }]
-      }
+    const response = await fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, context, today })
     });
-
-    const functionCalls = response.functionCalls;
-    if (functionCalls) {
-      let actionPerformed = "";
-      for (const call of functionCalls) {
-        const args = call.args as any;
+    if (!response.ok) throw new Error("Chat failed");
+    
+    const data = await response.json();
+    
+    let actionPerformed = "";
+    if (data.functionCalls && data.functionCalls.length > 0) {
+      for (const call of data.functionCalls) {
+        const args = call.args;
         if (call.name === "create_transaction") {
           await db.transactions.add({ ...args, synced: false });
           actionPerformed = `Created ${args.type} of $${args.amount} for ${args.description}.`;
@@ -492,7 +210,7 @@ export class FinancialAnalystService {
             toAccountId: args.toAccountId,
             synced: false
           });
-          actionPerformed = `Transferred $${args.amount} from account ${args.fromAccountId} to ${args.toAccountId}.`;
+          actionPerformed = `Transferred $${args.amount} from ${args.fromAccountId} to ${args.toAccountId}.`;
         } else if (call.name === "update_budget") {
           const existing = await db.budgets.where('category').equals(args.category).first();
           if (existing) {
@@ -503,19 +221,9 @@ export class FinancialAnalystService {
           actionPerformed = `Updated budget for ${args.category} to $${args.amount}.`;
         }
       }
-      
-      const followUp = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
-        contents: [
-          { role: "user", parts: [{ text: message }] },
-          { role: "model", parts: [{ text: `I have performed the following action: ${actionPerformed}` }] }
-        ],
-        config: { systemInstruction }
-      });
-      return { text: followUp.text || "Done", actionPerformed };
     }
 
-    return { text: response.text || "I'm not sure how to help with that." };
+    return { text: data.text || "I'm not sure how to help with that.", actionPerformed };
   }
 }
 

@@ -34,10 +34,14 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
   const accounts = useLiveQuery(() => db.accounts.toArray()) || [];
   const budgets = useLiveQuery(() => db.budgets.toArray()) || [];
   
+  const DEFAULT_CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Housing', 'Health', 'Utilities', 'Salary', 'Investment', 'Other'];
+
   const categories = useMemo(() => {
     const fromBudgets = budgets.map(b => b.category);
     const fromTransactions = transactions.map(t => t.category);
-    return Array.from(new Set([...fromBudgets, ...fromTransactions])).filter(Boolean).sort();
+    const combined = Array.from(new Set([...fromBudgets, ...fromTransactions]));
+    const filterd = combined.filter(Boolean);
+    return filterd.length > 0 ? filterd.sort() : DEFAULT_CATEGORIES;
   }, [budgets, transactions]);
 
   useEffect(() => {
@@ -346,17 +350,31 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
                 />
               </div>
               
-              <div>
-                <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Account</label>
-                <select 
-                  value={selectedAccountId || ''} 
-                  onChange={(e) => setSelectedAccountId(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
-                >
-                  {accounts.map(acc => (
-                    <option key={acc.id} value={acc.id}>{acc.name}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Account</label>
+                  <select 
+                    value={selectedAccountId || ''} 
+                    onChange={(e) => setSelectedAccountId(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
+                  >
+                    {accounts.map(acc => (
+                      <option key={acc.id} value={acc.id}>{acc.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Type</label>
+                  <select
+                    value={manualData.type}
+                    onChange={(e) => setManualData({ ...manualData, type: e.target.value as any })}
+                    className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
+                  >
+                    <option value="Expense">Expense</option>
+                    <option value="Income">Income</option>
+                    <option value="Transfer">Transfer</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -382,43 +400,60 @@ export default function VoiceInput({ onConfirm, onQuery }: VoiceInputProps) {
               </div>
               
               <div>
-                <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block">Type</label>
-                <select
-                  value={manualData.type}
-                  onChange={(e) => setManualData({ ...manualData, type: e.target.value as any })}
-                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
-                >
-                  <option value="Expense">Expense</option>
-                  <option value="Income">Income</option>
-                  <option value="Transfer">Transfer</option>
-                </select>
-              </div>
-
-              <div>
                 <label className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-1 block flex items-center justify-between">
                   Category
-                  {isPredicting && <Loader2 className="w-2 h-2 animate-spin text-indigo-500" />}
+                  {isPredicting && (
+                    <motion.div 
+                      initial={{ opacity: 0, x: -10 }} 
+                      animate={{ opacity: 1, x: 0 }}
+                      className="flex items-center gap-1 text-indigo-500"
+                    >
+                      <Loader2 className="w-2 h-2 animate-spin" />
+                      <span className="text-[8px]">AI Predicting...</span>
+                    </motion.div>
+                  )}
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    list="category-suggestions"
+                <div className="relative group">
+                  <select
                     value={manualData.category}
                     onChange={(e) => setManualData({ ...manualData, category: e.target.value })}
-                    placeholder="e.g. Food"
-                    className={`w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all ${isPredicting ? 'ring-1 ring-indigo-200' : ''}`}
-                  />
-                  <datalist id="category-suggestions">
+                    className={`w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none transition-all appearance-none ${isPredicting ? 'ring-1 ring-indigo-200' : ''}`}
+                  >
+                    <option value="">Select Category</option>
                     {categories.map(cat => (
-                      <option key={cat} value={cat} />
+                      <option key={cat} value={cat}>{cat}</option>
                     ))}
-                  </datalist>
-                  {manualData.category && categories.includes(manualData.category) && (
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                      <Check className="w-3 h-3 text-emerald-500" />
-                    </div>
-                  )}
+                    <option value="NEW">+ Add New Category</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
                 </div>
+                
+                {manualData.category === 'NEW' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-2"
+                  >
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Enter new category name..."
+                      onBlur={(e) => {
+                        if (e.target.value) {
+                          setManualData({ ...manualData, category: e.target.value });
+                        } else {
+                          setManualData({ ...manualData, category: '' });
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          setManualData({ ...manualData, category: (e.target as HTMLInputElement).value });
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-xl text-sm text-indigo-900 dark:text-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                  </motion.div>
+                )}
               </div>
 
               <div className="flex gap-2 pt-2">

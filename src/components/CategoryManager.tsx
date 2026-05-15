@@ -72,8 +72,9 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
     }
   };
 
-  const handleRename = async (oldName: string) => {
-    if (!newName.trim() || newName === oldName) {
+  const handleRename = async (oldName: string, forcedNewName?: string) => {
+    const finalNewName = forcedNewName !== undefined ? forcedNewName : newName;
+    if (!finalNewName.trim() || finalNewName === oldName) {
       setEditingCategory(null);
       return;
     }
@@ -83,25 +84,23 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
       // 1. Update Transactions in Dexie
       const txToUpdate = await db.transactions.where('category').equals(oldName).toArray();
       for (const tx of txToUpdate) {
-        await db.transactions.update(tx.id!, { category: newName, synced: false });
-        await sheetsService.updateTransaction({ ...tx, category: newName });
+        await db.transactions.update(tx.id!, { category: finalNewName, synced: false });
+        await sheetsService.updateTransaction({ ...tx, category: finalNewName });
         await db.transactions.update(tx.id!, { synced: true });
       }
 
       // 2. Update Budgets in Dexie
       const budgetsToUpdate = await db.budgets.where('category').equals(oldName).toArray();
       for (const b of budgetsToUpdate) {
-        await db.budgets.update(b.id!, { category: newName, synced: false });
-        // Update in sheets (re-append or update if we had a row index)
-        // For simplicity, we'll just update local and let next sync handle it or implement updateBudget
+        await db.budgets.update(b.id!, { category: finalNewName, synced: false });
         await db.budgets.update(b.id!, { synced: true });
       }
 
       // 3. Update Recurring in Dexie
       const recToUpdate = await db.recurringTransactions.where('category').equals(oldName).toArray();
       for (const r of recToUpdate) {
-        await db.recurringTransactions.update(r.id!, { category: newName, synced: false });
-        await sheetsService.updateRecurring({ ...r, category: newName });
+        await db.recurringTransactions.update(r.id!, { category: finalNewName, synced: false });
+        await sheetsService.updateRecurring({ ...r, category: finalNewName });
         await db.recurringTransactions.update(r.id!, { synced: true });
       }
 
@@ -109,7 +108,7 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
       const metadata = await db.categoryMetadata.get(oldName);
       if (metadata) {
         await db.categoryMetadata.delete(oldName);
-        await db.categoryMetadata.put({ name: newName, color: metadata.color });
+        await db.categoryMetadata.put({ name: finalNewName, color: metadata.color });
       }
 
       setEditingCategory(null);
@@ -142,20 +141,38 @@ export default function CategoryManager({ transactions, budgets, recurring }: Ca
               <div className="flex flex-col">
                 {editingCategory === cat ? (
                   <div className="relative">
-                    <input
+                    <select
                       autoFocus
-                      type="text"
-                      list="rename-category-suggestions"
                       value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleRename(cat)}
-                      className="bg-gray-50 dark:bg-gray-800 border-none rounded-lg px-3 py-1 text-sm font-bold focus:ring-2 focus:ring-black dark:focus:ring-white outline-none text-gray-900 dark:text-white"
-                    />
-                    <datalist id="rename-category-suggestions">
+                      onChange={(e) => {
+                        if (e.target.value === 'NEW') {
+                          setNewName('');
+                        } else {
+                          setNewName(e.target.value);
+                          handleRename(cat, e.target.value);
+                        }
+                      }}
+                      className="bg-gray-50 dark:bg-gray-800 border-none rounded-lg px-3 py-1 text-sm font-bold focus:ring-2 focus:ring-black dark:focus:ring-white outline-none text-gray-900 dark:text-white appearance-none pr-8"
+                    >
+                      <option value={cat}>{cat}</option>
                       {categories.filter(c => c !== cat).map(c => (
-                        <option key={c} value={c} />
+                        <option key={c} value={c}>{c}</option>
                       ))}
-                    </datalist>
+                      <option value="NEW">+ Manual Entry</option>
+                    </select>
+                    {newName === '' && (
+                      <div className="mt-2">
+                         <input
+                          autoFocus
+                          type="text"
+                          placeholder="Type new name..."
+                          value={newName}
+                          onChange={(e) => setNewName(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleRename(cat)}
+                          className="bg-indigo-50 dark:bg-indigo-900/20 border-none rounded-lg px-3 py-1 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none text-indigo-900 dark:text-indigo-200"
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <>

@@ -18,7 +18,14 @@ const app = express();
 const PORT = 3000;
 
 // Initialize Gemini
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const genAI = new GoogleGenAI({ 
+  apiKey: process.env.GEMINI_API_KEY || "",
+  httpOptions: {
+    customHeaders: {
+      "User-Agent": "aistudio-build"
+    }
+  }
+});
 
 // Trust proxy is required for secure cookies behind Cloud Run/Nginx
 app.set("trust proxy", 1);
@@ -240,6 +247,397 @@ app.get("/api/auth/status", (req, res) => {
 app.post("/api/auth/logout", (req, res) => {
   req.session = null;
   res.json({ success: true });
+});
+
+// Gemini AI Proxy Endpoints
+app.post("/api/ai/predict-category", async (req, res) => {
+  const { description, categories } = req.body;
+  try {
+    const response = await (genAI as any).getGenerativeModel({ model: "gemini-2.0-flash" }).generateContent({
+      contents: [{ role: "user", parts: [{ text: `Predict the best category for this transaction description: "${description}". 
+      Available categories: ${categories.join(', ')}. 
+      Return a JSON object with a single key "category". 
+      If none fit well, strictly return "Other".` }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            category: { type: Type.STRING }
+          },
+          required: ["category"]
+        }
+      }
+    });
+    res.json(JSON.parse(response.response.text() || "{}"));
+  } catch (error: any) {
+    console.error("AI Category Prediction error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/parse-receipt", async (req, res) => {
+  const { base64Image, mimeType, today } = req.body;
+  try {
+    const response = await (genAI as any).getGenerativeModel({ model: "gemini-2.0-flash" }).generateContent({
+      contents: [{
+        role: "user",
+        parts: [
+          { inlineData: { data: base64Image, mimeType } },
+          { text: `Extract transaction details from this receipt. Return a JSON object. Current Date (for context): ${today}. If date is not found on receipt, use current date. Ensure currency values are numbers.` }
+        ]
+      }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            date: { type: Type.STRING },
+            amount: { type: Type.NUMBER },
+            category: { type: Type.STRING },
+            description: { type: Type.STRING },
+            type: { type: Type.STRING, enum: ["Income", "Expense", "Transfer"] },
+            sourceAccount: { type: Type.STRING },
+            destinationAccount: { type: Type.STRING },
+          },
+          required: ["date", "amount", "category", "description", "type"],
+        },
+      }
+    });
+    res.json(JSON.parse(response.response.text() || "{}"));
+  } catch (error: any) {
+    console.error("AI Receipt Parsing error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/parse-voice", async (req, res) => {
+  const { text, today } = req.body;
+  try {
+    const response = await (genAI as any).getGenerativeModel({ model: "gemini-2.0-flash" }).generateContent({
+      contents: [{ role: "user", parts: [{ text: `Analyze spoken input: "${text}". Determine intent ("transaction" or "query"). If transaction, parse into JSON. Current date: ${today}.` }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            intent: { type: Type.STRING, enum: ["transaction", "query"] },
+            date: { type: Type.STRING },
+            amount: { type: Type.NUMBER },
+            category: { type: Type.STRING },
+            description: { type: Type.STRING },
+            type: { type: Type.STRING, enum: ["Income", "Expense", "Transfer"] },
+            sourceAccount: { type: Type.STRING },
+            destinationAccount: { type: Type.STRING },
+            query: { type: Type.STRING }
+          },
+          required: ["intent"],
+        },
+      }
+    });
+    res.json(JSON.parse(response.response.text() || "{}"));
+  } catch (error: any) {
+    console.error("AI Voice Parsing error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/insights", async (req, res) => {
+  const { query, context, today } = req.body;
+  try {
+    const response = await (genAI as any).getGenerativeModel({ model: "gemini-2.0-flash" }).generateContent({
+      contents: [{ role: "user", parts: [{ text: query }] }],
+      generationConfig: {
+        systemInstruction: `You are Zenith, a high-end personal finance AI. Context: ${JSON.stringify(context)}. Today: ${today}.`,
+      }
+    });
+    res.json({ text: response.response.text() });
+  } catch (error: any) {
+    console.error("AI Insights error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/health-checkup", async (req, res) => {
+  const { context, today } = req.body;
+  try {
+    const response = await (genAI as any).getGenerativeModel({ model: "gemini-2.0-flash" }).generateContent({
+      contents: [{ role: "user", parts: [{ text: "Generate health checkup" }] }],
+      generationConfig: {
+        systemInstruction: `You are Zenith. Context: ${JSON.stringify(context)}. Today: ${today}. Report health score, efficiency, and recs.`,
+      }
+    });
+    res.json({ text: response.response.text() });
+  } catch (error: any) {
+    console.error("AI Health Checkup error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/audit-subscriptions", async (req, res) => {
+  const { transactions } = req.body;
+  try {
+    const response = await (genAI as any).getGenerativeModel({ model: "gemini-2.0-flash" }).generateContent({
+      contents: [{ role: "user", parts: [{ text: `Identify recurring subscriptions. Transactions: ${transactions}` }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            subscriptions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  amount: { type: Type.NUMBER },
+                  frequency: { type: Type.STRING },
+                  category: { type: Type.STRING },
+                  lastDate: { type: Type.STRING },
+                  confidence: { type: Type.NUMBER },
+                  isPotentialWaste: { type: Type.BOOLEAN },
+                  reason: { type: Type.STRING },
+                },
+                required: ["name", "amount", "frequency", "category", "lastDate", "confidence", "isPotentialWaste"],
+              },
+            },
+          },
+          required: ["subscriptions"],
+        },
+      }
+    });
+    res.json(JSON.parse(response.response.text() || "{}"));
+  } catch (error: any) {
+    console.error("AI Audit error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/detect-anomalies", async (req, res) => {
+  const { transactions } = req.body;
+  try {
+    const response = await (genAI as any).getGenerativeModel({ model: "gemini-2.0-flash" }).generateContent({
+      contents: [{ role: "user", parts: [{ text: `Detect anomalies in: ${transactions}` }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            anomalies: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  type: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  amount: { type: Type.NUMBER },
+                  category: { type: Type.STRING },
+                  date: { type: Type.STRING },
+                  insight: { type: Type.STRING },
+                  severity: { type: Type.STRING, enum: ["Low", "Medium", "High"] },
+                },
+                required: ["type", "description", "amount", "category", "date", "insight", "severity"],
+              },
+            },
+          },
+          required: ["anomalies"],
+        },
+      }
+    });
+    res.json(JSON.parse(response.response.text() || "{}"));
+  } catch (error: any) {
+    console.error("AI Anomaly error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/spending-mood", async (req, res) => {
+  const { transactions } = req.body;
+  try {
+    const response = await (genAI as any).getGenerativeModel({ model: "gemini-2.0-flash" }).generateContent({
+      contents: [{ role: "user", parts: [{ text: `Analyze spending mood: ${transactions}` }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            mood: { type: Type.STRING },
+            description: { type: Type.STRING },
+            insight: { type: Type.STRING },
+            recommendation: { type: Type.STRING },
+            score: { type: Type.NUMBER },
+          },
+          required: ["mood", "description", "insight", "recommendation", "score"],
+        },
+      }
+    });
+    res.json(JSON.parse(response.response.text() || "{}"));
+  } catch (error: any) {
+    console.error("AI Mood error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/budget-framing", async (req, res) => {
+  const { transactions, accounts } = req.body;
+  try {
+    const response = await (genAI as any).getGenerativeModel({ model: "gemini-2.0-flash" }).generateContent({
+      contents: [{ role: "user", parts: [{ text: `Suggest budget. Trans: ${JSON.stringify(transactions)}. Accs: ${JSON.stringify(accounts)}` }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            methodology: { type: Type.STRING, enum: ["50/30/20", "Zero-Based", "Custom"] },
+            analysis: { type: Type.STRING },
+            suggestedBudgets: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  category: { type: Type.STRING },
+                  amount: { type: Type.NUMBER },
+                  period: { type: Type.STRING, enum: ["Monthly", "Weekly"] },
+                  type: { type: Type.STRING, enum: ["Needs", "Wants", "Savings/Debt"] }
+                },
+                required: ["category", "amount", "period", "type"]
+              }
+            },
+            currentStats: {
+              type: Type.OBJECT,
+              properties: {
+                avgMonthlyIncome: { type: Type.NUMBER },
+                avgMonthlyExpense: { type: Type.NUMBER }
+              },
+              required: ["avgMonthlyIncome", "avgMonthlyExpense"]
+            }
+          },
+          required: ["methodology", "analysis", "suggestedBudgets", "currentStats"]
+        }
+      }
+    });
+    res.json(JSON.parse(response.response.text() || "{}"));
+  } catch (error: any) {
+    console.error("AI Budget Framing error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+const updateBudgetTool: any = {
+  name: "update_budget",
+  description: "Update or create a budget for a category.",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      category: { type: Type.STRING, description: "The category name." },
+      amount: { type: Type.NUMBER, description: "The monthly budget amount." },
+      period: { type: Type.STRING, enum: ["Monthly", "Weekly"], description: "The budget period." }
+    },
+    required: ["category", "amount", "period"]
+  }
+};
+
+const createTransactionTool: any = {
+  name: "create_transaction",
+  description: "Create a new financial transaction.",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      date: { type: Type.STRING, description: "Date in YYYY-MM-DD format." },
+      amount: { type: Type.NUMBER, description: "The transaction amount." },
+      category: { type: Type.STRING, description: "The category of the transaction." },
+      description: { type: Type.STRING, description: "A brief description." },
+      type: { type: Type.STRING, enum: ["Income", "Expense"], description: "The type of transaction." },
+      accountId: { type: Type.NUMBER, description: "The ID of the account." }
+    },
+    required: ["date", "amount", "category", "description", "type", "accountId"]
+  }
+};
+
+const transferMoneyTool: any = {
+  name: "transfer_money",
+  description: "Transfer money between two accounts.",
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      date: { type: Type.STRING, description: "Date in YYYY-MM-DD format." },
+      amount: { type: Type.NUMBER, description: "The amount to transfer." },
+      description: { type: Type.STRING, description: "A brief description." },
+      fromAccountId: { type: Type.NUMBER, description: "The source account ID." },
+      toAccountId: { type: Type.NUMBER, description: "The destination account ID." }
+    },
+    required: ["date", "amount", "description", "fromAccountId", "toAccountId"]
+  }
+};
+
+app.post("/api/ai/chat", async (req, res) => {
+  const { message, context, today } = req.body;
+  try {
+    const response = await (genAI as any).getGenerativeModel({ model: "gemini-2.0-flash" }).generateContent({
+      contents: [{ role: "user", parts: [{ text: message }] }],
+      generationConfig: {
+        systemInstruction: `You are Zenith, a high-end personal financial agent. 
+        Today's Date: ${today}. 
+        Financial Context: ${JSON.stringify(context)}. 
+        Available Accounts are listed in the context. 
+        If the user wants to log a transaction, use the tools. 
+        Confirm the action you are taking or answer the user's question.`,
+      },
+      tools: [{ functionDeclarations: [createTransactionTool, transferMoneyTool, updateBudgetTool] }]
+    });
+
+    const calls = response.response.functionCalls();
+    
+    res.json({ 
+      text: response.response.text(),
+      functionCalls: calls || []
+    });
+  } catch (error: any) {
+    console.error("AI Chat error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/ai/project-future", async (req, res) => {
+  const { transactions, today } = req.body;
+  try {
+    const response = await (genAI as any).getGenerativeModel({ model: "gemini-2.0-flash" }).generateContent({
+      contents: [{ role: "user", parts: [{ text: `Based on these historical transactions, predict the user's total expenses and category breakdown for the NEXT month. 
+      Today's date: ${today}. 
+      Transactions: ${JSON.stringify(transactions)}` }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            projectedTotal: { type: Type.NUMBER },
+            reasoning: { type: Type.STRING },
+            categoryBreakdown: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  category: { type: Type.STRING },
+                  amount: { type: Type.NUMBER },
+                  confidence: { type: Type.NUMBER }
+                },
+                required: ["category", "amount"]
+              }
+            },
+            riskFactors: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          },
+          required: ["projectedTotal", "reasoning", "categoryBreakdown"]
+        }
+      }
+    });
+    res.json(JSON.parse(response.response.text() || "{}"));
+  } catch (error: any) {
+    console.error("AI Projection error:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Google Sheets Proxy API

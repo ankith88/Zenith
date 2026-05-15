@@ -81,23 +81,28 @@ export default function BudgetManager({ budgets, transactions, accounts, display
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Monthly Budgets</h3>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsFraming(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-sm hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all"
-          >
-            <Layout className="w-4 h-4" />
-            AI Framing
-          </button>
-          <button
-            onClick={() => setIsAdding(true)}
-            className="p-2 bg-black dark:bg-white text-white dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Spending Limits</h3>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsFraming(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-sm hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all shadow-sm"
+            >
+              <Layout className="w-4 h-4" />
+              AI Framing
+            </button>
+            <button
+              onClick={() => setIsAdding(true)}
+              className="p-2 bg-black dark:bg-white text-white dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95 shadow-lg"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
         </div>
+        <p className="text-xs text-gray-400 dark:text-gray-500 font-medium px-1">
+          Budgets are assigned to categories and tracked per calendar month. Spent amounts reset to zero on the 1st of every month.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

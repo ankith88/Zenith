@@ -35,7 +35,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isInitialSyncComplete, setIsInitialSyncComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'holdings' | 'chat' | 'categories' | 'settings' | 'transfers' | 'reports' | 'subscriptions' | 'calendar' | 'debt' | 'transactions'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'holdings' | 'chat' | 'categories' | 'settings' | 'transfers' | 'reports' | 'subscriptions' | 'calendar' | 'debt' | 'transactions' | 'budgets' | 'planning'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('zenith_sidebar_collapsed');
@@ -483,12 +483,20 @@ export default function App() {
               {!isSidebarCollapsed && <span>Dashboard</span>}
             </button>
             <button
-              onClick={() => { setActiveTab('holdings'); setIsSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'holdings' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
-              title="Holdings"
+              onClick={() => { setActiveTab('budgets'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'budgets' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Budgets"
+            >
+              <Target className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Budgets</span>}
+            </button>
+            <button
+              onClick={() => { setActiveTab('planning'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'planning' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Goals & Planning"
             >
               <Rocket className="w-5 h-5 shrink-0" />
-              {!isSidebarCollapsed && <span>Holdings</span>}
+              {!isSidebarCollapsed && <span>Goals & Planning</span>}
             </button>
             <button
               onClick={() => { setActiveTab('transactions'); setIsSidebarOpen(false); }}
@@ -803,6 +811,34 @@ export default function App() {
                 ) : (
                   <LoanOffsetSimulator accounts={accounts} transactions={transactions} displayCurrency={displayCurrency} />
                 )}
+              </motion.div>
+            ) : activeTab === 'budgets' ? (
+              <motion.div
+                key="budgets"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full p-6 lg:p-8 overflow-y-auto"
+              >
+                <BudgetManager budgets={budgets} transactions={transactions} accounts={accounts} displayCurrency={displayCurrency} />
+              </motion.div>
+            ) : activeTab === 'planning' ? (
+              <motion.div
+                key="planning"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full p-6 lg:p-8 overflow-y-auto space-y-12"
+              >
+                <section>
+                  <SavingsGoals goals={goals} accounts={accounts} accountBalances={accountBalances} monthlySavings={0} displayCurrency={displayCurrency} />
+                </section>
+                <section>
+                  <RecurringManager recurring={recurring} accounts={accounts} />
+                </section>
+                <section>
+                  <TransferReport transactions={transactions} accounts={accounts} displayCurrency={displayCurrency} />
+                </section>
               </motion.div>
             ) : activeTab === 'holdings' ? (
               <motion.div

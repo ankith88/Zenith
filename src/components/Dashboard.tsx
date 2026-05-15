@@ -1,18 +1,15 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, PieChart, Pie
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
-import { TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Landmark, Banknote, Trash2, Edit2, Target, X, Home, Briefcase, Car, Sparkles, ShieldCheck } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Landmark, Banknote, Trash2, Edit2, Target, X, Home, Briefcase, Car, Sparkles, ShieldCheck, Zap, Sparkles as SparklesIcon } from 'lucide-react';
 import { Transaction, Account, Budget, RecurringTransaction, Goal, Milestone, db } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
 import { formatLocalDate, convertCurrency, getCurrencySymbol } from '../lib/utils';
+import { analystService } from '../lib/gemini';
 import AccountManager from './AccountManager';
-import BudgetManager from './BudgetManager';
-import RecurringManager from './RecurringManager';
-import SavingsGoals from './SavingsGoals';
-import { Milestones } from './Milestones';
 
 import { useLiveQuery } from 'dexie-react-hooks';
 
@@ -36,10 +33,25 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
+  const [isProjecting, setIsProjecting] = useState(false);
+  const [projection, setProjection] = useState<any>(null);
   const [showLiquidBreakdown, setShowLiquidBreakdown] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   const investments = useLiveQuery(() => db.investments.toArray()) || [];
   const assets = useLiveQuery(() => db.assets.toArray()) || [];
+
+  const handleProjectFuture = async () => {
+    setIsProjecting(true);
+    try {
+      const result = await analystService.projectFutureExpenses(transactions);
+      setProjection(result);
+    } catch (error) {
+      console.error("Projection failed", error);
+    } finally {
+      setIsProjecting(false);
+    }
+  };
 
   const totalInvestmentValue = useMemo(() => 
     investments.reduce((sum, i) => sum + convertCurrency(i.quantity * i.currentPrice, 'USD', displayCurrency), 0)
@@ -111,10 +123,13 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
     }
   };
 
+  const DEFAULT_CATEGORIES = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Housing', 'Health', 'Utilities', 'Salary', 'Investment', 'Other'];
+
   const allCategories = useMemo(() => {
     const fromTransactions = transactions.map(t => t.category);
     const fromBudgets = budgets.map(b => b.category);
-    return Array.from(new Set([...fromTransactions, ...fromBudgets])).filter(Boolean).sort();
+    const combined = Array.from(new Set([...fromTransactions, ...fromBudgets])).filter(Boolean);
+    return combined.length > 0 ? combined.sort() : DEFAULT_CATEGORIES;
   }, [transactions, budgets]);
 
   const predictCategory = async (description: string) => {
@@ -133,6 +148,15 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       setIsPredicting(false);
     }
   };
+
+  useEffect(() => {
+    if (editingTransaction && editingTransaction.description.length > 3 && allCategories.length > 0) {
+      const timer = setTimeout(() => {
+        predictCategory(editingTransaction.description);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [editingTransaction?.description]);
 
   const stats = useMemo(() => {
     // Filter data based on householdView for stats
@@ -192,6 +216,12 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
     // But we can pull them directly from db if needed, or pass them as props.
     // However, Dashboard already has access to db.
 
+    // Calculate current month date strings
+    const firstDayOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+    const lastDayOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
+    const monthStartStr = formatLocalDate(firstDayOfMonth);
+    const monthEndStr = formatLocalDate(lastDayOfMonth);
+
     const workingTransactions = (householdView ? filteredTransactions : filteredTransactions.map(t => {
       const acc = accounts.find(a => a.id === t.accountId);
       if (acc?.ownershipPercentage) {
@@ -203,8 +233,10 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       return { ...t, amountInDisplayCurrency: convertCurrency(t.amount, acc?.currency || 'USD', displayCurrency) };
     });
 
-    const income = workingTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + (t as any).amountInDisplayCurrency, 0);
-    const expenses = workingTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + (t as any).amountInDisplayCurrency, 0);
+    const currentMonthTransactions = workingTransactions.filter(t => t.date >= monthStartStr && t.date <= monthEndStr);
+
+    const income = currentMonthTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + (t as any).amountInDisplayCurrency, 0);
+    const expenses = currentMonthTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + (t as any).amountInDisplayCurrency, 0);
     
     const categories = workingTransactions.filter(t => t.type === 'Expense').reduce((acc, t) => {
       acc[t.category] = (acc[t.category] || 0) + (t as any).amountInDisplayCurrency;
@@ -217,15 +249,17 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       color: colorMap[name]
     }));
 
-    const dailyData = workingTransactions.reduce((acc, t) => {
-      const date = t.date;
-      if (!acc[date]) acc[date] = { date, income: 0, expense: 0 };
-      if (t.type === 'Income') acc[date].income += (t as any).amountInDisplayCurrency;
-      else if (t.type === 'Expense') acc[date].expense += (t as any).amountInDisplayCurrency;
-      return acc;
-    }, {} as Record<string, any>);
+    const dailyData = workingTransactions
+      .filter(t => t.date >= monthStartStr && t.date <= monthEndStr)
+      .reduce((acc, t) => {
+        const date = t.date;
+        if (!acc[date]) acc[date] = { date, income: 0, expense: 0 };
+        if (t.type === 'Income') acc[date].income += (t as any).amountInDisplayCurrency;
+        else if (t.type === 'Expense') acc[date].expense += (t as any).amountInDisplayCurrency;
+        return acc;
+      }, {} as Record<string, any>);
 
-    const areaData = Object.values(dailyData).sort((a, b) => a.date.localeCompare(b.date)).slice(-30);
+    const areaData = Object.values(dailyData).sort((a, b) => a.date.localeCompare(b.date));
 
     // Calculate monthly savings rate in display currency
     const last30Days = new Date();
@@ -256,7 +290,8 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
 
     // Calculate budget progress (Budget amounts are assumed to be in display currency)
     const budgetProgress = budgets.map(b => {
-      const spentInDisplay = workingTransactions
+      // Filter transactions for this specific budget category in the current month
+      const spentInDisplay = currentMonthTransactions
         .filter(t => t.category === b.category && t.type === 'Expense')
         .reduce((sum, t) => sum + (t as any).amountInDisplayCurrency, 0);
       return { ...b, spent: spentInDisplay, percent: Math.min((spentInDisplay / b.amount) * 100, 100) };
@@ -283,9 +318,10 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       monthlySavings, 
       filteredAccounts, 
       filteredTransactions,
-      filteredRecurring
+      filteredRecurring,
+      selectedMonthLabel: selectedDate.toLocaleDateString('default', { month: 'long', year: 'numeric' })
     };
-  }, [transactions, accounts, budgets, recurring, goals, householdView, accountBalances, displayCurrency, totalInvestmentValue, totalPhysicalAssetValue]);
+  }, [transactions, accounts, budgets, recurring, goals, householdView, accountBalances, displayCurrency, totalInvestmentValue, totalPhysicalAssetValue, selectedDate]);
 
   const getAccountName = (id: number) => accounts.find(a => a.id === id)?.name || 'Unknown';
 
@@ -293,8 +329,54 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
   const hasBusiness = accounts.some(a => a.type === 'Business Account');
   const hasCarLoan = accounts.some(a => a.type === 'Car Loan');
 
+  const changeMonth = (offset: number) => {
+    setSelectedDate(prev => {
+      const next = new Date(prev);
+      next.setMonth(next.getMonth() + offset);
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto">
+      {/* Month Navigation Header */}
+      <div className="bg-white dark:bg-gray-900 px-6 py-4 rounded-[32px] border border-gray-100 dark:border-gray-800 shadow-sm flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => changeMonth(-1)}
+            className="p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-colors border border-gray-100 dark:border-gray-800 group"
+          >
+            <ArrowUpRight className="w-5 h-5 -rotate-180 text-gray-500 group-hover:text-black dark:group-hover:text-white transition-colors" />
+          </button>
+          <div className="text-center min-w-[160px] group cursor-pointer" onClick={() => setSelectedDate(new Date())}>
+            <h2 className="text-xl font-black text-gray-900 dark:text-white leading-tight group-hover:text-indigo-600 transition-colors">{stats.selectedMonthLabel}</h2>
+            <p className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center justify-center gap-1">
+              Financial Period
+              {selectedDate.getMonth() === new Date().getMonth() && selectedDate.getFullYear() === new Date().getFullYear() && (
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" title="Current Month" />
+              )}
+            </p>
+          </div>
+          <button 
+            onClick={() => changeMonth(1)}
+            disabled={selectedDate.getMonth() === new Date().getMonth() && selectedDate.getFullYear() === new Date().getFullYear()}
+            className="p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-colors border border-gray-100 dark:border-gray-800 disabled:opacity-0 disabled:pointer-events-none group"
+          >
+            <ArrowUpRight className="w-5 h-5 text-gray-500 group-hover:text-black dark:group-hover:text-white transition-colors" />
+          </button>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSelectedDate(new Date())}
+            disabled={selectedDate.getMonth() === new Date().getMonth() && selectedDate.getFullYear() === new Date().getFullYear()}
+            className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:underline disabled:hidden"
+          >
+            Jump to Today
+          </button>
+        </div>
+      </div>
+
       {/* Quick Setup Banners */}
       {(!hasMortgage || !hasBusiness || !hasCarLoan) && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -397,7 +479,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
               <ArrowUpRight className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
             </div>
           </div>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Income</p>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Income ({stats.selectedMonthLabel})</p>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{getCurrencySymbol(displayCurrency)}{stats.income.toLocaleString()}</h3>
         </div>
 
@@ -407,7 +489,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
               <ArrowDownLeft className="w-6 h-6 text-red-600 dark:text-red-400" />
             </div>
           </div>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Expenses</p>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Expenses ({stats.selectedMonthLabel})</p>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{getCurrencySymbol(displayCurrency)}{stats.expenses.toLocaleString()}</h3>
         </div>
 
@@ -459,241 +541,204 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       </div>
 
       {/* Account Manager Section */}
-      <AccountManager accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} displayCurrency={displayCurrency} />
-
-      {/* Savings Goals Section */}
-      <SavingsGoals goals={goals} accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} monthlySavings={stats.monthlySavings} displayCurrency={displayCurrency} />
-
-      {/* Milestones Section */}
-      <Milestones milestones={milestones} />
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Spending Trend */}
-        <div className="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Cash Flow Trend</h3>
-          </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={stats.areaData}>
-                <defs>
-                  <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-chart-grid)" />
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'var(--color-chart-tooltip-bg)', 
-                    borderRadius: '16px', 
-                    border: 'none', 
-                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                    color: 'var(--color-chart-tooltip-text)'
-                  }}
-                  itemStyle={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-chart-tooltip-text)' }}
-                />
-                <Area type="monotone" dataKey="income" stroke="#10b981" fillOpacity={1} fill="url(#colorIncome)" strokeWidth={3} />
-                <Area type="monotone" dataKey="expense" stroke="#ef4444" fillOpacity={1} fill="url(#colorExpense)" strokeWidth={3} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Category Breakdown */}
-        <div className="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-8">Spending by Category</h3>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={stats.pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={8}
-                  dataKey="value"
-                >
-                  {stats.pieData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={entry.color || PRESET_COLORS[index % PRESET_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'var(--color-chart-tooltip-bg)', 
-                    borderRadius: '16px', 
-                    border: 'none', 
-                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                    color: 'var(--color-chart-tooltip-text)'
-                  }}
-                  itemStyle={{ color: 'var(--color-chart-tooltip-text)' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            {stats.pieData.map((item: any, i: number) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color || PRESET_COLORS[i % PRESET_COLORS.length] }} />
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{item.name}</span>
-                <span className="text-sm font-bold text-gray-900 dark:text-white ml-auto">{getCurrencySymbol(displayCurrency)}{item.value.toLocaleString()}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Budget Tracking */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-        {stats.budgetProgress.length > 0 ? (
-          <div className="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm">
-            <div className="flex items-center justify-between mb-8">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <Target className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-                Budget Progress
-              </h3>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <AccountManager accounts={stats.filteredAccounts} accountBalances={stats.accountBalances} displayCurrency={displayCurrency} />
+          
+          {/* Recent Transactions Table */}
+          <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
+              <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">Recent Activity</h3>
+              <button 
+                onClick={onViewAllTransactions}
+                className="text-[10px] font-black text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors uppercase tracking-widest"
+              >
+                View Ledger
+              </button>
             </div>
-            <div className="space-y-8">
-              {stats.budgetProgress.map((budget) => (
-                <div key={budget.id} className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-bold text-gray-700 dark:text-gray-300">{budget.category}</span>
-                    <span className="text-gray-400 dark:text-gray-500">
-                      <span className="text-gray-900 dark:text-white font-bold">{getCurrencySymbol(displayCurrency)}{budget.spent.toLocaleString()}</span>
-                      {' / '}{getCurrencySymbol(displayCurrency)}{budget.amount.toLocaleString()}
-                    </span>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-gray-50/50 dark:bg-gray-800/50">
+                    <th className="px-6 py-3 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Date</th>
+                    <th className="px-6 py-3 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Transaction</th>
+                    <th className="px-6 py-3 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                  {transactions.slice(-8).reverse().map((t) => (
+                    <tr key={t.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors group">
+                      <td className="px-6 py-4 text-xs font-medium text-gray-400 dark:text-gray-500 font-mono">{t.date}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-xl shrink-0 ${
+                            t.type === 'Income' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 
+                            t.type === 'Expense' ? 'bg-red-50 dark:bg-red-900/20 text-red-600' : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600'
+                          }`}>
+                            {t.type === 'Income' ? <ArrowUpRight className="w-3.5 h-3.5" /> : 
+                             t.type === 'Expense' ? <ArrowDownLeft className="w-3.5 h-3.5" /> : 
+                             <RefreshCw className="w-3.5 h-3.5" />}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-bold text-gray-900 dark:text-white truncate">{t.description}</span>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{getAccountName(t.accountId)}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className={`px-6 py-4 text-sm font-black text-right ${
+                        t.type === 'Income' ? 'text-emerald-600 dark:text-emerald-400' : 
+                        t.type === 'Expense' ? 'text-red-600 dark:text-red-400' : 'text-indigo-600 dark:text-indigo-400'
+                      }`}>
+                        {t.type === 'Income' ? '+' : t.type === 'Expense' ? '-' : ''}
+                        {getCurrencySymbol(accounts.find(a => a.id === t.accountId)?.currency)}
+                        {t.amount.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          {/* AI Projection Card */}
+          <div className="bg-indigo-600 p-8 rounded-[40px] text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+              <SparklesIcon className="w-24 h-24" />
+            </div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-6">
+                <div className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                  <Zap className="w-3 h-3 text-yellow-300" />
+                  Zenith AI Insight
+                </div>
+                <button 
+                  onClick={handleProjectFuture}
+                  disabled={isProjecting}
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isProjecting ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+
+              {!projection && !isProjecting ? (
+                <div className="space-y-4">
+                  <h4 className="text-2xl font-black leading-tight">Predict your next month</h4>
+                  <p className="text-sm font-medium text-indigo-100 italic">"I can analyze your spending patterns to forecast next month's totals."</p>
+                  <button 
+                    onClick={handleProjectFuture}
+                    className="w-full py-4 bg-white text-indigo-600 rounded-2xl font-black text-sm active:scale-95 transition-all shadow-lg"
+                  >
+                    Generate AI Forecast
+                  </button>
+                </div>
+              ) : isProjecting ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-4">
+                  <Loader2 className="w-8 h-8 animate-spin opacity-50" />
+                  <p className="text-xs font-bold uppercase tracking-widest opacity-60">Architecting Forecast...</p>
+                </div>
+              ) : (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200">Projected Burn</p>
+                    <h4 className="text-4xl font-black">{getCurrencySymbol(displayCurrency)}{projection.projectedTotal.toLocaleString()}</h4>
                   </div>
-                  <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden shadow-inner">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${budget.percent}%` }}
-                      transition={{ duration: 1, ease: "easeOut" }}
-                      className={`h-full rounded-full shadow-sm ${
-                        budget.percent > 90 ? 'bg-rose-500' : budget.percent > 70 ? 'bg-amber-500' : 'bg-indigo-600'
-                      }`}
-                    />
+                  <p className="text-xs font-medium text-indigo-50 leading-relaxed italic">
+                    "{projection.reasoning}"
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    {projection.categoryBreakdown.slice(0, 4).map((item: any, i: number) => (
+                      <div key={i} className="p-3 bg-white/10 rounded-2xl backdrop-blur-sm">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-indigo-200 truncate">{item.category}</p>
+                        <p className="text-sm font-bold">{getCurrencySymbol(displayCurrency)}{item.amount.toLocaleString()}</p>
+                      </div>
+                    ))}
                   </div>
+                </motion.div>
+              )}
+            </div>
+          </div>
+
+          {/* Spending Distribution */}
+          <div className="bg-white dark:bg-gray-900 p-8 rounded-[40px] border border-gray-100 dark:border-gray-800 shadow-sm">
+            <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight mb-6">Spend Mix</h3>
+            <div className="h-[200px] w-full mb-6">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats.pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {stats.pieData.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.color || PRESET_COLORS[index % PRESET_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-3">
+              {stats.pieData.slice(0, 5).map((item: any, i: number) => (
+                <div key={i} className="flex items-center justify-between group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color || PRESET_COLORS[i % PRESET_COLORS.length] }} />
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{item.name}</span>
+                  </div>
+                  <span className="text-xs font-black text-gray-900 dark:text-white">{getCurrencySymbol(displayCurrency)}{item.value.toLocaleString()}</span>
                 </div>
               ))}
             </div>
           </div>
-        ) : (
-          <div className="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm text-center flex flex-col items-center justify-center min-h-[300px]">
-            <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-full mb-4">
-              <Target className="w-10 h-10 text-gray-200 dark:text-gray-700" />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No Budgets Set</h3>
-            <p className="text-gray-400 dark:text-gray-500 max-w-[240px]">Track your spending by setting monthly category budgets.</p>
-          </div>
-        )}
-        <BudgetManager budgets={budgets} transactions={transactions} accounts={accounts} displayCurrency={displayCurrency} />
-      </div>
-
-      {/* Recurring Transactions */}
-      <div className="mb-12">
-        <RecurringManager recurring={recurring} accounts={accounts} />
-      </div>
-
-      {/* Recent Transactions Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
-        <div className="p-8 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Recent Transactions</h3>
-          <button 
-            onClick={onViewAllTransactions}
-            className="text-sm font-bold text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors"
-          >
-            View All
-          </button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-gray-50/50 dark:bg-gray-800/50">
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Description</th>
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Account</th>
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider text-right">Amount</th>
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-              {transactions.slice(-10).reverse().map((t) => (
-                <tr key={t.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors group">
-                  <td className="px-8 py-4 text-sm text-gray-500 dark:text-gray-400">{t.date}</td>
-                  <td className="px-8 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-xl ${
-                        t.type === 'Income' ? 'bg-emerald-50 dark:bg-emerald-900/20' : 
-                        t.type === 'Expense' ? 'bg-red-50 dark:bg-red-900/20' : 'bg-indigo-50 dark:bg-indigo-900/20'
-                      }`}>
-                        {t.type === 'Income' ? <ArrowUpRight className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : 
-                         t.type === 'Expense' ? <ArrowDownLeft className="w-4 h-4 text-red-600 dark:text-red-400" /> : 
-                         <RefreshCw className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
-                      </div>
-                      <span className="font-medium text-gray-900 dark:text-white">{t.description}</span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-4">
-                    <div className="flex flex-col">
-                      <span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-xs font-bold text-gray-500 dark:text-gray-400 w-fit">
-                        {getAccountName(t.accountId)}
-                      </span>
-                      {t.type === 'Transfer' && t.toAccountId && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <ArrowDownLeft className="w-3 h-3 text-indigo-400 rotate-180" />
-                          <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/20 rounded-full text-xs font-bold text-indigo-500 dark:text-indigo-400 w-fit">
-                            {getAccountName(t.toAccountId)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className={`px-8 py-4 text-sm font-bold text-right ${
-                    t.type === 'Income' ? 'text-emerald-600 dark:text-emerald-400' : 
-                    t.type === 'Expense' ? 'text-red-600 dark:text-red-400' : 'text-indigo-600 dark:text-indigo-400'
-                  }`}>
-                    <div className="flex flex-col items-end">
-                      <span>
-                        {t.type === 'Income' ? '+' : t.type === 'Expense' ? '-' : ''}
-                        {getCurrencySymbol(accounts.find(a => a.id === t.accountId)?.currency)}
-                        {t.amount.toLocaleString()}
-                      </span>
-                      {accounts.find(a => a.id === t.accountId)?.currency !== displayCurrency && (
-                        <span className="text-[10px] font-medium opacity-60">
-                          ≈ {getCurrencySymbol(displayCurrency)}
-                          {convertCurrency(t.amount, accounts.find(a => a.id === t.accountId)?.currency || 'USD', displayCurrency).toLocaleString()}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-8 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => setEditingTransaction(t)}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-xl transition-colors"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => t.id && setDeletingTransactionId(t.id)}
-                        className="p-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-xl transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      </div>
+
+      {/* Cash Flow Section */}
+      <div className="bg-white dark:bg-gray-900 p-8 rounded-[40px] border border-gray-100 dark:border-gray-800 shadow-sm">
+        <div className="flex items-center justify-between mb-8">
+          <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">Financial Pulse</h3>
+          <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest">
+            <div className="flex items-center gap-2 text-emerald-500">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              Inflow
+            </div>
+            <div className="flex items-center gap-2 text-red-500">
+              <div className="w-2 h-2 rounded-full bg-red-500" />
+              Outflow
+            </div>
+          </div>
+        </div>
+        <div className="h-[250px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={stats.areaData}>
+              <defs>
+                <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1}/>
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }} />
+              <Tooltip 
+                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+              />
+              <Area type="monotone" dataKey="income" stroke="#10b981" fillOpacity={1} fill="url(#colorIncome)" strokeWidth={4} />
+              <Area type="monotone" dataKey="expense" stroke="#ef4444" fillOpacity={1} fill="url(#colorExpense)" strokeWidth={4} />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
       {/* Edit Transaction Modal */}
@@ -763,13 +808,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                     required
                     type="text"
                     value={editingTransaction.description}
-                    onChange={(e) => {
-                      const newDesc = e.target.value;
-                      setEditingTransaction({ ...editingTransaction, description: newDesc });
-                      // Debounce prediction
-                      const timer = setTimeout(() => predictCategory(newDesc), 1000);
-                      return () => clearTimeout(timer);
-                    }}
+                    onChange={(e) => setEditingTransaction({ ...editingTransaction, description: e.target.value })}
                     className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-black dark:focus:ring-white outline-none"
                   />
                 </div>
