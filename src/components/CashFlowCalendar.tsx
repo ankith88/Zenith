@@ -21,39 +21,57 @@ export default function CashFlowCalendar({ transactions, accounts, recurring, di
     const days = 30;
     const data = [];
     
-    // Calculate current balance in display currency
-    const accountBalancesDis = accounts.reduce((acc, account) => {
+    // Define liquid account types that contribute to cash flow
+    const liquidTypes = [
+      'Checking', 'Savings', 'Salary Account', 'Daily Account', 
+      'Business Account', 'Cash', 'Offset Account', 'Asset', 'Other'
+    ];
+    const liquidAccounts = accounts.filter(a => liquidTypes.includes(a.type));
+    const liquidAccountIds = new Set(liquidAccounts.map(a => a.id));
+
+    // Calculate current balance for liquid accounts in display currency
+    const accountBalancesDis = liquidAccounts.reduce((acc, account) => {
       const balanceInDisplay = convertCurrency(account.initialBalance, account.currency || 'AUD', displayCurrency);
       acc[account.id!] = balanceInDisplay;
       return acc;
     }, {} as Record<number, number>);
 
     transactions.forEach(t => {
+      // Only process transactions affecting liquid accounts
+      const isLiquidAccount = liquidAccountIds.has(t.accountId);
+      const isToLiquidAccount = t.toAccountId ? liquidAccountIds.has(t.toAccountId) : false;
+
+      if (!isLiquidAccount && !isToLiquidAccount) return;
+
       const acc = accounts.find(a => a.id === t.accountId);
       const toAcc = t.toAccountId ? accounts.find(a => a.id === t.toAccountId) : null;
-      const amountInDisplay = convertCurrency(t.amount, acc?.currency || 'USD', displayCurrency);
+      const amountInDisplay = convertCurrency(t.amount, acc?.currency || 'AUD', displayCurrency);
 
-      if (t.type === 'Income') {
+      if (t.type === 'Income' && isLiquidAccount) {
         accountBalancesDis[t.accountId] = (accountBalancesDis[t.accountId] || 0) + amountInDisplay;
-      } else if (t.type === 'Expense') {
+      } else if (t.type === 'Expense' && isLiquidAccount) {
         accountBalancesDis[t.accountId] = (accountBalancesDis[t.accountId] || 0) - amountInDisplay;
-      } else if (t.type === 'Transfer' && t.toAccountId) {
-        accountBalancesDis[t.accountId] = (accountBalancesDis[t.accountId] || 0) - amountInDisplay;
-        const toAmountInDisplay = convertCurrency(t.amount, toAcc?.currency || 'AUD', displayCurrency); // Technically should be same relative value but let's be precise
-        accountBalancesDis[t.toAccountId] = (accountBalancesDis[t.toAccountId] || 0) + toAmountInDisplay;
+      } else if (t.type === 'Transfer') {
+        if (isLiquidAccount) {
+          accountBalancesDis[t.accountId] = (accountBalancesDis[t.accountId] || 0) - amountInDisplay;
+        }
+        if (isToLiquidAccount && t.toAccountId) {
+          const toAmountInDisplay = convertCurrency(t.amount, toAcc?.currency || 'AUD', displayCurrency);
+          accountBalancesDis[t.toAccountId] = (accountBalancesDis[t.toAccountId] || 0) + toAmountInDisplay;
+        }
       }
     });
 
-    let currentTotal = Object.values(accountBalancesDis).reduce((sum, b) => sum + b, 0);
+    let currentTotal = Object.values(accountBalancesDis).reduce((sum, b) => (sum || 0) + (b || 0), 0);
     
-    // Calculate average daily spend (last 30 days) in display currency
+    // Calculate average daily spend (last 30 days) from liquid accounts
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(today.getDate() - 30);
     const last30DaysExpensesDis = transactions
-      .filter(t => t.type === 'Expense' && new Date(t.date) >= thirtyDaysAgo)
+      .filter(t => t.type === 'Expense' && liquidAccountIds.has(t.accountId) && new Date(t.date) >= thirtyDaysAgo)
       .reduce((sum, t) => {
         const acc = accounts.find(a => a.id === t.accountId);
-        return sum + convertCurrency(t.amount, acc?.currency || 'USD', displayCurrency);
+        return sum + convertCurrency(t.amount, acc?.currency || 'AUD', displayCurrency);
       }, 0);
     const avgDailySpend = last30DaysExpensesDis / 30;
 
@@ -64,8 +82,10 @@ export default function CashFlowCalendar({ transactions, accounts, recurring, di
       const dateStr = formatLocalDate(date);
       const dayOfMonth = date.getDate();
 
-      // Add recurring income/expenses
+      // Add recurring income/expenses affecting liquid accounts
       const dayRecurring = recurring.filter(r => {
+        if (!liquidAccountIds.has(r.accountId) && !(r.toAccountId && liquidAccountIds.has(r.toAccountId))) return false;
+
         // Parse YYYY-MM-DD manually to ensure local timezone interpretation
         const [y, m, d] = r.startDate.split('-').map(Number);
         const start = new Date(y, m - 1, d);
@@ -87,8 +107,17 @@ export default function CashFlowCalendar({ transactions, accounts, recurring, di
 
       const recurringNet = dayRecurring.reduce((sum, r) => {
         const acc = accounts.find(a => a.id === r.accountId);
-        const amountDis = convertCurrency(r.amount, acc?.currency || 'USD', displayCurrency);
-        return r.type === 'Income' ? sum + amountDis : sum - amountDis;
+        const toAcc = r.toAccountId ? accounts.find(a => a.id === r.toAccountId) : null;
+        
+        let net = 0;
+        if (r.type === 'Transfer') {
+          if (liquidAccountIds.has(r.accountId)) net -= convertCurrency(r.amount, acc?.currency || 'AUD', displayCurrency);
+          if (r.toAccountId && liquidAccountIds.has(r.toAccountId)) net += convertCurrency(r.amount, toAcc?.currency || 'AUD', displayCurrency);
+        } else {
+          const amountDis = convertCurrency(r.amount, acc?.currency || 'AUD', displayCurrency);
+          net = r.type === 'Income' ? amountDis : -amountDis;
+        }
+        return sum + net;
       }, 0);
 
       currentTotal += recurringNet - avgDailySpend;
