@@ -32,7 +32,7 @@ export default function AccountManager({ accounts, accountBalances, displayCurre
     paymentFrequency: 'Monthly',
     paymentDueDay: '',
     ownershipPercentage: '100',
-    currency: 'USD',
+    currency: 'AUD',
     principalAmount: '',
     tenorMonths: '',
     maturityDate: '',
@@ -71,7 +71,7 @@ export default function AccountManager({ accounts, accountBalances, displayCurre
       await db.accounts.update(newAccount.id!, { synced: true });
       
       setIsAdding(false);
-      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '', paymentFrequency: 'Monthly', paymentDueDay: '', ownershipPercentage: '100', currency: 'USD', principalAmount: '', tenorMonths: '', maturityDate: '' });
+      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '', paymentFrequency: 'Monthly', paymentDueDay: '', ownershipPercentage: '100', currency: 'AUD', principalAmount: '', tenorMonths: '', maturityDate: '' });
     } catch (error) {
       console.error("Add account error:", error);
     } finally {
@@ -92,7 +92,7 @@ export default function AccountManager({ accounts, accountBalances, displayCurre
       await sheetsService.updateAccount(updatedAccount);
       await db.accounts.update(editingAccount.id!, { synced: true });
       setEditingAccount(null);
-      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '', paymentFrequency: 'Monthly', paymentDueDay: '', ownershipPercentage: '100', currency: 'USD', principalAmount: '', tenorMonths: '', maturityDate: '' });
+      setFormData({ name: '', initialBalance: '', type: 'Checking', customType: '', interestRate: '', minPayment: '', owner: 'Me', isPrivate: false, assetValue: '', creditLimit: '', paymentFrequency: 'Monthly', paymentDueDay: '', ownershipPercentage: '100', currency: 'AUD', principalAmount: '', tenorMonths: '', maturityDate: '' });
     } catch (error) {
       console.error("Update account error:", error);
     } finally {

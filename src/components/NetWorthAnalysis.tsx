@@ -30,7 +30,7 @@ export default function NetWorthAnalysis({ transactions, accounts, householdView
       .reduce((sum, a) => {
         let bal = a.initialBalance;
         if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
-        return sum + convertCurrency(bal, a.currency || 'USD', displayCurrency);
+        return sum + convertCurrency(bal, a.currency || 'AUD', displayCurrency);
       }, 0);
       
     let currentDebt = accounts
@@ -38,7 +38,7 @@ export default function NetWorthAnalysis({ transactions, accounts, householdView
       .reduce((sum, a) => {
         let bal = Math.abs(a.initialBalance);
         if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
-        return sum + convertCurrency(bal, a.currency || 'USD', displayCurrency);
+        return sum + convertCurrency(bal, a.currency || 'AUD', displayCurrency);
       }, 0);
 
     const dates = Array.from(new Set(workingTransactions.map(t => t.date))).sort();
@@ -52,7 +52,7 @@ export default function NetWorthAnalysis({ transactions, accounts, householdView
         // Find the account to see if it's asset or debt
         const account = accounts.find(a => a.id === t.accountId);
         const isDebt = account && ['Mortgage', 'Car Loan', 'Credit Card'].includes(account.type);
-        const amountInDisplay = convertCurrency(t.amount, account?.currency || 'USD', displayCurrency);
+        const amountInDisplay = convertCurrency(t.amount, account?.currency || 'AUD', displayCurrency);
 
         if (t.type === 'Income') {
           if (isDebt) currentDebt -= amountInDisplay; // Paying off debt
@@ -80,7 +80,7 @@ export default function NetWorthAnalysis({ transactions, accounts, householdView
     .reduce((sum, a) => {
       let bal = a.initialBalance;
       if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
-      return sum + convertCurrency(bal, a.currency || 'USD', displayCurrency);
+      return sum + convertCurrency(bal, a.currency || 'AUD', displayCurrency);
     }, 0), [accounts, householdView, displayCurrency]);
     
   const currentDebt = useMemo(() => accounts
@@ -88,7 +88,7 @@ export default function NetWorthAnalysis({ transactions, accounts, householdView
     .reduce((sum, a) => {
       let bal = Math.abs(a.initialBalance);
       if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
-      return sum + convertCurrency(bal, a.currency || 'USD', displayCurrency);
+      return sum + convertCurrency(bal, a.currency || 'AUD', displayCurrency);
     }, 0), [accounts, householdView, displayCurrency]);
 
   const netWorth = currentAssets - currentDebt;

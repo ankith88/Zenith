@@ -178,7 +178,7 @@ export default function LoanOffsetSimulator({ accounts, transactions, displayCur
                   className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
                   {mortgages.map(m => (
-                    <option key={m.id} value={m.id}>{m.name} ({getCurrencySymbol(displayCurrency)}{convertCurrency(Math.abs(accountBalances[m.id!] || 0), m.currency || 'USD', displayCurrency).toLocaleString()})</option>
+                    <option key={m.id} value={m.id}>{m.name} ({getCurrencySymbol(displayCurrency)}{convertCurrency(Math.abs(accountBalances[m.id!] || 0), m.currency || 'AUD', displayCurrency).toLocaleString()})</option>
                   ))}
                 </select>
               </div>
@@ -191,7 +191,7 @@ export default function LoanOffsetSimulator({ accounts, transactions, displayCur
                   className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                 >
                   {liquidAccounts.map(a => (
-                    <option key={a.id} value={a.id}>{a.name} ({getCurrencySymbol(displayCurrency)}{convertCurrency(Math.abs(accountBalances[a.id!] || 0), a.currency || 'USD', displayCurrency).toLocaleString()})</option>
+                    <option key={a.id} value={a.id}>{a.name} ({getCurrencySymbol(displayCurrency)}{convertCurrency(Math.abs(accountBalances[a.id!] || 0), a.currency || 'AUD', displayCurrency).toLocaleString()})</option>
                   ))}
                 </select>
               </div>

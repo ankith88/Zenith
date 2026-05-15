@@ -48,6 +48,7 @@ export default function MortgageSetupWizard({ accounts, onClose, onComplete }: M
         paymentFrequency: formData.paymentFrequency,
         paymentDueDay: parseInt(formData.paymentDueDay),
         ownershipPercentage: parseFloat(formData.ownershipPercentage) || 100,
+        currency: 'AUD',
         synced: false
       };
 

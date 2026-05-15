@@ -281,7 +281,7 @@ export default function Transactions({ transactions, accounts, displayCurrency }
                       {accounts.find(a => a.id === t.accountId)?.currency !== displayCurrency && (
                         <span className="text-[10px] font-medium opacity-60">
                           ≈ {getCurrencySymbol(displayCurrency)}
-                          {convertCurrency(t.amount, accounts.find(a => a.id === t.accountId)?.currency || 'USD', displayCurrency).toLocaleString()}
+                          {convertCurrency(t.amount, accounts.find(a => a.id === t.accountId)?.currency || 'AUD', displayCurrency).toLocaleString()}
                         </span>
                       )}
                     </div>

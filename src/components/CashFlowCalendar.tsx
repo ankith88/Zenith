@@ -23,7 +23,7 @@ export default function CashFlowCalendar({ transactions, accounts, recurring, di
     
     // Calculate current balance in display currency
     const accountBalancesDis = accounts.reduce((acc, account) => {
-      const balanceInDisplay = convertCurrency(account.initialBalance, account.currency || 'USD', displayCurrency);
+      const balanceInDisplay = convertCurrency(account.initialBalance, account.currency || 'AUD', displayCurrency);
       acc[account.id!] = balanceInDisplay;
       return acc;
     }, {} as Record<number, number>);
@@ -39,7 +39,7 @@ export default function CashFlowCalendar({ transactions, accounts, recurring, di
         accountBalancesDis[t.accountId] = (accountBalancesDis[t.accountId] || 0) - amountInDisplay;
       } else if (t.type === 'Transfer' && t.toAccountId) {
         accountBalancesDis[t.accountId] = (accountBalancesDis[t.accountId] || 0) - amountInDisplay;
-        const toAmountInDisplay = convertCurrency(t.amount, toAcc?.currency || 'USD', displayCurrency); // Technically should be same relative value but let's be precise
+        const toAmountInDisplay = convertCurrency(t.amount, toAcc?.currency || 'AUD', displayCurrency); // Technically should be same relative value but let's be precise
         accountBalancesDis[t.toAccountId] = (accountBalancesDis[t.toAccountId] || 0) + toAmountInDisplay;
       }
     });

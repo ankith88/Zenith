@@ -41,6 +41,7 @@ export default function CarLoanSetupWizard({ accounts, onClose, onComplete }: Ca
         minPayment: parseFloat(formData.monthlyPayment),
         paymentFrequency: formData.frequency,
         paymentDueDay: parseLocalDate(formData.startDate).getDate(),
+        currency: 'AUD',
         synced: false
       };
 

@@ -44,7 +44,7 @@ export default function BudgetPerformance({ budgets, transactions, accounts, dis
           .filter(t => t.category === budget.category)
           .reduce((sum, t) => {
             const acc = accounts.find(a => a.id === t.accountId);
-            return sum + convertCurrency(t.amount, acc?.currency || 'USD', displayCurrency);
+            return sum + convertCurrency(t.amount, acc?.currency || 'AUD', displayCurrency);
           }, 0);
         
         monthData[budget.category] = Math.round(spent);

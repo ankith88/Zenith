@@ -49,9 +49,9 @@ export default function DebtSimulator({ accounts, transactions, displayCurrency 
       .map(acc => ({
         id: acc.id!,
         name: acc.name,
-        balance: convertCurrency(Math.abs(accountBalances[acc.id!]), acc.currency || 'USD', displayCurrency),
+        balance: convertCurrency(Math.abs(accountBalances[acc.id!]), acc.currency || 'AUD', displayCurrency),
         interestRate: acc.interestRate || 0,
-        minPayment: convertCurrency(acc.minPayment || 0, acc.currency || 'USD', displayCurrency)
+        minPayment: convertCurrency(acc.minPayment || 0, acc.currency || 'AUD', displayCurrency)
       }))
       .filter(d => d.balance > 0);
   }, [accounts, transactions, displayCurrency]);

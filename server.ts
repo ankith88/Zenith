@@ -706,7 +706,7 @@ app.post("/api/ai/project-future", async (req, res) => {
 // Google Sheets Proxy API
 const REQUIRED_SHEETS: Record<string, string[]> = {
   "Transactions": ["ID", "Date", "Amount", "Category", "Description", "Type", "AccountID", "ToAccountID", "Owner"],
-  "Accounts": ["AccountID", "Name", "InitialBalance", "Type", "InterestRate", "MinPayment", "Owner", "IsPrivate", "AssetValue", "CreditLimit", "PaymentFrequency", "PaymentDueDay"],
+  "Accounts": ["AccountID", "Name", "InitialBalance", "Type", "InterestRate", "MinPayment", "Owner", "IsPrivate", "AssetValue", "CreditLimit", "PaymentFrequency", "PaymentDueDay", "LastInterestDate", "Currency"],
   "Budgets": ["Category", "Amount", "Period"],
   "Recurring": ["ID", "Description", "Amount", "Category", "Type", "AccountID", "Frequency", "StartDate", "LastProcessedDate", "ToAccountID"],
   "Goals": ["ID", "Name", "TargetAmount", "CurrentAmount", "Deadline", "Category", "Color", "AccountID"],
@@ -975,6 +975,8 @@ app.post("/api/sheets/create", async (req, res) => {
                       { userEnteredValue: { stringValue: "CreditLimit" } },
                       { userEnteredValue: { stringValue: "PaymentFrequency" } },
                       { userEnteredValue: { stringValue: "PaymentDueDay" } },
+                      { userEnteredValue: { stringValue: "LastInterestDate" } },
+                      { userEnteredValue: { stringValue: "Currency" } },
                     ],
                   },
                 ],

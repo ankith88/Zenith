@@ -57,11 +57,11 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
   };
 
   const totalInvestmentValue = useMemo(() => 
-    investments.reduce((sum, i) => sum + convertCurrency(i.quantity * i.currentPrice, 'USD', displayCurrency), 0)
+    investments.reduce((sum, i) => sum + convertCurrency(i.quantity * i.currentPrice, 'AUD', displayCurrency), 0)
   , [investments, displayCurrency]);
 
   const totalPhysicalAssetValue = useMemo(() => 
-    assets.reduce((sum, a) => sum + convertCurrency(a.currentValuation, 'USD', displayCurrency), 0)
+    assets.reduce((sum, a) => sum + convertCurrency(a.currentValuation, 'AUD', displayCurrency), 0)
   , [assets, displayCurrency]);
 
   const categoryMetadata = useLiveQuery(() => db.categoryMetadata.toArray()) || [];
@@ -202,7 +202,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
     // Total balance in display currency
     const totalBalance = Object.entries(filteredAccountBalances).reduce((sum, [id, balance]) => {
       const acc = accounts.find(a => a.id === parseInt(id));
-      return sum + convertCurrency(balance, acc?.currency || 'USD', displayCurrency);
+      return sum + convertCurrency(balance, acc?.currency || 'AUD', displayCurrency);
     }, 0);
 
     const totalAssetValue = filteredAccounts.reduce((sum, acc) => {
@@ -210,7 +210,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       if (!householdView && acc.ownershipPercentage) {
         val = val * (acc.ownershipPercentage / 100);
       }
-      return sum + convertCurrency(val, acc.currency || 'USD', displayCurrency);
+      return sum + convertCurrency(val, acc.currency || 'AUD', displayCurrency);
     }, 0);
     const netWorth = totalBalance + totalAssetValue;
 
@@ -233,7 +233,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
       return t;
     })).map(t => {
       const acc = accounts.find(a => a.id === t.accountId);
-      return { ...t, amountInDisplayCurrency: convertCurrency(t.amount, acc?.currency || 'USD', displayCurrency) };
+      return { ...t, amountInDisplayCurrency: convertCurrency(t.amount, acc?.currency || 'AUD', displayCurrency) };
     });
 
     const currentMonthTransactions = workingTransactions.filter(t => t.date >= monthStartStr && t.date <= monthEndStr);
@@ -283,7 +283,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
 
     filteredAccounts.forEach(acc => {
       const balance = filteredAccountBalances[acc.id!] || 0;
-      const balanceInDisplay = convertCurrency(balance, acc.currency || 'USD', displayCurrency);
+      const balanceInDisplay = convertCurrency(balance, acc.currency || 'AUD', displayCurrency);
       if (acc.type === 'Mortgage' || acc.type === 'Credit Card' || acc.type === 'Car Loan' || acc.type === 'Personal Loan') {
         totalDebtInDisplay += Math.abs(balanceInDisplay);
       } else {

@@ -130,7 +130,7 @@ export default function SavingsGoals({ goals, accounts, accountBalances, monthly
     if (monthlySavings <= 0) return "Infinite (No savings)";
     
     // Convert monthly savings (which is in USD) to the goal/account currency
-    const monthlySavingsInGoalCurrency = convertCurrency(monthlySavings, 'USD', goalCurrency);
+    const monthlySavingsInGoalCurrency = convertCurrency(monthlySavings, displayCurrency, goalCurrency);
     if (monthlySavingsInGoalCurrency <= 0) return "Infinite (No savings)";
     
     const months = Math.ceil(remaining / monthlySavingsInGoalCurrency);

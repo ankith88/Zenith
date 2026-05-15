@@ -56,7 +56,7 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
     // Normalize to display currency for global reporting
     return baseFiltered.map(t => {
       const acc = accounts.find(a => a.id === t.accountId);
-      return { ...t, amountInDisplayCurrency: convertCurrency(t.amount, acc?.currency || 'USD', displayCurrency) };
+      return { ...t, amountInDisplayCurrency: convertCurrency(t.amount, acc?.currency || 'AUD', displayCurrency) };
     });
   }, [transactions, accounts, householdView, displayCurrency]);
 
@@ -155,11 +155,11 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
   const assets = useLiveQuery(() => db.assets.toArray()) || [];
 
   const totalInvestmentValue = useMemo(() => 
-    investments.reduce((sum, i) => sum + convertCurrency(i.quantity * i.currentPrice, 'USD', displayCurrency), 0)
+    investments.reduce((sum, i) => sum + convertCurrency(i.quantity * i.currentPrice, 'AUD', displayCurrency), 0)
   , [investments, displayCurrency]);
 
   const totalAssetValue = useMemo(() => 
-    assets.reduce((sum, a) => sum + convertCurrency(a.currentValuation, 'USD', displayCurrency), 0)
+    assets.reduce((sum, a) => sum + convertCurrency(a.currentValuation, 'AUD', displayCurrency), 0)
   , [assets, displayCurrency]);
 
   const savingsRate = useMemo(() => {
@@ -267,7 +267,7 @@ export default function Reports({ transactions, accounts, budgets, goals, househ
                   {(workingAccounts.filter(a => !['Mortgage', 'Car Loan', 'Credit Card'].includes(a.type)).reduce((sum, a) => {
                     let bal = a.initialBalance;
                     if (!householdView && a.ownershipPercentage) bal *= (a.ownershipPercentage / 100);
-                    return sum + convertCurrency(bal, a.currency || 'USD', displayCurrency);
+                    return sum + convertCurrency(bal, a.currency || 'AUD', displayCurrency);
                   }, 0) + totalInvestmentValue + totalAssetValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </h4>
               </div>

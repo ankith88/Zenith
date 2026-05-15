@@ -21,11 +21,11 @@ export const SUPPORTED_CURRENCIES = [
   { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar', rate: 1.35 }
 ];
 
-export const getCurrencySymbol = (code: string = 'USD') => {
+export const getCurrencySymbol = (code: string = 'AUD') => {
   return SUPPORTED_CURRENCIES.find(c => c.code === code)?.symbol || '$';
 };
 
-export const convertCurrency = (amount: number, fromCode: string = 'USD', toCode: string = 'USD') => {
+export const convertCurrency = (amount: number, fromCode: string = 'AUD', toCode: string = 'AUD') => {
   if (fromCode === toCode) return amount;
   
   const fromCurrency = SUPPORTED_CURRENCIES.find(c => c.code === fromCode);

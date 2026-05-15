@@ -46,7 +46,7 @@ export default function App() {
   });
   const [displayCurrency, setDisplayCurrency] = useState(() => {
     const saved = localStorage.getItem('zenith_display_currency');
-    return saved || 'USD';
+    return saved || 'AUD';
   });
   const [showMortgageWizard, setShowMortgageWizard] = useState(false);
   const [showCarLoanWizard, setShowCarLoanWizard] = useState(false);
