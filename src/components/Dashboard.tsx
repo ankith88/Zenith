@@ -35,6 +35,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
   const [isPredicting, setIsPredicting] = useState(false);
   const [isProjecting, setIsProjecting] = useState(false);
   const [projection, setProjection] = useState<any>(null);
+  const [projectionError, setProjectionError] = useState<string | null>(null);
   const [showLiquidBreakdown, setShowLiquidBreakdown] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -43,11 +44,13 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
 
   const handleProjectFuture = async () => {
     setIsProjecting(true);
+    setProjectionError(null);
     try {
       const result = await analystService.projectFutureExpenses(transactions);
       setProjection(result);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Projection failed", error);
+      setProjectionError(error.message || "Failed to generate AI Forecast. Please ensure you have enough transaction history.");
     } finally {
       setIsProjecting(false);
     }
@@ -627,6 +630,11 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
                 <div className="space-y-4">
                   <h4 className="text-2xl font-black leading-tight">Predict your next month</h4>
                   <p className="text-sm font-medium text-indigo-100 italic">"I can analyze your spending patterns to forecast next month's totals."</p>
+                  {projectionError && (
+                    <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-xs font-bold text-red-100 animate-shake">
+                      {projectionError}
+                    </div>
+                  )}
                   <button 
                     onClick={handleProjectFuture}
                     className="w-full py-4 bg-white text-indigo-600 rounded-2xl font-black text-sm active:scale-95 transition-all shadow-lg"
