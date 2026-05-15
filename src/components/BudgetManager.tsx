@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Plus, Target, Loader2, X, Trash2, Edit2, Layout } from 'lucide-react';
+import { Plus, Target, Loader2, X, Trash2, Edit2, Layout, BarChart2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, Budget, Transaction, Account } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
 import { getCurrencySymbol } from '../lib/utils';
 import BudgetFraming from './BudgetFraming';
+import BudgetPerformance from './BudgetPerformance';
 
 interface BudgetManagerProps {
   budgets: Budget[];
@@ -14,6 +15,7 @@ interface BudgetManagerProps {
 }
 
 export default function BudgetManager({ budgets, transactions, accounts, displayCurrency }: BudgetManagerProps) {
+  const [activeView, setActiveView] = useState<'limits' | 'performance'>('limits');
   const [isAdding, setIsAdding] = useState(false);
   const [isFraming, setIsFraming] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -80,61 +82,113 @@ export default function BudgetManager({ budgets, transactions, accounts, display
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Spending Limits</h3>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsFraming(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-sm hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all shadow-sm"
-            >
-              <Layout className="w-4 h-4" />
-              AI Framing
-            </button>
-            <button
-              onClick={() => setIsAdding(true)}
-              className="p-2 bg-black dark:bg-white text-white dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95 shadow-lg"
-            >
-              <Plus className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 font-medium px-1">
-          Budgets are assigned to categories and tracked per calendar month. Spent amounts reset to zero on the 1st of every month.
-        </p>
+    <div className="space-y-8">
+      {/* View Switcher */}
+      <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl w-fit">
+        <button
+          onClick={() => setActiveView('limits')}
+          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+            activeView === 'limits' 
+              ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm' 
+              : 'text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          <Target className="w-4 h-4" />
+          Limits
+        </button>
+        <button
+          onClick={() => setActiveView('performance')}
+          className={`flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+            activeView === 'performance' 
+              ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm' 
+              : 'text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          <BarChart2 className="w-4 h-4" />
+          Analytics
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {budgets.map((budget) => (
-          <div key={budget.id} className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4 group">
-            <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl text-indigo-600 dark:text-indigo-400">
-              <Target className="w-5 h-5" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-bold text-gray-900 dark:text-white">{budget.category}</p>
-              <p className="text-xs text-gray-400 dark:text-gray-500">{budget.period}</p>
-            </div>
-            <div className="text-right flex flex-col items-end gap-1">
-              <p className="text-sm font-black text-gray-900 dark:text-white">{getCurrencySymbol(displayCurrency)}{budget.amount.toLocaleString()}</p>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
-                  onClick={() => handleEdit(budget)}
-                  className="p-1 text-gray-400 hover:text-black dark:hover:text-white"
-                >
-                  <Edit2 className="w-3 h-3" />
-                </button>
-                <button 
-                  onClick={() => budget.id && setDeletingId(budget.id)}
-                  className="p-1 text-red-400 hover:text-red-600"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
+      <AnimatePresence mode="wait">
+        {activeView === 'limits' ? (
+          <motion.div
+            key="limits-view"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+          >
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Spending Limits</h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsFraming(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl font-bold text-sm hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all shadow-sm"
+                  >
+                    <Layout className="w-4 h-4" />
+                    AI Framing
+                  </button>
+                  <button
+                    onClick={() => setIsAdding(true)}
+                    className="p-2 bg-black dark:bg-white text-white dark:text-black rounded-xl hover:bg-gray-800 dark:hover:bg-gray-100 transition-all active:scale-95 shadow-lg"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 font-medium px-1">
+                Budgets are assigned to categories and tracked per calendar month. Spent amounts reset to zero on the 1st of every month.
+              </p>
             </div>
-          </div>
-        ))}
-      </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {budgets.map((budget) => (
+                <div key={budget.id} className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4 group">
+                  <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl text-indigo-600 dark:text-indigo-400">
+                    <Target className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">{budget.category}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">{budget.period}</p>
+                  </div>
+                  <div className="text-right flex flex-col items-end gap-1">
+                    <p className="text-sm font-black text-gray-900 dark:text-white">{getCurrencySymbol(displayCurrency)}{budget.amount.toLocaleString()}</p>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => handleEdit(budget)}
+                        className="p-1 text-gray-400 hover:text-black dark:hover:text-white"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
+                      <button 
+                        onClick={() => budget.id && setDeletingId(budget.id)}
+                        className="p-1 text-red-400 hover:text-red-600"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="performance-view"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <BudgetPerformance 
+              budgets={budgets} 
+              transactions={transactions} 
+              accounts={accounts} 
+              displayCurrency={displayCurrency} 
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {deletingId && (
