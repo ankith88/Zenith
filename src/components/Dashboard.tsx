@@ -4,10 +4,14 @@ import {
   BarChart, Bar, Cell, PieChart, Pie
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
-import { TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Landmark, Banknote, Trash2, Edit2, Target, X, Home, Briefcase, Car, Sparkles, ShieldCheck, Zap, Sparkles as SparklesIcon } from 'lucide-react';
+import { 
+  TrendingUp, TrendingDown, Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, Loader2, Landmark, Banknote, Trash2, Edit2, Target, X, Home, Briefcase, Car, Sparkles, ShieldCheck, Zap, Sparkles as SparklesIcon,
+  Utensils, ShoppingBag, Film, HeartPulse, GraduationCap, Plane, Coffee, ArrowLeftRight, DollarSign
+} from 'lucide-react';
 import { Transaction, Account, Budget, RecurringTransaction, Goal, Milestone, db } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
 import { formatLocalDate, convertCurrency, getCurrencySymbol } from '../lib/utils';
+import { getCategoryIcon } from '../constants';
 import { analystService } from '../lib/gemini';
 import AccountManager from './AccountManager';
 
@@ -38,6 +42,7 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
   const [projectionError, setProjectionError] = useState<string | null>(null);
   const [showLiquidBreakdown, setShowLiquidBreakdown] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [summaryTypeFilter, setSummaryTypeFilter] = useState<'All' | 'Income' | 'Expense'>('All');
 
   const investments = useLiveQuery(() => db.investments.toArray()) || [];
   const assets = useLiveQuery(() => db.assets.toArray()) || [];
@@ -491,37 +496,62 @@ export default function Dashboard({ transactions, accounts, budgets, recurring, 
           
           {/* Recent Transactions Table */}
           <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
-              <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">Recent Transactions</h3>
+            <div className="p-6 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-4">
+                <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">Activity</h3>
+                <div className="flex items-center gap-1 p-1 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                  {['All', 'Income', 'Expense'].map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setSummaryTypeFilter(tab as any)}
+                      className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                        summaryTypeFilter === tab 
+                          ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm' 
+                          : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <button 
                 onClick={onViewAllTransactions}
-                className="text-[10px] font-black text-gray-400 hover:text-black dark:hover:text-white transition-colors uppercase tracking-widest"
+                className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 hover:underline transition-colors uppercase tracking-widest"
               >
-                Go to Ledger
+                Full History
               </button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                  {transactions.slice(-6).reverse().map((t) => (
+                  {transactions
+                    .filter(t => summaryTypeFilter === 'All' || t.type === summaryTypeFilter)
+                    .slice(-8).reverse().map((t) => (
                     <tr key={t.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-xl shrink-0 ${
-                            t.type === 'Income' ? 'bg-emerald-50 text-emerald-600' : 
-                            t.type === 'Expense' ? 'bg-red-50 text-red-600' : 'bg-indigo-50 text-indigo-600'
+                          <div className={`w-9 h-9 p-2 rounded-xl shrink-0 shadow-sm flex items-center justify-center ${
+                            t.type === 'Income' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' : 
+                            t.type === 'Expense' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' : 
+                            'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400'
                           }`}>
-                            {t.type === 'Income' ? <ArrowUpRight className="w-3.5 h-3.5" /> : 
-                             t.type === 'Expense' ? <ArrowDownLeft className="w-3.5 h-3.5" /> : 
-                             <RefreshCw className="w-3.5 h-3.5" />}
+                            <div className="w-4 h-4">
+                              {getCategoryIcon(t.category, t.type)}
+                            </div>
                           </div>
                           <div className="flex flex-col min-w-0">
                             <span className="text-sm font-bold text-gray-900 dark:text-white truncate">{t.description}</span>
-                            <span className="text-[10px] font-bold text-gray-400">{t.date}</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-gray-400">{t.date}</span>
+                                <span className="text-[10px] font-bold text-gray-400 uppercase bg-gray-50 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                                    {getAccountName(t.accountId)}
+                                </span>
+                            </div>
                           </div>
                         </div>
                       </td>
-                      <td className={`px-6 py-4 text-sm font-black text-right ${
+                      <td className={`px-6 py-4 text-sm font-black text-right whitespace-nowrap ${
                         t.type === 'Income' ? 'text-emerald-600' : 
                         t.type === 'Expense' ? 'text-red-600' : 'text-indigo-600'
                       }`}>

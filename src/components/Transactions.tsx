@@ -1,9 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Filter, ArrowUpRight, ArrowDownLeft, RefreshCw, Edit2, Trash2, X, Download, Calendar as CalendarIcon } from 'lucide-react';
+import { 
+  Search, Filter, ArrowUpRight, ArrowDownLeft, RefreshCw, Edit2, 
+  Trash2, X, Download, Calendar as CalendarIcon, Wallet, ArrowLeftRight
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Transaction, Account, db } from '../lib/db';
 import { sheetsService } from '../lib/sheets';
 import { getCurrencySymbol, convertCurrency } from '../lib/utils';
+import { getCategoryIcon } from '../constants';
 
 interface TransactionsProps {
   transactions: Transaction[];
@@ -130,12 +134,27 @@ export default function Transactions({ transactions, accounts, displayCurrency }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h3 className="text-2xl font-black text-gray-900 dark:text-white">All Transactions</h3>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="flex items-center gap-4 p-1.5 bg-gray-100 dark:bg-gray-800 rounded-2xl w-fit">
+          {['All', 'Income', 'Expense', 'Transfer'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setTypeFilter(tab as any)}
+              className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                typeFilter === tab 
+                  ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm' 
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+        
         <div className="flex items-center gap-3">
           <button
             onClick={exportToCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95"
           >
             <Download className="w-4 h-4" />
             Export CSV
@@ -144,11 +163,11 @@ export default function Transactions({ transactions, accounts, displayCurrency }
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="relative lg:col-span-2">
+        <div className="relative lg:col-span-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search transactions..."
+            placeholder="Search description..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-black dark:focus:ring-white text-gray-900 dark:text-white outline-none transition-all"
@@ -157,22 +176,9 @@ export default function Transactions({ transactions, accounts, displayCurrency }
         <div className="relative">
           <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as any)}
-            className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-black dark:focus:ring-white text-gray-900 dark:text-white outline-none transition-all appearance-none"
-          >
-            <option value="All">All Types</option>
-            <option value="Income">Income</option>
-            <option value="Expense">Expense</option>
-            <option value="Transfer">Transfer</option>
-          </select>
-        </div>
-        <div className="relative">
-          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-black dark:focus:ring-white text-gray-900 dark:text-white outline-none transition-all appearance-none"
+            className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-black dark:focus:ring-white text-gray-900 dark:text-white outline-none transition-all appearance-none font-bold text-sm"
           >
             <option value="All">All Categories</option>
             {categories.map(cat => (
@@ -185,7 +191,7 @@ export default function Transactions({ transactions, accounts, displayCurrency }
           <select
             value={accountFilter}
             onChange={(e) => setAccountFilter(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-black dark:focus:ring-white text-gray-900 dark:text-white outline-none transition-all appearance-none"
+            className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-black dark:focus:ring-white text-gray-900 dark:text-white outline-none transition-all appearance-none font-bold text-sm"
           >
             <option value="All">All Accounts</option>
             {accounts.map(acc => (
@@ -193,28 +199,25 @@ export default function Transactions({ transactions, accounts, displayCurrency }
             ))}
           </select>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="relative">
-          <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-black dark:focus:ring-white text-gray-900 dark:text-white outline-none transition-all"
-          />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 uppercase">Start Date</span>
-        </div>
-        <div className="relative">
-          <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm focus:ring-2 focus:ring-black dark:focus:ring-white text-gray-900 dark:text-white outline-none transition-all"
-          />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 uppercase">End Date</span>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="relative">
+            <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full pl-10 pr-2 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl text-[10px] font-bold outline-none"
+            />
+          </div>
+          <div className="relative">
+            <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full pl-10 pr-2 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl text-[10px] font-bold outline-none"
+            />
+          </div>
         </div>
       </div>
 
@@ -234,18 +237,17 @@ export default function Transactions({ transactions, accounts, displayCurrency }
             <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
               {filteredTransactions.map((t) => (
                 <tr key={t.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors group">
-                  <td className="px-8 py-4 text-sm text-gray-500 dark:text-gray-400">{t.date}</td>
+                  <td className="px-8 py-4 text-sm text-gray-400 font-bold tabular-nums">{t.date}</td>
                   <td className="px-8 py-4">
                     <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-xl ${
-                        t.type === 'Income' ? 'bg-emerald-50 dark:bg-emerald-900/20' : 
-                        t.type === 'Expense' ? 'bg-red-50 dark:bg-red-900/20' : 'bg-indigo-50 dark:bg-indigo-900/20'
+                      <div className={`w-10 h-10 p-2.5 rounded-2xl transition-all shadow-sm shrink-0 flex items-center justify-center ${
+                        t.type === 'Income' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 
+                        t.type === 'Expense' ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400' : 
+                        'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400'
                       }`}>
-                        {t.type === 'Income' ? <ArrowUpRight className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : 
-                         t.type === 'Expense' ? <ArrowDownLeft className="w-4 h-4 text-red-600 dark:text-red-400" /> : 
-                         <RefreshCw className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
+                        {getCategoryIcon(t.category, t.type)}
                       </div>
-                      <span className="font-medium text-gray-900 dark:text-white">{t.description}</span>
+                      <span className="font-bold text-gray-900 dark:text-white">{t.description}</span>
                     </div>
                   </td>
                   <td className="px-8 py-4">
