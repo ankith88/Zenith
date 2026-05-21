@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LayoutDashboard, MessageSquare, Plus, Settings as SettingsIcon, LogOut, User, Menu, X, Loader2, Tag, TrendingUp, 
   ChevronLeft, ChevronRight, Sun, Moon, Home, Car, BarChart3, Globe, Layout,
-  ArrowRightLeft, Search, Calendar, ShieldCheck, TrendingDown, Palette, Rocket, Target
+  ArrowRightLeft, Search, Calendar, ShieldCheck, TrendingDown, Palette, Rocket, Target, Wallet
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -33,12 +33,13 @@ import ErrorBoundary from './components/ErrorBoundary';
 import BillCalendar from './components/BillCalendar';
 
 import HoldingsManager from './components/HoldingsManager';
+import AccountManager from './components/AccountManager';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isInitialSyncComplete, setIsInitialSyncComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'holdings' | 'chat' | 'categories' | 'settings' | 'transfers' | 'reports' | 'subscriptions' | 'calendar' | 'debt' | 'transactions' | 'budgets' | 'planning'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'accounts' | 'holdings' | 'chat' | 'categories' | 'settings' | 'transfers' | 'reports' | 'subscriptions' | 'calendar' | 'debt' | 'transactions' | 'budgets' | 'planning'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('zenith_sidebar_collapsed');
@@ -486,6 +487,14 @@ export default function App() {
               {!isSidebarCollapsed && <span>Dashboard</span>}
             </button>
             <button
+              onClick={() => { setActiveTab('accounts'); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'accounts' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Accounts"
+            >
+              <Wallet className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span>Accounts</span>}
+            </button>
+            <button
               onClick={() => { setActiveTab('budgets'); setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${activeTab === 'budgets' ? 'bg-black dark:bg-white text-white dark:text-black shadow-xl shadow-black/10' : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'} ${isSidebarCollapsed ? 'justify-center' : ''}`}
               title="Budgets"
@@ -746,6 +755,20 @@ export default function App() {
                   displayCurrency={displayCurrency}
                   isDarkMode={isDarkMode}
                   onViewAllTransactions={() => setActiveTab('transactions')}
+                />
+              </motion.div>
+            ) : activeTab === 'accounts' ? (
+              <motion.div
+                key="accounts"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="h-full p-6 lg:p-8 overflow-y-auto"
+              >
+                <AccountManager 
+                  accounts={accounts} 
+                  accountBalances={accountBalances} 
+                  displayCurrency={displayCurrency} 
                 />
               </motion.div>
             ) : activeTab === 'transactions' ? (
